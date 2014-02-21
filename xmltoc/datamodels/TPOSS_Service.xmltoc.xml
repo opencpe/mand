@@ -1,0 +1,44 @@
+<!-- TPOSS service related mappings -->
+
+<mappings>
+	<objects>
+		<object path="InternetGatewayDevice.Services.TPOSS." abbr="TP"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.ManagementServer_Bootstrap." abbr="MgtSrvBS"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.HotSpotConfig." abbr="HSCfg"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.HotSpotConfig.LANDevice." abbr="LANDev"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.HotSpotConfig.LANDevice.{i}.Urls." abbr="Urls"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.HotSpotConfig.LANDevice.{i}.WalledGarden." abbr="WG"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap." abbr="IfMap"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.InterfaceType." abbr="IfType"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Interface." abbr="If"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Interface.{i}.Device." abbr="Dev"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Layer2Bridge." abbr="L2Bridge"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Layer2Bridge.{i}.SpanningTree." abbr="Stp"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.Switch." abbr="Switch"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.Switch.{i}.PortMap." abbr="SWPortMap"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.Switch.{i}.PortMap.{i}.TaggedVLAN." abbr="PortVLan"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.VLAN." abbr="VLAN"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.VLAN.VLANs." abbr="VLANs"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.AntennaSelectionModes." abbr="ASM"/>
+		<object path="InternetGatewayDevice.Services.TPOSS.{i}.AntennaSelectionModes.Modes." abbr="Modes"/>
+	</objects>
+
+	<selectors>
+		<selector path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Interface.{i}.Device.{i}." name="DeviceReference"/>
+		<selector path="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap.Layer2Bridge.{i}." name="DeviceReference"/>
+		<selector path="InternetGatewayDevice.Services.TPOSS.{i}.Switch.{i}.PortMap.{i}." name="VLAN"/>
+		<selector path="InternetGatewayDevice.Services.TPOSS.{i}.Switch.{i}.PortMap.{i}.TaggedVLAN.{i}." name="VLAN"/>
+		<selector path="InternetGatewayDevice.Services.TPOSS.{i}.VLAN.VLANs.{i}." name="Device"/>
+	</selectors>
+
+	<!-- creates object entries in "to" pointing to the same tree as "from" -->
+	<links>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.HotSpotConfig.LANDevice.{i}." to="InternetGatewayDevice.LANDevice.{i}.HotSpotConfig." abbr="_IGD_LANDev_i_HSCfg"/>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.InterfaceMap." to="InternetGatewayDevice.X_TPOSS_InterfaceMap." abbr="_IGD_IfMap"/>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.ManagementServer_Bootstrap." to="InternetGatewayDevice.ManagementServer.X_TPOSS_Bootstrap." abbr="_IGD_X_TPBS"/>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.Switch.{i}." to="InternetGatewayDevice.X_TPOSS_Switch.{i}." abbr="_IGD_Switch_i"/>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.VLAN." to="InternetGatewayDevice.X_TPOSS_VLAN." abbr="_IGD_VLAN"/>
+		<link from="InternetGatewayDevice.Services.TPOSS.{i}.AntennaSelectionModes." to="InternetGatewayDevice.X_TPOSS_AntennaSelectionModes." abbr="_IGD_ASM"/>
+	</links>
+</mappings>
+

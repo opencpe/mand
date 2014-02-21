@@ -1,0 +1,82 @@
+TPLINO-SCG-ZONE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    enterprises, IpAddress, Gauge, TimeTicks    FROM RFC1155-SMI
+    DisplayString                               FROM RFC1213-MIB
+    OBJECT-TYPE                                 FROM RFC-1212;
+
+    Travelping       OBJECT IDENTIFIER ::= { enterprises 18681 }
+
+    SCG             OBJECT IDENTIFIER ::= { Travelping 1 }
+
+zoneAccessClassTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF ZoneAccessClassEntry
+    ACCESS      not-accessible
+    STATUS      mandatory
+    DESCRIPTION
+        "SCG Zone Table"
+    INDEX { zoneInstance,
+    	    zoneAccessClassInstance }
+    ::= { SCG 1 }
+
+zoneAccessClassEntry OBJECT-TYPE
+    SYNTAX      ZoneAccessClassEntry
+    ACCESS      not-accessible
+    STATUS      mandatory
+    DESCRIPTION
+        "SCG Zone Table"
+    INDEX { zoneInstance,
+    	    zoneAccessClassInstance }
+    ::= { zoneAccessClassTable 1 }
+
+ZoneAccessClassEntry ::= SEQUENCE {
+    zoneInstance              INTEGER,
+    zoneAccessClassInstance   INTEGER,
+    zoneAccessClassId         DisplayString,
+    zoneAccessClassDescr      DisplayString,
+    zoneAccessClassClients    Gauge32
+}
+
+zoneInstance OBJECT-TYPE
+       SYNTAX      INTEGER
+       MAX-ACCESS  not-accessible
+       STATUS      current
+       DESCRIPTION
+               "The Zone Instance Number"
+           ::= { zoneAccessClassEntry 1 }
+
+zoneAccessClassInstance OBJECT-TYPE
+       SYNTAX      INTEGER
+       MAX-ACCESS  not-accessible
+       STATUS      current
+       DESCRIPTION
+               "The Zone Access Class Instance Number"
+           ::= { zoneAccessClassEntry 2 }
+
+zoneAccessClassId OBJECT-TYPE
+       SYNTAX      DisplayString
+       MAX-ACCESS  read-only
+       STATUS      current
+       DESCRIPTION
+               "The Access Class Id."
+           ::= { zoneAccessClassEntry 3 }
+
+zoneAccessClassDescr OBJECT-TYPE
+       SYNTAX      DisplayString
+       MAX-ACCESS  read-only
+       STATUS      current
+       DESCRIPTION
+               "The Access Class Description."
+           ::= { zoneAccessClassEntry 4 }
+
+zoneAccessClassClients OBJECT-TYPE
+       SYNTAX      Gauge32
+       UNITS       "clients"
+       MAX-ACCESS  read-only
+       STATUS      current
+       DESCRIPTION
+               "The number of clients in this Access Class"
+           ::= { zoneAccessClassEntry 5 }
+
+END
+

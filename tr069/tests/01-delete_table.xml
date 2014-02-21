@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<InternetGatewayDevice>
+    <X_TPOSS_InterfaceMap>
+        <Interface instance='1'>
+            <Name>eth0</Name>
+            <Device instance='1'>
+                <DeviceReference>InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1</DeviceReference>
+            </Device>
+        </Interface>
+        <Interface instance='2'>
+            <Name>eth1</Name>
+            <Device instance='1'>
+                <DeviceReference>InternetGatewayDevice.LANDevice.2.LANEthernetInterfaceConfig.1</DeviceReference>
+            </Device>
+        </Interface>
+        <Interface instance='3'>
+            <Name>eth2</Name>
+            <Device instance='1'>
+                <DeviceReference>InternetGatewayDevice.LANDevice.1.LANEthernetInterfaceConfig.1</DeviceReference>
+            </Device>
+        </Interface>
+    </X_TPOSS_InterfaceMap>
+</InternetGatewayDevice>

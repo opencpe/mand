@@ -1,0 +1,12 @@
+#! /bin/sh
+
+autoheader
+aclocal
+automake --add-missing
+autoconf
+./configure
+
+echo "Please run the following command now:"
+echo "make"
+
+

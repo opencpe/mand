@@ -1,0 +1,575 @@
+<?xml version="1.0"?>
+
+<!--
+       __                        __      _
+      / /__________ __   _____  / /___  (_)___  ____ _
+     / __/ ___/ __ `/ | / / _ \/ / __ \/ / __ \/ __ `/
+    / /_/ /  / /_/ /| |/ /  __/ / /_/ / / / / / /_/ /
+    \__/_/   \__,_/ |___/\___/_/ .___/_/_/ /_/\__, /
+                              /_/            /____/
+
+    (c) Travelping GmbH <info@travelping.com>
+
+-->
+
+<dictionary xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:noNamespaceSchemaLocation="dictionary.xsd">
+
+	<vendor name="Travelping" id="18681" description="Travelping GmbH"/>
+
+	<base>
+		<!-- SET commands contain lists of AVP_CONTAINER AVPs -->
+		<command name="DB-Set" code="300">
+			<!-- TODO -->
+		</command>
+		<!-- GET commands contain lists of AVP_TYPE_PATH AVPs -->
+		<command name="DB-Get" code="301">
+			<!-- TODO -->
+		</command>
+		<command name="DB-List" code="302">
+			<!-- TODO -->
+		</command>
+		<command name="DB-Retrieve-Enums" code="303">
+			<!-- TODO -->
+		</command>
+		<command name="DB-Dump" code="304">
+			<!-- TODO -->
+		</command>
+		<command name="DB-AddInstance" code="305">
+			<!-- TODO -->
+		</command>
+		<command name="DB-DelInstance" code="306">
+			<!-- TODO -->
+		</command>
+		<command name="DB-Commit" code="307">
+			<!-- TODO -->
+		</command>
+		<command name="DB-Cancel" code="308">
+			<!-- TODO -->
+		</command>
+		<command name="DB-Save" code="309">
+			<!-- TODO -->
+		</command>
+		<command name="DB-FindInstance" code="310">
+			<!-- TODO -->
+		</command>
+
+		<command name="StartSession" code="320">
+			<!-- TODO -->
+		</command>
+		<command name="EndSession" code="321">
+			<!-- TODO -->
+		</command>
+		<command name="SwitchSession" code="322">
+			<!-- TODO -->
+		</command>
+		<command name="SessionInfo" code="323">
+			<!-- TODO -->
+		</command>
+		<command name="CfgSessionInfo" code="324">
+			<!-- TODO -->
+		</command>
+
+		<command name="Subscribe-Notify" code="330">
+			<!-- TODO -->
+		</command>
+		<command name="Unsubscribe-Notify" code="331">
+			<!-- TODO -->
+		</command>
+		<command name="Param-Notify" code="332">
+			<!-- TODO -->
+		</command>
+		<command name="Recursive-Param-Notify" code="333">
+			<!-- TODO -->
+		</command>
+		<command name="Get-Passive-Notifications" code="334">
+			<!-- TODO -->
+		</command>
+
+		<command name="Subscribe-GW-Notify" code="335">
+			<!-- TODO -->
+		</command>
+		<command name="Unsubscribe-GW-Notify" code="336">
+			<!-- TODO -->
+		</command>
+		<command name="Gateway-Notify" code="337">
+			<!-- TODO -->
+		</command>
+
+		<!-- a number of possible actions can be achieved by sending empty
+			 diameter headers
+			 there's no need in complicating the protocol (except if someday, you want to
+			 send a list of commands)... -->
+		<command name="Dev-BootStrap" code="340">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-WANUp" code="341">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-WANDown" code="342">
+			<!-- TODO -->
+		</command>
+		<!--
+		<command name="Dev-WANRestart" code="343"/>
+		-->
+		<command name="Dev-SysUp" code="344">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-GetDevice" code="345">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-Boot" code="346">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-Reboot" code="347">
+			<!-- TODO -->
+		</command>
+		<!-- currently only contains one AVP_HOTPLUGCMD
+			 (string that can be parsed by "hotplug") -->
+		<command name="Dev-Hotplug" code="348">
+			<!-- TODO -->
+		</command>
+
+		<!-- contains an AVP_STRING (interface name) -->
+		<command name="Dev-DHCP-Info" code="349">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-DHCP-Circuit" code="350">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-DHCP-Remote" code="351">
+			<!-- TODO -->
+		</command>
+
+		<command name="Dev-Conf-Save" code="352">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-Conf-Restore" code="353">
+			<!-- TODO -->
+		</command>
+
+		<command name="GW-New-Client" code="380">
+			<!-- TODO -->
+		</command>
+		<command name="GW-Del-Client" code="381">
+			<!-- TODO -->
+		</command>
+		<command name="GW-Get-All-Clients" code="382">
+			<!-- TODO -->
+		</command>
+		<command name="GW-Get-Client" code="383">
+			<!-- TODO -->
+		</command>
+		<command name="GW-Client-Req-AccessClass" code="384">
+			<!-- TODO -->
+		</command>
+		<command name="GW-Client-Set-AccessClass" code="385">
+			<!-- TODO -->
+		</command>
+		<command name="GW-HeartBeat" code="386">
+			<!-- TODO -->
+		</command>
+		<command name="GW-SOL-Inform" code="387">
+			<!-- TODO -->
+		</command>
+
+		<!-- new client has been ACK'd -->
+		<command name="DHCP-Client-ACK" code="390">
+			<!-- TODO -->
+		</command>
+		<!-- client released IP -->
+		<command name="DHCP-Client-Release" code="391">
+			<!-- TODO -->
+		</command>
+		<!-- client expired -->
+		<command name="DHCP-Client-Expire" code="392">
+			<!-- TODO -->
+		</command>
+
+		<command name="Dev-Reset" code="400">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-FWUpdate" code="401">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-Ping" code="402">
+			<!-- TODO -->
+		</command>
+		<!-- FIXME -->
+		<command name="Dev-Ping-Abort" code="403">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-TraceRoute" code="404">
+			<!-- TODO -->
+		</command>
+		<!-- FIXME -->
+		<command name="Dev-TraceRoute-Abort" code="405">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-PCap" code="406">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-PCap-Abort" code="407">
+			<!-- TODO -->
+		</command>
+
+		<command name="Dev-DHCPC-Renew" code="450">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-DHCPC-Release" code="451">
+			<!-- TODO -->
+		</command>
+		<command name="Dev-DHCPC-Restart" code="452">
+			<!-- TODO -->
+		</command>
+
+		<!-- command codes accepted by clients -->
+		<command name="Client-Active-Notify" code="1000">
+			<!-- TODO -->
+		</command>
+		<command name="Client-Gateway-Notify" code="1001">
+			<!-- TODO -->
+		</command>
+		<command name="Client-FWUpdate-Finish" code="1002">
+			<!-- TODO -->
+		</command>
+		<command name="Client-FWUpdate-Progress" code="1003">
+			<!-- TODO -->
+		</command>
+		<command name="Client-Ping" code="1004">
+			<!-- TODO -->
+		</command>
+		<command name="Client-Ping-Completed" code="1005">
+			<!-- TODO -->
+		</command>
+		<command name="Client-TraceRoute" code="1006">
+			<!-- TODO -->
+		</command>
+		<command name="Client-TraceRoute-Completed" code="1007">
+			<!-- TODO -->
+		</command>
+		<command name="Client-PCap-Aborted" code="1008">
+			<!-- TODO -->
+		</command>
+
+		<!-- PAYLOAD TYPES -->
+
+		<typedefn type-name="Any"/>
+
+		<typedefn type-name="OctetString"/>
+		<typedefn type-name="ASCIIString" type-parent="OctetString"/>
+
+		<typedefn type-name="Integer8"/>
+		<typedefn type-name="Unsigned8"/>
+		<typedefn type-name="Integer16"/>
+		<typedefn type-name="Unsigned16"/>
+		<typedefn type-name="Integer32"/>
+		<typedefn type-name="Unsigned32"/>
+		<typedefn type-name="Integer64"/>
+		<typedefn type-name="Unsigned64"/>
+
+		<typedefn type-name="Boolean8" type-parent="Unsigned8"/>
+		<typedefn type-name="Boolean32" type-parent="Unsigned32"/>
+
+		<typedefn type-name="Float32"/>
+		<typedefn type-name="Float64"/>
+
+		<typedefn type-name="Time" type-parent="Unsigned32"/>
+		<typedefn type-name="TimeValue"/>
+
+		<typedefn type-name="Enumerated" type-parent="Unsigned32"/>
+
+		<typedefn type-name="IPAddress"/>
+
+		<typedefn type-name="TypePath"/>
+
+		<typedefn type-name="Type"/>
+
+		<!-- dummy -->
+		<avp name="AVP" code="0">
+			<type type-name="Any"/>
+		</avp>
+
+		<!-- TYPE AVPS: ESPECIALLY USED FOR DATAMODEL TYPES -->
+
+		<avp name="Path" code="1000" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<!-- type paths: first 4 bytes AVP code (requested type) followed by a path string -->
+		<avp name="Type-Path" code="1001" vendor-id="18681">
+			<type type-name="TypePath"/>
+		</avp>
+		<avp name="Counter" code="1004" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="EnumId" code="1005" vendor-id="18681">
+			<type type-name="Integer32"/>
+		</avp>
+		<avp name="Enum" code="1006" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="String" code="1007" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="Address" code="1008" vendor-id="18681">
+			<type type-name="IPAddress"/>
+		</avp>
+		<avp name="Bool" code="1009" vendor-id="18681">
+			<type type-name="Boolean8"/>
+		</avp>
+		<avp name="Date" code="1010" vendor-id="18681">
+			<type type-name="Time"/>
+		</avp>
+
+		<!-- MISC TYPE AVPS -->
+
+		<avp name="Timeval" code="1011" vendor-id="18681">
+			<type type-name="TimeValue"/>
+		</avp>
+
+		<!-- SPECIAL UBIQUITOUS AVPs -->
+
+		<avp name="RC" code="1012" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<enum name="RC-OK"                          code="0"/>
+			<enum name="RC-Err-Connection"              code="4"/>
+			<enum name="RC-Err-Misc"                    code="5"/> <!-- protocol issues (mostly...) -->
+			<enum name="RC-Err-Alloc"                   code="6"/>
+			<enum name="RC-Err-Invalid-SessionId"       code="11"/>
+			<enum name="RC-Err-Requires-CfgSession"     code="12"/>
+			<enum name="RC-Err-Cannot-Open-CfgSession"  code="13"/>
+			<enum name="RC-Err-Cannot-Subscribe-Notify" code="14"/>
+			<enum name="RC-Err-Requires-Notify"         code="15"/>
+			<enum name="RC-Err-Timeout"                 code="16"/>
+			<enum name="RC-Err-Operation-In-Progress"   code="17"/>
+			<enum name="RC-Err-Hostname-Resolution"     code="18"/>
+		</avp>
+
+		<avp name="SessionId" code="1013" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+
+		<!-- REQUEST SPECIFIC AVPS -->
+
+		<avp name="Notify-Type" code="1014" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<!-- polling (passive notifications) only -->
+			<enum name="Notify-Nothing"           code="0"/>
+			<enum name="Notify-Parameter-Changed" code="1"/>
+			<enum name="Notify-Instance-Deleted"  code="2"/>
+			<enum name="Notify-Instance-Created"  code="3"/>
+		</avp>
+
+		<!-- SPECIAL "UNKNOWN" TYPE AVP -->
+
+		<!-- it's never *returned* as payload type -->
+		<avp name="Unknown" code="1015" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+
+		<!-- MORE TYPE AVPS -->
+
+		<avp name="AbsTicks" code="1016" vendor-id="18681">
+			<type type-name="Integer64"/>
+		</avp>
+		<avp name="RelTicks" code="1017" vendor-id="18681">
+			<type type-name="Integer64"/>
+		</avp>
+		<!-- never used for payload -->
+		<avp name="Pointer" code="1018" vendor-id="18681">
+			<type type-name="Any"/>
+		</avp>
+		<avp name="Binary" code="1019" vendor-id="18681">
+			<type type-name="OctetString"/>
+		</avp>
+
+		<!-- REQUEST SPECIFIC AVPS -->
+
+		<avp name="HotplugCmd" code="1020" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+
+		<!-- SPECIAL GENERAL PURPOSE GROUP AVP -->
+
+		<avp name="Container" code="1025" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+
+		<!-- REQUEST SPECIFIC AVPS -->
+
+		<!-- AVP_CONTAINERs returned by a LIST request contain the following AVPs -->
+		<avp name="Node-Name" code="1030" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="Node-Type" code="1031" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<enum name="Node-Object"    code="1"/>
+			<enum name="Node-Table"     code="2"/>
+			<enum name="Node-Parameter" code="3"/>
+		</avp>
+		<avp name="Node-DataType" code="1032" vendor-id="18681">
+			<type type-name="Type"/>
+		</avp>
+		<avp name="Node-Size" code="1033" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+
+		<!-- start and switch session requests may contain two timeval AVPs -->
+		<avp name="Timeout-Session" code="1040" vendor-id="18681">
+			<type type-name="TimeValue"/>
+		</avp>
+		<avp name="Timeout-Request" code="1041" vendor-id="18681">
+			<type type-name="TimeValue"/>
+		</avp>
+
+		<avp name="FWUpdate-Step" code="1050" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<!-- fwupdate progress feedback state codes
+					 codes defined in ftools.h are mapped to them -->
+			<enum name="FWUpdate-Step-Unknown" code="0"/>
+			<enum name="FWUpdate-Step-Sign"    code="1"/>
+			<enum name="FWUpdate-Step-CRC"     code="2"/>
+			<enum name="FWUpdate-Step-Erase"   code="3"/>
+			<enum name="FWUpdate-Step-Write"   code="4"/>
+		</avp>
+
+		<!-- "GATEWAY" AVPS -->
+
+		<avp name="GW-Zone" code="2000" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="GW-Client-Id" code="2001" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="GW-Obj-Id" code="2002" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-NATIPAddress" code="2003" vendor-id="18681">
+			<type type-name="IPAddress"/>
+		</avp>
+		<avp name="GW-IPAddress" code="2004" vendor-id="18681">
+			<type type-name="IPAddress"/>
+		</avp>
+		<avp name="GW-MACAddress" code="2005" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-Token" code="2006" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-AcctSessionId" code="2007" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-SessionId" code="2008" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-Username" code="2009" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-Password" code="2010" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-UserAgent" code="2011" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-AgentCircuitId" code="2012" vendor-id="18681">
+			<type type-name="OctetString"/>
+		</avp>
+		<avp name="GW-AgentRemoteId" code="2013" vendor-id="18681">
+			<type type-name="OctetString"/>
+		</avp>
+		<avp name="GW-LocationId" code="2014" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-AccessClass" code="2015" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="GW-Removed" code="2016" vendor-id="18681">
+			<type type-name="Boolean32"/>
+		</avp>
+		<avp name="GW-Timeout" code="2017" vendor-id="18681">
+			<type type-name="TimeValue"/>
+		</avp>
+
+		<!-- DHCP-Client command AVPS -->
+
+		<avp name="DHCP-IPAddress" code="2100" vendor-id="18681">
+			<type type-name="IPAddress"/>
+		</avp>
+		<avp name="DHCP-MACAddress" code="2101" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-Client-Id" code="2102" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-Remote-Id" code="2103" vendor-id="18681">
+			<type type-name="OctetString"/>
+		</avp>
+		<avp name="DHCP-Circuit-Id" code="2104" vendor-id="18681">
+			<type type-name="OctetString"/>
+		</avp>
+		<avp name="DHCP-Hostname" code="2105" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-Expire" code="2106" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="DHCP-Remaining" code="2107" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="DHCP-Interface" code="2108" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-Subscriber-Id" code="2109" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-OptList" code="2110" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+		<avp name="DHCP-OptReqList" code="2111" vendor-id="18681">
+			<type type-name="ASCIIString"/>
+		</avp>
+
+		<!-- INTEGER TYPE AVPS -->
+
+		<avp name="Int8" code="2200" vendor-id="18681">
+			<type type-name="Integer8"/>
+		</avp>
+		<avp name="UInt8" code="2201" vendor-id="18681">
+			<type type-name="Unsigned8"/>
+		</avp>
+		<avp name="Int16" code="2202" vendor-id="18681">
+			<type type-name="Integer16"/>
+		</avp>
+		<avp name="UInt16" code="2203" vendor-id="18681">
+			<type type-name="Unsigned16"/>
+		</avp>
+		<!-- deprecated -->
+		<avp name="Int" code="2204" vendor-id="18681">
+			<type type-name="Integer32"/>
+		</avp>
+		<avp name="Int32" code="2204" vendor-id="18681">
+			<type type-name="Integer32"/>
+		</avp>
+		<!-- deprecated -->
+		<avp name="UInt" code="2205" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="UInt32" code="2205" vendor-id="18681">
+			<type type-name="Unsigned32"/>
+		</avp>
+		<avp name="Int64" code="2206" vendor-id="18681">
+			<type type-name="Integer64"/>
+		</avp>
+		<avp name="UInt64" code="2207" vendor-id="18681">
+			<type type-name="Unsigned64"/>
+		</avp>
+	</base>
+
+	<application id="16777217" name="dmconfig"/>
+</dictionary>

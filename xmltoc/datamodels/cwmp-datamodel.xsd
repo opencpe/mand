@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TR-069 (CWMP) data model XML schema definition -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="urn:dslforum-org:cwmp-datamodel-0-1" targetNamespace="urn:dslforum-org:cwmp-datamodel-0-1" elementFormDefault="unqualified" attributeFormDefault="unqualified">
+  <xs:simpleType name="Type">
+    <xs:annotation>
+      <xs:documentation>Parameter data type.</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:normalizedString">
+      <xs:pattern value="base64"/>
+      <xs:pattern value="boolean"/>
+      <xs:pattern value="dateTime"/>
+      <xs:pattern value="enumeration"/>
+      <xs:pattern value="int"/>
+      <xs:pattern value="ipAddress"/>
+      <xs:pattern value="macAddress"/>
+      <xs:pattern value="string"/>
+      <xs:pattern value="unsignedChar"/>
+      <xs:pattern value="unsignedInt"/>
+      <xs:pattern value="X_\S+"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="ObjectName">
+    <xs:annotation>
+      <xs:documentation>Object name.</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:token">
+      <xs:pattern value="\S+\."/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="ParameterName">
+    <xs:annotation>
+      <xs:documentation>Parameter name.</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:token">
+      <xs:pattern value="[^\s\.]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Units">
+    <xs:annotation>
+      <xs:documentation>Parameter units.</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:normalizedString">
+      <xs:pattern value=""/>
+      <xs:pattern value="0.1%"/>
+      <xs:pattern value="1%"/>
+      <xs:pattern value="10%"/>
+      <xs:pattern value="Mbps"/>
+      <xs:pattern value="bytes"/>
+      <xs:pattern value="cells"/>
+      <xs:pattern value="packets"/>
+      <xs:pattern value="seconds"/>
+      <xs:pattern value="X_\S+"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="BaseEnumval">
+    <xs:annotation>
+      <xs:documentation>Enumeration value (base).</xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="xs:normalizedString">
+        <xs:attribute name="optional" type="xs:boolean" use="optional" default="false"/>
+        <xs:attribute name="deprecated" type="xs:boolean" use="optional" default="false"/>
+        <xs:attribute name="obsoleted" type="xs:boolean" use="optional" default="false"/>
+        <xs:attribute name="comment" type="xs:normalizedString" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  <xs:complexType name="BaseInclude">
+    <xs:annotation>
+      <xs:documentation>Component and profile inclusion (base).</xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="name" type="xs:NCName"/>
+    <xs:attribute name="ref" type="xs:Name" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="BaseObject">
+    <xs:annotation>
+      <xs:documentation>Object definition (base).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="sequence" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="occursParameter" minOccurs="0">
+              <xs:complexType>
+                <xs:attribute name="name" type="xs:NCName" use="required"/>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="minOccurs" type="xs:unsignedInt" minOccurs="0"/>
+            <xs:element name="maxOccurs" type="xs:unsignedInt" minOccurs="0"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="majorVersion" type="xs:unsignedInt">
+      <xs:annotation>
+        <xs:documentation>If absent, inherited from parent.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="minorVersion" type="xs:unsignedInt">
+      <xs:annotation>
+        <xs:documentation>If absent, inherited from parent.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="writable" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="deprecated" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="obsoleted" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:complexType name="BaseParameter">
+    <xs:annotation>
+      <xs:documentation>Parameter definition (base).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:choice minOccurs="0">
+        <xs:element name="syntax" type="tns:SyntaxOld"/>
+        <xs:element name="syntax2" type="tns:SyntaxNew"/>
+      </xs:choice>
+      <xs:element name="units" type="tns:Units" minOccurs="0"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="default" type="xs:normalizedString" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="majorVersion" type="xs:unsignedInt">
+      <xs:annotation>
+        <xs:documentation>If absent, inherited from parent.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="minorVersion" type="xs:unsignedInt">
+      <xs:annotation>
+        <xs:documentation>If absent, inherited from parent.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="writable" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="canDenyNotify" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="deprecated" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="obsoleted" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:complexType name="BaseComponent">
+    <xs:annotation>
+      <xs:documentation>Component definition (base).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="override" type="tns:Override" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="DeviceConfiguration">
+    <xs:annotation>
+      <xs:documentation>Device configuration.</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="include" type="tns:DeviceConfigurationInclude"/>
+        <xs:element name="object" type="tns:ProfileObject">
+          <xs:annotation>
+            <xs:documentation>XXX not sure that this should be permitted</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:NCName" use="required"/>
+    <xs:attribute name="deviceVersion" type="xs:unsignedInt" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="DeviceConfigurationInclude">
+    <xs:annotation>
+      <xs:documentation>Profile inclusion (within device configuration).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseInclude">
+        <xs:attribute name="model" type="xs:Name" use="required"/>
+        <xs:attribute name="rootModel" type="xs:Name"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="Import">
+    <xs:annotation>
+      <xs:documentation>Component and profile import.</xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="model" type="tns:ImportModel"/>
+      <xs:element name="component" type="tns:ImportComponent"/>
+      <xs:element name="profile" type="tns:ImportProfile"/>
+    </xs:choice>
+    <xs:attribute name="namespace" type="xs:NCName" use="required"/>
+    <xs:attribute name="location" type="xs:normalizedString" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="ImportComponent">
+    <xs:annotation>
+      <xs:documentation>Component reference (within import).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseComponent">
+        <xs:attribute name="name" type="xs:Name" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ImportModel">
+    <xs:annotation>
+      <xs:documentation>Model reference (within import).</xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="name" type="xs:Name" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="ImportProfile">
+    <xs:annotation>
+      <xs:documentation>Profile reference (within import).</xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="name" type="xs:Name" use="required"/>
+    <xs:attribute name="model" type="xs:Name" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="Component">
+    <xs:annotation>
+      <xs:documentation>Component definition.</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseComponent">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="include" type="tns:ComponentInclude"/>
+          <xs:element name="object" type="tns:ModelObject"/>
+          <xs:element name="parameter" type="tns:ModelParameter"/>
+        </xs:choice>
+        <xs:attribute name="ref" type="xs:Name" use="optional"/>
+        <xs:attribute name="name" type="xs:NCName" use="required"/>
+        <xs:attribute name="majorVersion" type="xs:unsignedInt" use="required"/>
+        <xs:attribute name="minorVersion" type="xs:unsignedInt" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ComponentInclude">
+    <xs:annotation>
+      <xs:documentation>Component inclusion.</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseInclude">
+        <xs:sequence>
+          <xs:element name="override" type="tns:Override" minOccurs="0"/>
+          <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="object" type="tns:ModelObject"/>
+            <xs:element name="parameter" type="tns:ModelParameter"/>
+          </xs:choice>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="Model">
+    <xs:annotation>
+      <xs:documentation>Data model.</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="include" type="tns:ComponentInclude"/>
+        <xs:element name="object" type="tns:ModelObject"/>
+        <xs:element name="parameter" type="tns:ModelParameter"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:NCName" use="required"/>
+    <xs:attribute name="majorVersion" type="xs:unsignedInt" use="required"/>
+    <xs:attribute name="minorVersion" type="xs:unsignedInt" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="ModelObject">
+    <xs:annotation>
+      <xs:documentation>Object definition (within model).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseObject">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="include" type="tns:ComponentInclude"/>
+          <xs:element name="object" type="tns:ModelObject">
+            <xs:annotation>
+              <xs:documentation>Nested objects are still permitted, but are deprecated.</xs:documentation>
+            </xs:annotation>
+          </xs:element>
+          <xs:element name="parameter" type="tns:ModelParameter"/>
+        </xs:choice>
+        <xs:attribute name="name" type="tns:ObjectName" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ModelParameter">
+    <xs:annotation>
+      <xs:documentation>Parameter definition (within model).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseParameter">
+        <xs:sequence>
+          <xs:element name="values" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                 <xs:element name="value" type="tns:BaseEnumval"/>
+              </xs:sequence>
+              <xs:attribute name="list" type="xs:boolean" use="optional" default="false"/>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="name" type="tns:ParameterName" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="Override">
+    <xs:annotation>
+      <xs:documentation>Component override.</xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="object" type="tns:OverrideObject" nillable="true"/>
+      <xs:element name="parameter" type="tns:OverrideParameter" nillable="true"/>
+    </xs:choice>
+  </xs:complexType>
+  <xs:complexType name="OverrideObject">
+    <xs:annotation>
+      <xs:documentation>Object definition (within override).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseObject">
+        <xs:attribute name="ref" type="tns:ObjectName" use="required"/>
+        <xs:attribute name="name" type="tns:ObjectName"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="OverrideParameter">
+    <xs:annotation>
+      <xs:documentation>Parameter definition (within override).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseParameter">
+        <xs:sequence>
+          <xs:element name="values" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                 <xs:element name="value" type="tns:OverrideEnumval" nillable="true"/>
+              </xs:sequence>
+              <xs:attribute name="list" type="xs:boolean" use="optional" default="false"/>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="ref" type="tns:ParameterName" use="required"/>
+        <xs:attribute name="name" type="tns:ParameterName"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="OverrideEnumval">
+    <xs:annotation>
+      <xs:documentation>Enumeration value (within override).</xs:documentation>
+    </xs:annotation>
+    <xs:simpleContent>
+      <xs:extension base="tns:BaseEnumval">
+        <xs:attribute name="ref" type="xs:normalizedString"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  <xs:complexType name="Profile">
+    <xs:annotation>
+      <xs:documentation>Profile definition.</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="include" type="tns:ProfileInclude" minOccurs="0"/>
+      <xs:element name="object" type="tns:ProfileObject" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:NCName" use="required"/>
+    <xs:attribute name="model" type="xs:Name" use="required"/>
+    <xs:attribute name="modelMajorVersion" type="xs:unsignedInt" use="required"/>
+    <xs:attribute name="modelMinorVersion" type="xs:unsignedInt" use="required"/>
+    <xs:attribute name="profileVersion" type="xs:unsignedInt" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="ProfileInclude">
+    <xs:annotation>
+      <xs:documentation>Profile inclusion (within profile).</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="tns:BaseInclude"/>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ProfileObject">
+    <xs:annotation>
+      <xs:documentation>Object definition (within profile).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="object" type="tns:ProfileObject">
+          <xs:annotation>
+            <xs:documentation>Nested objects are still permitted, but are deprecated.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="parameter" type="tns:ProfileParameter"/>
+      </xs:choice>
+    </xs:sequence>
+    <xs:attribute name="name" type="tns:ObjectName" use="required"/>
+    <xs:attribute name="present" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="addable" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="deletable" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:complexType name="ProfileParameter">
+    <xs:annotation>
+      <xs:documentation>Parameter definition (within profile).</xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="name" type="tns:ParameterName" use="required"/>
+    <xs:attribute name="readable" type="xs:boolean" use="optional" default="false"/>
+    <xs:attribute name="writable" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:complexType name="SyntaxNew">
+    <xs:annotation>
+      <xs:documentation>Parameter syntax specification (new). XXX in progress</xs:documentation>
+    </xs:annotation>
+    <xs:choice minOccurs="0">
+      <xs:annotation>
+        <xs:documentation>XXX how to handle vendor-specific types?</xs:documentation>
+      </xs:annotation>
+      <xs:element name="base64">
+        <xs:complexType>
+          <xs:attribute name="minLength" type="xs:unsignedInt" use="optional"/>
+          <xs:attribute name="maxLength" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="boolean">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="dateTime">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="enumeration">
+        <xs:annotation>
+          <xs:documentation>XXX could / should specify the values here as well?</xs:documentation>
+        </xs:annotation>
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="int">
+        <xs:complexType>
+          <xs:attribute name="minInclusive" type="xs:int" use="optional"/>
+          <xs:attribute name="maxInclusive" type="xs:int" use="optional"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ipAddress">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="macAddress">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="string">
+        <xs:complexType>
+          <xs:attribute name="minLength" type="xs:unsignedInt" use="optional"/>
+          <xs:attribute name="maxLength" type="xs:unsignedInt" use="optional"/>
+          <xs:attribute name="pattern" type="xs:normalizedString" use="optional"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="unsignedByte">
+        <xs:complexType>
+          <xs:attribute name="minInclusive" type="xs:unsignedByte" use="optional"/>
+          <xs:attribute name="maxInclusive" type="xs:unsignedByte" use="optional"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="unsignedInt">
+        <xs:complexType>
+          <xs:attribute name="minInclusive" type="xs:unsignedInt" use="optional"/>
+          <xs:attribute name="maxInclusive" type="xs:unsignedInt" use="optional"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+    <xs:attribute name="hidden" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:complexType name="SyntaxOld">
+    <xs:annotation>
+      <xs:documentation>Parameter syntax specification (old).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="minInclusive" type="xs:unsignedInt" minOccurs="0"/>
+      <xs:element name="maxInclusive" type="xs:unsignedInt" minOccurs="0"/>
+      <xs:element name="minLength" type="xs:unsignedInt" minOccurs="0"/>
+      <xs:element name="maxLength" type="xs:unsignedInt" minOccurs="0"/>
+      <xs:element name="pattern" type="xs:normalizedString" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="type" type="tns:Type" use="required"/>
+    <xs:attribute name="hidden" type="xs:boolean" use="optional" default="false"/>
+  </xs:complexType>
+  <xs:element name="root">
+    <xs:annotation>
+      <xs:documentation>Root element.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="import" type="tns:Import"/>
+        </xs:sequence>
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="component" type="tns:Component"/>
+          <xs:element name="model" type="tns:Model"/>
+          <xs:element name="profile" type="tns:Profile"/>
+          <xs:element name="deviceConfiguration" type="tns:DeviceConfiguration"/>
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="specification" type="xs:Name"/>
+    </xs:complexType>
+    <xs:unique name="importNamespace">
+      <xs:selector xpath="import"/>
+      <xs:field xpath="@namespace"/>
+    </xs:unique>
+    <xs:unique name="modelName">
+      <xs:selector xpath="model|import/model"/>
+      <xs:field xpath="@name"/>
+    </xs:unique>
+    <xs:unique name="componentName">
+      <xs:selector xpath="component|import/component"/>
+      <xs:field xpath="@name"/>
+    </xs:unique>
+    <xs:unique name="profileNameAndModel">
+      <xs:selector xpath="profile|import/profile"/>
+      <xs:field xpath="@name"/>
+      <xs:field xpath="@model"/>
+    </xs:unique>
+    <xs:keyref name="componentRef" refer="tns:componentName">
+      <xs:selector xpath="component/include"/>
+      <xs:field xpath="@ref"/>
+    </xs:keyref>
+    <xs:keyref name="modelRef" refer="tns:modelName">
+      <xs:selector xpath="profile|device"/>
+      <xs:field xpath="@model"/>
+    </xs:keyref>
+    <xs:keyref name="profileProfileRef" refer="tns:profileNameAndModel">
+      <xs:selector xpath="profile"/>
+      <xs:field xpath="include/@ref"/>
+      <xs:field xpath="@model"/>
+    </xs:keyref>
+    <xs:keyref name="deviceProfileRef" refer="tns:profileNameAndModel">
+      <xs:selector xpath="device/include"/>
+      <xs:field xpath="@ref"/>
+      <xs:field xpath="@model"/>
+    </xs:keyref>
+    <xs:keyref name="rootModelRef" refer="tns:modelName">
+      <xs:selector xpath="device/include"/>
+      <xs:field xpath="@rootModel"/>
+    </xs:keyref>
+  </xs:element>
+</xs:schema>
+

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	Example PD-154 XML file
+	deviceConfiguration describes what's supported by the CPE - its complete data model
+-->
+
+<tns:root xmlns:tns="urn:dslforum-org:cwmp-datamodel-0-1"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="urn:dslforum-org:cwmp-datamodel-0-1cwmp-datamodel.xsd"
+	specification="device">
+
+	<!-- Import profiles from TR-098 -->
+	<import namespace="tr098" location="IGD_TR-098.xml">
+		<model name="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:Baseline" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:EthernetLAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:USBLAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:WiFiLAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:ADSLWAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:EthernetWAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:POTSWAN" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:QoS" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:QoSDynamicFlow" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:Bridging" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:Time" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:IPPing" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:ATMLoopback" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:DSLDiagnostics" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:DeviceAssociation" model="tr098:InternetGatewayDevice"/>
+		<profile name="tr098:UDPConnReq" model="tr098:InternetGatewayDevice"/>
+	</import>
+
+	<!-- Import profiles for TPOSS service -->
+	<import namespace="TPOSS" location="TPOSS_Service.xml">
+		<model name="TPOSS:TPOSS"/>
+		<profile name="TPOSS:Baseline" model="TPOSS:TPOSS"/>
+	</import>
+
+	<!-- Both combined describe our CPEs datamodel... -->
+	<deviceConfiguration name="tpolino_CPE" deviceVersion="1">
+		<include ref="tr098:Baseline" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:EthernetLAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:USBLAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:WiFiLAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:ADSLWAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:EthernetWAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:POTSWAN" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:QoS" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:QoSDynamicFlow" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:Bridging" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:Time" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:IPPing" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:ATMLoopback" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:DSLDiagnostics" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:DeviceAssociation" model="tr098:InternetGatewayDevice"/>
+		<include ref="tr098:UDPConnReq" model="tr098:InternetGatewayDevice"/>
+
+		<include ref="TPOSS:Baseline" model="TPOSS:TPOSS" rootModel="tr098:InternetGatewayDevice"/>
+	</deviceConfiguration>
+</tns:root>

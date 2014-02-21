@@ -1,0 +1,50 @@
+<?xml version='1.0'?>
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<xsd:element name="dump">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="object" type="containerType"/>
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:complexType name="containerType">
+		<xsd:all minOccurs="0" maxOccurs="unbounded">
+			<xsd:element name="object" type="containerType"/>
+			<xsd:element name="table" type="containerType"/>
+			<xsd:element name="parameter" type="parameterType"/>
+		</xsd:all>
+		<xsd:attribute name="name" type="xsd:NMTOKEN" use="required"/>
+	</xsd:complexType>
+
+	<xsd:complexType name="parameterType">
+		<xsd:choice>
+			<xsd:element name="enums" type="enumsType"/>
+			<xsd:element name="value" type="xsd:string"/>
+		</xsd:choice>
+		<xsd:attribute name="name" type="xsd:NMTOKEN" use="required"/>
+		<xsd:attribute name="type" type="dataType" use="required"/>
+	</xsd:complexType>
+
+	<xsd:complexType name="enumsType">
+		<xsd:sequence minOccurs="1" maxOccurs="unbounded">
+			<xsd:element name="value" type="xsd:string"/>
+		</xsd:sequence>
+		<xsd:attribute name="chosen" type="xsd:positiveInteger" use="required"/>
+	</xsd:complexType>
+
+	<xsd:simpleType name="dataType">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="boolean"/>
+			<xsd:enumeration value="unsignedinteger"/>
+			<xsd:enumeration value="integer"/>
+			<xsd:enumeration value="counter"/>
+			<xsd:enumeration value="enumeration"/>
+			<xsd:enumeration value="string"/>
+			<xsd:enumeration value="address"/>
+			<xsd:enumeration value="date"/>
+			<xsd:enumeration value="path"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>
