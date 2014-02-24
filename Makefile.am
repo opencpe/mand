@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS = -DWITH_SOAPDEFS_H
 
-SUBDIRS = utils libdmconfig libdmconfig/tests tr069 lua
+SUBDIRS = utils libdmconfig libdmconfig/tests mand lua
 
 LIBTOOL_DEPS = @LIBTOOL_DEPS@
 libtool: $(LIBTOOL_DEPS)

@@ -73,7 +73,7 @@ foreach my $k (sort {$nodes{$a} cmp $nodes{$b} } keys %nodes)
     push(@order, $k);
 }
 
-open(OUT, ">", "tr069/tr069_action_table.h") or die "Can't open 'tr069/tr069_action_table.h'";
+open(OUT, ">", "mand/tr069_action_table.h") or die "Can't open 'mand/tr069_action_table.h'";
 
 print OUT "/*
  *    __                        __      _
@@ -109,7 +109,7 @@ print OUT "};
 
 close(OUT);
 
-open(OUT, ">", "tr069/tr069_action_table.c") or die "Can't open 'tr069/tr069_action_table.c'";
+open(OUT, ">", "mand/tr069_action_table.c") or die "Can't open 'mand/tr069_action_table.c'";
 
 print OUT "/*
  *    __                        __      _
@@ -179,7 +179,7 @@ print OUT "};\n";
 
 close(OUT);
 
-open(OUT, ">", "tr069/tr069_action_debug.c") or die "Can't open 'tr069/tr069_action_debug.c'";
+open(OUT, ">", "mand/tr069_action_debug.c") or die "Can't open 'mand/tr069_action_debug.c'";
 
 print OUT "/*
  *    __                        __      _

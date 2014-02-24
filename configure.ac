@@ -7,7 +7,7 @@ dnl #   standard Autoconf prolog
 AC_PREREQ(2.59)
 
 AC_INIT([tr069], [1.0], [support@travelping.com])
-AC_CONFIG_SRCDIR(tr069/tr.c)
+AC_CONFIG_SRCDIR(mand/tr.c)
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([])
@@ -216,9 +216,9 @@ AC_CONFIG_FILES([
 	utils/Makefile
 	libdmconfig/Makefile
 	libdmconfig/tests/Makefile
-	tr069/Makefile
-	tr069/snmp/Makefile
-	tr069/tests/Makefile
+	mand/Makefile
+	mand/snmp/Makefile
+	mand/tests/Makefile
 	lua/Makefile
 ])
 

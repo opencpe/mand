@@ -38,13 +38,13 @@
 
 #include "libradius/radlib.h"
 
-#include "tr069/tr069_token.h"
-#include "tr069/tr069_store.h"
-#include "tr069/tr069_index.h"
+#include "tr069_token.h"
+#include "tr069_store.h"
+#include "tr069_index.h"
 
 #define SDEBUG
-#include "tr069/dm_assert.h"
-#include "tr069/debug.h"
+#include "dm_assert.h"
+#include "debug.h"
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>

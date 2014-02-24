@@ -10,8 +10,8 @@
 #ifndef RADIUSACCCLIENTEXTTABLE_H
 #define RADIUSACCCLIENTEXTTABLE_H
 
-#include "tr069/tr069_token.h"
-#include "tr069/tr069_store.h"
+#include "tr069_token.h"
+#include "tr069_store.h"
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/library/container.h>
