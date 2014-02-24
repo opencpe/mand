@@ -1,10 +1,10 @@
 <!--
 	Mapping of PD-154 datamodel object paths to the abbreviations used by the TR deamon
 	it now also includes counter-parameter name to reference mappings
-	initially created from TR069-Tab.csv using the following TECO macro (I couldn't resist...):
+	initially created from DM-Tab.csv using the following TECO macro (I couldn't resist...):
 -->
 <!--
-	13:^UL10:^UL @ER/TR069-Tab.csv/ EY GL2R @^A'<mappings>' :GL9^T @^A'<objects>'
+	13:^UL10:^UL @ER/DM-Tab.csv/ EY GL2R @^A'<mappings>' :GL9^T @^A'<objects>'
 	:GL <@:S/^EL"^EM^N"","^EM^N"","/"U 9^T @^A'</objects>' :GL @^A'</mappings>':GL EX '
 	9^T9^T @^A'<object path="' 0L @::S/"^EM^N"",/^[ .+2UA @::S/"^EM^N"/^[ QA,.T
 	@^A'" abbr="' @::S/",/^[ .+1UA @::S/"^EM^N"/^[ QA,.T @^A'"/>' :GL LR>

@@ -10,8 +10,8 @@
 #ifndef RADIUSACCSERVEREXTTABLE_H
 #define RADIUSACCSERVEREXTTABLE_H
 
-#include "tr069_token.h"
-#include "tr069_store.h"
+#include "dm_token.h"
+#include "dm_store.h"
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/library/container.h>
@@ -26,7 +26,7 @@ typedef struct radiusAccServerExtTable_context_s {
 	unsigned long   radiusAccClientCounterDiscontinuity;
 	oid             oid[1];
 
-	struct tr069_value_table *client;
+	struct dm_value_table *client;
 } radiusAccServerExtTable_context;
 
 #define radiusAccServerExtTable_TABLE_OID 1,3,6,1,2,1,67,2,2,1,1,4
@@ -53,7 +53,7 @@ typedef struct radiusAccServerExtTable_context_s {
 #define radiusAccServerExtTable_COL_MAX 15
 
 void init_radiusAccServerExtTable(void);
-void add_radiusAccServerExtTable(tr069_id id, struct tr069_value_table *client);
-void del_radiusAccServerExtTable(tr069_id id);
+void add_radiusAccServerExtTable(dm_id id, struct dm_value_table *client);
+void del_radiusAccServerExtTable(dm_id id);
 
 #endif /** RADIUSACCSERVEREXTTABLE_H */

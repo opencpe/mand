@@ -9,7 +9,7 @@ CLEANFILES = codes.h
 libdmconfigincdir = $(includedir)/libdmconfig
 libdmconfiginc_HEADERS = diammsg.h dmconfig.h codes.h
 
-dmconfigdatadir = $(datadir)/tr069d
+dmconfigdatadir = $(datadir)/dmd
 dmconfigdata_DATA = dmconfig.xml
 
 luadmlibdir = $(lualibdir)

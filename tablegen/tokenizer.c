@@ -295,7 +295,7 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 			struct node *p = i->items;
 
 			if (!cnt) {
-				fprintf(f, "const struct tr069_table keyword_%d_tab =\n{\n", i->id);
+				fprintf(f, "const struct dm_table keyword_%d_tab =\n{\n", i->id);
 				fprintf(f, "\tTABLE_NAME(\"%s\")\n", base);
 				if (base_node->type == T_INSTANCE)
 					fprintf(f, "\t.index\t= &index_%d_tab,\n", i->id);
@@ -347,12 +347,12 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 						fprintf(f, "\t\t\t.fkts.instance\t= {\n");
 						if (p->get) {
 							fprintf(f, "\t\t\t\t.add\t= add%s_%s,\n", base, i->name);
-							fprintf(h, "void add%s_%s(const struct tr069_table *, tr069_id, struct tr069_instance *, struct tr069_instance_node *);\n",
+							fprintf(h, "void add%s_%s(const struct dm_table *, dm_id, struct dm_instance *, struct dm_instance_node *);\n",
 								base, i->name);
 						}
 						if (p->set) {
 							fprintf(f, "\t\t\t\t.del\t= del%s_%s\n", base, i->name);
-							fprintf(h, "void del%s_%s(const struct tr069_table *, tr069_id, struct tr069_instance *, struct tr069_instance_node *);\n",
+							fprintf(h, "void del%s_%s(const struct dm_table *, dm_id, struct dm_instance *, struct dm_instance_node *);\n",
 								base, i->name);
 						}
 						fprintf(f, "\t\t\t},\n");
@@ -420,12 +420,12 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 						fprintf(f, "\t\t\t.fkts.value\t= {\n");
 						if (i->get) {
 							fprintf(f, "\t\t\t\t.get\t= get%s_%s,\n", base, i->name);
-							fprintf(h, "DM_VALUE get%s_%s(const struct tr069_value_table *, tr069_id, const struct tr069_element *, DM_VALUE);\n",
+							fprintf(h, "DM_VALUE get%s_%s(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n",
 								base, i->name);
 						}
 						if (i->set) {
 							fprintf(f, "\t\t\t\t.set\t= set%s_%s\n", base, i->name);
-							fprintf(h, "int set%s_%s(struct tr069_value_table *, tr069_id, const struct tr069_element *, DM_VALUE *, DM_VALUE);\n",
+							fprintf(h, "int set%s_%s(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n",
 								base, i->name);
 						}
 						fprintf(f, "\t\t\t},\n");
@@ -865,19 +865,19 @@ int main(int argc, char **argv)
 	stubs = fopen("p_table_stubs.c", "w");
 	fprintf(stubs, "#include <stdlib.h>\n\n");
 	fprintf(stubs, "#include <limits.h>\n\n");
-	fprintf(stubs, "#include \"tr069.h\"\n");
+	fprintf(stubs, "#include \"dm.h\"\n");
 
-	fprintf(stubs, "#include \"tr069_token.h\"\n");
-	fprintf(stubs, "#include \"tr069_action_table.h\"\n");
-	fprintf(stubs, "#include \"tr069_fkt_stubs.c\"\n");
+	fprintf(stubs, "#include \"dm_token.h\"\n");
+	fprintf(stubs, "#include \"dm_action_table.h\"\n");
+	fprintf(stubs, "#include \"dm_fkt_stubs.c\"\n");
 	fprintf(stubs, "#include \"p_table.h\"\n\n");
 
 	f = fopen("p_table.c", "w");
 	fprintf(f, "#include <stdlib.h>\n\n");
 	fprintf(f, "#include <limits.h>\n\n");
-	fprintf(f, "#include \"tr069.h\"\n");
+	fprintf(f, "#include \"dm.h\"\n");
 
-	fprintf(f, "#include \"tr069_token.h\"\n");
+	fprintf(f, "#include \"dm_token.h\"\n");
 	fprintf(f, "#include \"p_table.h\"\n\n");
 
 	h = fopen("p_table.h", "w");

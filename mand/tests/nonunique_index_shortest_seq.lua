@@ -1,6 +1,6 @@
 --
 -- searches randomly for the shortest sequence of data base operations involving
--- non-unique indexes that gets tr069d to crash.
+-- non-unique indexes that gets dmd to crash.
 --
 
 require "libluadmconfig"
@@ -22,7 +22,7 @@ print "----"
 
 while true do
 
-os.execute("./tr069d -f 2>/dev/null 1>/dev/null &")
+os.execute("./dmd -f 2>/dev/null 1>/dev/null &")
 --os.execute("sleep 1") -- libdmconfig has to start up
 
 evctx = luaevent.core.new()
@@ -91,7 +91,7 @@ while true do
 	end
 	-- #seq <= bestlen
 
-	if rc ~= dmconfig.r_ok then -- assume tr069d crashed
+	if rc ~= dmconfig.r_ok then -- assume dmd crashed
 		if #seq < bestlen then
 			bestseq = {}
 			bestlen = #seq
@@ -118,6 +118,6 @@ end
 
 -- start new sequence. old seq got too long or DM crashed
 
-os.execute("pkill tr069d")
+os.execute("pkill dmd")
 
 end

@@ -6,8 +6,8 @@ dnl #   standard Autoconf prolog
 
 AC_PREREQ(2.59)
 
-AC_INIT([tr069], [1.0], [support@travelping.com])
-AC_CONFIG_SRCDIR(mand/tr.c)
+AC_INIT([mand], [1.0], [support@travelping.com])
+AC_CONFIG_SRCDIR(mand/mand.c)
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([])
@@ -207,7 +207,7 @@ AM_CONDITIONAL(AGENTX, test x$have_net_snmp = xyes)
 
 AC_SUBST(LIBTOOL_DEPS)
 AC_SUBST(LIBM)
-AC_SUBST(TR069LIBS)
+AC_SUBST(DMLIBS)
 
 CFLAGS="$CFLAGS -Wall -Wextra -Wstrict-prototypes -Werror=return-type"
 

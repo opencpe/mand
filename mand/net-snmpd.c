@@ -14,10 +14,10 @@
 #include "config.h"
 #endif
 
-#include "tr069.h"
-#include "tr069_token.h"
-#include "tr069_store.h"
-#include "tr069_action.h"
+#include "dm.h"
+#include "dm_token.h"
+#include "dm_store.h"
+#include "dm_action.h"
 
 #include "process.h"
 #include "snmpd.h"
@@ -172,7 +172,7 @@ static void stop_agentx(void)
 
 #endif
 
-static void build_config(struct tr069_value_table *snmp)
+static void build_config(struct dm_value_table *snmp)
 {
 	FILE *fout;
 
@@ -194,9 +194,9 @@ static void build_config(struct tr069_value_table *snmp)
 		"access tplino_ro \"\" any noauth exact all none none\n"
 		"sysContact %s\n"
 		"sysLocation %s\n",
-		tr069_get_string_by_id(snmp, cwmp__IGD_SNMP_ReadCommunity),
-		tr069_get_string_by_id(snmp, cwmp__IGD_SNMP_Contact),
-		tr069_get_string_by_id(snmp, cwmp__IGD_SNMP_Location));
+		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_ReadCommunity),
+		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_Contact),
+		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_Location));
 
 	fclose(fout);
 
@@ -205,17 +205,17 @@ static void build_config(struct tr069_value_table *snmp)
 
 void start_snmpd(void)
 {
-	struct tr069_value_table *snmp;
+	struct dm_value_table *snmp;
 
 	ENTER();
-	snmp = tr069_get_table_by_selector((tr069_selector){cwmp__InternetGatewayDevice,
+	snmp = dm_get_table_by_selector((dm_selector){cwmp__InternetGatewayDevice,
 							    cwmp__IGD_X_TPLINO_NET_SNMP, 0});
 	if (!snmp) {
 		EXIT();
 		return;
 	}
 
-	if (!tr069_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
+	if (!dm_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
 		EXIT();
 		return;
 	}
@@ -237,21 +237,21 @@ void stop_snmpd(void)
 	snmp_running = 0;
 }
 
-void dm_restart_snmpd_action(const tr069_selector sel __attribute__((unused)),
+void dm_restart_snmpd_action(const dm_selector sel __attribute__((unused)),
 			     enum dm_action_type type __attribute__((unused)))
 {
-	struct tr069_value_table *snmp;
+	struct dm_value_table *snmp;
 
 	ENTER();
 
-	snmp = tr069_get_table_by_selector((tr069_selector){cwmp__InternetGatewayDevice,
+	snmp = dm_get_table_by_selector((dm_selector){cwmp__InternetGatewayDevice,
 							    cwmp__IGD_X_TPLINO_NET_SNMP, 0});
 	if (!snmp) {
 		EXIT();
 		return;
 	}
 
-	if (!tr069_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
+	if (!dm_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
 		if (snmp_running)
 			stop_snmpd();
 		EXIT();

@@ -9,9 +9,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include "tr069_token.h"
-#include "tr069_store.h"
-#include "tr069_index.h"
+#include "dm_token.h"
+#include "dm_store.h"
+#include "dm_index.h"
 
 #define SDEBUG
 #include "dm_assert.h"
@@ -91,7 +91,7 @@ radiusAccClient_handler(netsnmp_mib_handler *handler,
 			switch (subid) {
 			case radiusAccClientInvalidServerAddresses_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats */
-				ret_value = tr069_get_uint_by_selector((tr069_selector){ cwmp__InternetGatewayDevice,
+				ret_value = dm_get_uint_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
 							cwmp__IGD_X_TPLINO_NET_SessionControl,
 							cwmp__IGD_SCG_RadiusClient,
 							cwmp__IGD_SCG_RC_Accounting,

@@ -31,9 +31,9 @@
  * easier to remove code than to add it!
  */
 
-#include "tr069_token.h"
-#include "tr069_store.h"
-#include "tr069_index.h"
+#include "dm_token.h"
+#include "dm_store.h"
+#include "dm_index.h"
 
 #define SDEBUG
 #include "dm_assert.h"
@@ -62,7 +62,7 @@ static int zoneAccessClassTable_get_value(netsnmp_request_info *request,
  * Add a new client
  */
 void
-add_zoneAccessClassTable(struct tr069_value_table *class)
+add_zoneAccessClassTable(struct dm_value_table *class)
 {
 	zoneAccessClassTable_context *row;
 
@@ -95,7 +95,7 @@ add_zoneAccessClassTable(struct tr069_value_table *class)
  * Remove a client
  */
 void
-del_zoneAccessClassTable(struct tr069_value_table *class)
+del_zoneAccessClassTable(struct dm_value_table *class)
 {
 	netsnmp_index idx;
 	oid soid[2];
@@ -123,8 +123,8 @@ del_zoneAccessClassTable(struct tr069_value_table *class)
 void
 init_zoneAccessClassTable(void)
 {
-	struct tr069_instance *zn;
-	struct tr069_instance_node *zone;
+	struct dm_instance *zn;
+	struct dm_instance_node *zone;
 #if defined(SDEBUG)
 	char b1[128];
 #endif
@@ -134,7 +134,7 @@ init_zoneAccessClassTable(void)
 	initialize_table_zoneAccessClassTable();
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone */
-	zn = tr069_get_instance_ref_by_selector((tr069_selector){ cwmp__InternetGatewayDevice,
+	zn = dm_get_instance_ref_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
 				cwmp__IGD_X_TPLINO_NET_SessionControl,
 				cwmp__IGD_SCG_Zone, 0});
 
@@ -143,38 +143,38 @@ init_zoneAccessClassTable(void)
 		return;
 	}
 
-	for (zone = tr069_instance_first(zn);
+	for (zone = dm_instance_first(zn);
 	     zone != NULL;
-	     zone = tr069_instance_next(zn, zone)) {
+	     zone = dm_instance_next(zn, zone)) {
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i} */
 
-		struct tr069_value_table *acs;
-		struct tr069_instance *ac;
-		struct tr069_instance_node *node;
+		struct dm_value_table *acs;
+		struct dm_instance *ac;
+		struct dm_instance_node *node;
 
 		debug(": Zone: %s\n", sel2str(b1, DM_TABLE(zone->table)->id));
 
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.Enabled */
-		if (!tr069_get_bool_by_id(DM_TABLE(zone->table), cwmp__IGD_SCG_Zone_i_Enabled))
+		if (!dm_get_bool_by_id(DM_TABLE(zone->table), cwmp__IGD_SCG_Zone_i_Enabled))
 			continue;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses */
-		acs = tr069_get_table_by_id(DM_TABLE(zone->table), cwmp__IGD_SCG_Zone_i_AccessClasses);
+		acs = dm_get_table_by_id(DM_TABLE(zone->table), cwmp__IGD_SCG_Zone_i_AccessClasses);
 		if (!acs)
 			continue;
 
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass */
-		if ((ac = tr069_get_instance_ref_by_id(acs, cwmp__IGD_SCG_Zone_i_ACs_AccessClass)))
-			for (node = tr069_instance_first(ac);
+		if ((ac = dm_get_instance_ref_by_id(acs, cwmp__IGD_SCG_Zone_i_ACs_AccessClass)))
+			for (node = dm_instance_first(ac);
 			     node != NULL;
-			     node = tr069_instance_next(ac, node))
+			     node = dm_instance_next(ac, node))
 			{
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass.{i} */
 				
 				debug(": AccessClass: %s\n", sel2str(b1, DM_TABLE(node->table)->id));
 
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass.{i}.Enabled */
-				if (!tr069_get_bool_by_id(DM_TABLE(node->table), cwmp__IGD_SCG_Zone_i_ACs_AC_j_Enabled))
+				if (!dm_get_bool_by_id(DM_TABLE(node->table), cwmp__IGD_SCG_Zone_i_ACs_AC_j_Enabled))
 					continue;
 
 				add_zoneAccessClassTable(DM_TABLE(node->table));
@@ -284,7 +284,7 @@ static int zoneAccessClassTable_get_value(netsnmp_request_info *request,
 		char *s;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass.{i}.AccessClassId */
-		s = tr069_get_string_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_AccessClassId);
+		s = dm_get_string_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_AccessClassId);
 		if (!s)
 			s = "";
 		
@@ -297,7 +297,7 @@ static int zoneAccessClassTable_get_value(netsnmp_request_info *request,
 		char *s;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass.{i}.Description */
-		s = tr069_get_string_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Description);
+		s = dm_get_string_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Description);
 		if (!s)
 			s = "";
 		
@@ -307,13 +307,13 @@ static int zoneAccessClassTable_get_value(netsnmp_request_info *request,
 	}
 
 	case COLUMN_ZONEACCESSCLASSCLIENTS: {
-		struct tr069_value_table *stats;
+		struct dm_value_table *stats;
 
-		stats = tr069_get_table_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Stats);
+		stats = dm_get_table_by_id(ctx->class, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Stats);
 
 		/** GAUGE = ASN_GAUGE */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.Zone.{i}.AccessClasses.AccessClass.{i}.Stats.Clients */
-		snmp_set_var_typed_integer(var, ASN_GAUGE, tr069_get_uint_by_id(stats, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Stats_Clients));
+		snmp_set_var_typed_integer(var, ASN_GAUGE, dm_get_uint_by_id(stats, cwmp__IGD_SCG_Zone_i_ACs_AC_j_Stats_Clients));
 		break;
 	}
 

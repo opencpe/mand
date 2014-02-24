@@ -5,13 +5,13 @@
 
 void start_snmpd(void);
 void stop_snmpd(void);
-void dm_restart_snmpd_action(const tr069_selector sel, enum dm_action_type type);
+void dm_restart_snmpd_action(const dm_selector sel, enum dm_action_type type);
 
 #else
 
 static inline void start_snmpd(void) {};
 static inline void stop_snmpd(void) {};
-static inline void dm_restart_snmpd_action(const tr069_selector sel, enum dm_action_type type) {};
+static inline void dm_restart_snmpd_action(const dm_selector sel, enum dm_action_type type) {};
 
 #endif
 

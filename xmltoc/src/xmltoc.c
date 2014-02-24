@@ -1055,9 +1055,9 @@ main(int argc, char **argv) {
 
 	f = fopen("p_table.c", "w");
 	fprintf(f, "#include <stdlib.h>\n\n");
-	fprintf(f, "#include \"tr069.h\"\n");
+	fprintf(f, "#include \"dm.h\"\n");
 
-	fprintf(f, "#include \"tr069_token.h\"\n");
+	fprintf(f, "#include \"dm_token.h\"\n");
 	fprintf(f, "#include \"p_table.h\"\n\n");
 
 	h = fopen("p_table.h", "w");

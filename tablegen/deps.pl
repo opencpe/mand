@@ -73,7 +73,7 @@ foreach my $k (sort {$nodes{$a} cmp $nodes{$b} } keys %nodes)
     push(@order, $k);
 }
 
-open(OUT, ">", "mand/tr069_action_table.h") or die "Can't open 'mand/tr069_action_table.h'";
+open(OUT, ">", "mand/dm_action_table.h") or die "Can't open 'mand/dm_action_table.h'";
 
 print OUT "/*
  *    __                        __      _
@@ -93,8 +93,8 @@ print OUT "/*
  *            !!! DO NOT MODIFY MANUALLY !!!
  */
 
-#ifndef __TR069_ACTION_TABLE_H
-#define __TR069_ACTION_TABLE_H
+#ifndef __DM_ACTION_TABLE_H
+#define __DM_ACTION_TABLE_H
 
 enum dm_actions {
 \tDM_NONE,\n";
@@ -109,7 +109,7 @@ print OUT "};
 
 close(OUT);
 
-open(OUT, ">", "mand/tr069_action_table.c") or die "Can't open 'mand/tr069_action_table.c'";
+open(OUT, ">", "mand/dm_action_table.c") or die "Can't open 'mand/dm_action_table.c'";
 
 print OUT "/*
  *    __                        __      _
@@ -133,9 +133,9 @@ print OUT "/*
 #include \"config.h\"
 #endif
 
-#include \"tr069_token.h\"
-#include \"tr069_action.h\"
-#include \"tr069_action_table.h\"
+#include \"dm_token.h\"
+#include \"dm_action.h\"
+#include \"dm_action_table.h\"
 
 ";
 
@@ -150,7 +150,7 @@ foreach my $k (@order) {
     if ($actions{$k}{comment}) {
 	printf OUT "%s\n", $actions{$k}{comment};
     }
-    printf OUT "static struct tr069_action dm_%s = {\n", $k;
+    printf OUT "static struct dm_action dm_%s = {\n", $k;
     printf OUT "\t.sel_len = %d,\n\n", $actions{$k}{sel};
 
     printf OUT "\t.pre = %s,\n", $actions{$k}{pre} ? "dm_${k}_pre" : "NULL";
@@ -171,7 +171,7 @@ foreach my $k (@order) {
     print OUT "};\n\n";
 }
 
-print OUT "const struct tr069_action *dm_actions[] = {\n";
+print OUT "const struct dm_action *dm_actions[] = {\n";
 foreach my $node (@order) {
     printf OUT "\t[DM_%s] = &dm_%s,\n", uc($node), $node;
 }
@@ -179,7 +179,7 @@ print OUT "};\n";
 
 close(OUT);
 
-open(OUT, ">", "mand/tr069_action_debug.c") or die "Can't open 'mand/tr069_action_debug.c'";
+open(OUT, ">", "mand/dm_action_debug.c") or die "Can't open 'mand/dm_action_debug.c'";
 
 print OUT "/*
  *    __                        __      _

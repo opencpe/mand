@@ -27,7 +27,7 @@ if cfgRev < curRev then
 		dm.deserialize_directory("/jffs/etc/defaults/dm")
 
 			-- HTTP servers/APIs were always enabled
-		dm.deserialize_file("/usr/share/tr069d/httpservers.xml")
+		dm.deserialize_file("/usr/share/dmd/httpservers.xml")
 	end
 
 	if cfgRev < 8340 then -- pre v1.1.0-GA

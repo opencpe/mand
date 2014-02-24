@@ -16,8 +16,8 @@
 extern havege_state h_state;
 #endif
 
-#include "tr069_token.h"
-#include "tr069_store.h"
+#include "dm_token.h"
+#include "dm_store.h"
 
 #include "bitmap.h"
 #include "ippool.h"

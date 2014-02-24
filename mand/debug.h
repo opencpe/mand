@@ -5,7 +5,7 @@
 #include <syslog.h>
 
 #include "utils/logx.h"
-#include "tr069_token.h"
+#include "dm_token.h"
 
 #if defined(SDEBUG) && !defined(NDEBUG)
 #define debug(format, ...)						\
@@ -23,15 +23,15 @@
 #define EXIT_MSG(...) do {} while (0)
 #endif
 
-static inline char *sel2str(char *buf, const tr069_selector sel) __attribute__((nonnull (2)));
-char *sel2str(char *buf, const tr069_selector sel)
+static inline char *sel2str(char *buf, const dm_selector sel) __attribute__((nonnull (2)));
+char *sel2str(char *buf, const dm_selector sel)
 {
 	int i;
 	char *p;
 
 	*buf = '\0';
 
-	for (p = buf, i = 0; sel[i] && i < TR069_SELECTOR_LEN; i++)
+	for (p = buf, i = 0; sel[i] && i < DM_SELECTOR_LEN; i++)
 		p += sprintf(p, "%d.", sel[i]);
 
 	return buf;

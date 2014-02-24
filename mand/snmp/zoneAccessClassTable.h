@@ -27,7 +27,7 @@ typedef struct zoneAccessClassTable_context_s {
 
 	oid oid[2];
 
-	struct tr069_value_table *class;
+	struct dm_value_table *class;
 
 } zoneAccessClassTable_context;
 
@@ -35,8 +35,8 @@ typedef struct zoneAccessClassTable_context_s {
  * function declarations
  */
 void init_zoneAccessClassTable(void);
-void add_zoneAccessClassTable(struct tr069_value_table *class);
-void del_zoneAccessClassTable(struct tr069_value_table *class);
+void add_zoneAccessClassTable(struct dm_value_table *class);
+void del_zoneAccessClassTable(struct dm_value_table *class);
 
 #define zoneAccessClassTable_TABLE_OID 1,3,6,1,4,1,18681,1,1
     

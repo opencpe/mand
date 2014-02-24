@@ -38,9 +38,9 @@
 
 #include "libradius/radlib.h"
 
-#include "tr069_token.h"
-#include "tr069_store.h"
-#include "tr069_index.h"
+#include "dm_token.h"
+#include "dm_store.h"
+#include "dm_index.h"
 
 #define SDEBUG
 #include "dm_assert.h"
@@ -69,7 +69,7 @@ static int radiusAccServerExtTable_get_value(netsnmp_request_info *, netsnmp_ind
  * Add a new client
  */
 void
-add_radiusAccServerExtTable(tr069_id id, struct tr069_value_table *client)
+add_radiusAccServerExtTable(dm_id id, struct dm_value_table *client)
 {
 	radiusAccServerExtTable_context *row;
 
@@ -102,7 +102,7 @@ add_radiusAccServerExtTable(tr069_id id, struct tr069_value_table *client)
  * Remove a client
  */
 void
-del_radiusAccServerExtTable(tr069_id id)
+del_radiusAccServerExtTable(dm_id id)
 {
 	netsnmp_index idx;
 	oid soid[1];
@@ -128,15 +128,15 @@ del_radiusAccServerExtTable(tr069_id id)
 void
 init_radiusAccServerExtTable()
 {
-	struct tr069_instance *rs;
-	struct tr069_instance_node *node;
+	struct dm_instance *rs;
+	struct dm_instance_node *node;
 
 	ENTER();
 
 	initialize_table_radiusAccServerExtTable();
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusClient.Accounting.Server */
-	rs = tr069_get_instance_ref_by_selector((tr069_selector){ cwmp__InternetGatewayDevice,
+	rs = dm_get_instance_ref_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
 				cwmp__IGD_X_TPLINO_NET_SessionControl,
 				cwmp__IGD_SCG_RadiusClient,
 				cwmp__IGD_SCG_RC_Accounting,
@@ -147,9 +147,9 @@ init_radiusAccServerExtTable()
 		return;
 	}
 
-	for (node = tr069_instance_first(rs);
+	for (node = dm_instance_first(rs);
 	     node != NULL;
-	     node = tr069_instance_next(rs, node)) {
+	     node = dm_instance_next(rs, node)) {
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusClient.Accounting.Server.{i} */
 
 		debug(": adding instance: %d (%p)", node->instance, DM_TABLE(node->table));
@@ -258,7 +258,7 @@ radiusAccServerExtTable_get_value(netsnmp_request_info *request,
 	debug(": table: %s", sel2str(b1, ctx->client->id));
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusClient.Accounting.Server.{i}.X_DM_RadiusServerStruct */
-	srv = tr069_get_ptr_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_X_DM_RadiusServerStruct);
+	srv = dm_get_ptr_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_X_DM_RadiusServerStruct);
 	debug(": RadiusClientStruct: %p", srv);
 	if (!srv) {
 		memset(&dummy, 0, sizeof(dummy));
@@ -276,7 +276,7 @@ radiusAccServerExtTable_get_value(netsnmp_request_info *request,
 		struct in_addr host;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusClient.Accounting.Server.{i}.IP */
-		host = tr069_get_ipv4_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_IP);
+		host = dm_get_ipv4_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_IP);
 		inet_ntop(AF_INET, &host, hname, sizeof(hname));
 		
 		/** InetAddress = ASN_OCTET_STR */
@@ -287,7 +287,7 @@ radiusAccServerExtTable_get_value(netsnmp_request_info *request,
 	case COLUMN_RADIUSACCCLIENTSERVERINETPORTNUMBER:
 		/** InetPortNumber = ASN_UNSIGNED */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusClient.Accounting.Server.{i}.Port */
-		snmp_set_var_typed_integer(var, ASN_UNSIGNED, tr069_get_uint_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_Port));
+		snmp_set_var_typed_integer(var, ASN_UNSIGNED, dm_get_uint_by_id(ctx->client, cwmp__IGD_SCG_RC_Acct_Srv_i_Port));
 		break;
 		
 	case COLUMN_RADIUSACCCLIENTEXTROUNDTRIPTIME:

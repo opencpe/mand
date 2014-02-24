@@ -44,7 +44,7 @@
 #include "codes.h"
 #include "dmconfig.h"
 
-#include "mand/tr069_lua.h"
+#include "mand/dm_lua.h"
 #include "utils/logx.h"
 #include "utils/binary.h"
 

@@ -149,7 +149,7 @@ genKeywordTab(FILE *f, FILE *h, NODE *i, const char *base, int cntCntr) {
 			NODE *p = i->items;
 
 			if (!cnt) {
-				fprintf(f, "const struct tr069_table keyword_%d_tab =\n{\n", i->id);
+				fprintf(f, "const struct dm_table keyword_%d_tab =\n{\n", i->id);
 				fprintf(f, "\tTABLE_NAME(\"%s\")\n", base);
 				fprintf(f, "\t.size\t= %d,\n", size);
 				fprintf(f, "\t.table\t=\n\t{\n");
@@ -219,11 +219,11 @@ genKeywordTab(FILE *f, FILE *h, NODE *i, const char *base, int cntCntr) {
 				if (i->type != T_COUNTER) {
 					if (i->get) {
 						fprintf(f, "\t\t\t.fkts.get\t= get%s_%s,\n", base, i->name);
-						fprintf(h, "DM_VALUE get%s_%s(const struct tr069_element *, DM_VALUE);\n", base, i->name);
+						fprintf(h, "DM_VALUE get%s_%s(const struct dm_element *, DM_VALUE);\n", base, i->name);
 					}
 					if (i->set) {
 						fprintf(f, "\t\t\t.fkts.set\t= set%s_%s\n", base, i->name);
-						fprintf(h, "int set%s_%s(const struct tr069_element *, DM_VALUE *, DM_VALUE);\n", base, i->name);
+						fprintf(h, "int set%s_%s(const struct dm_element *, DM_VALUE *, DM_VALUE);\n", base, i->name);
 					}
 				}
 			}

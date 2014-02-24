@@ -63,7 +63,7 @@ sub gen_table {
 	printf($f "};\n\n");
     }
 
-    printf($f "const struct tr069_table dm%s =\n{\n", $fname);
+    printf($f "const struct dm_table dm%s =\n{\n", $fname);
     printf($f "\tTABLE_NAME(\"%s\")\n", $pos->{'fq_name'});
     printf($f "\t.index\t= &index%s,\n", $fname) if ($pos->{'type'} eq 'object');
     printf($f "\t.size\t= %d,\n", $#{$pos->{'fields'}} + 1);
@@ -89,12 +89,12 @@ sub gen_table {
 		    printf($f "\t\t\t.fkts.instance\t= {\n");
 		    if ($ref->{'flags'}{'add'}) {
 			printf($f "\t\t\t\t.add\t= add%s_%s,\n", $prfx, $ref->{'name'});
-			printf($h "void add%s_%s(const struct tr069_table *, tr069_id, struct tr069_instance *, struct tr069_instance_node *);\n", $prfx, $ref->{'name'});
+			printf($h "void add%s_%s(const struct dm_table *, dm_id, struct dm_instance *, struct dm_instance_node *);\n", $prfx, $ref->{'name'});
 			printf($stubs "DMInstanceStub(add%s_%s);\n", $prfx, $ref->{'name'});
 		    }
 		    if ($ref->{'flags'}{'del'}) {
 			printf($f "\t\t\t\t.del\t= del%s_%s\n", $prfx, $ref->{'name'});
-			printf($h "void del%s_%s(const struct tr069_table *, tr069_id, struct tr069_instance *, struct tr069_instance_node *);\n", $prfx, $ref->{'name'});
+			printf($h "void del%s_%s(const struct dm_table *, dm_id, struct dm_instance *, struct dm_instance_node *);\n", $prfx, $ref->{'name'});
 			printf($stubs "DMInstanceStub(del%s_%s);\n", $prfx, $ref->{'name'});
 		    }
 		    printf($f "\t\t\t},\n");
@@ -159,12 +159,12 @@ sub gen_table {
 		    printf($f "\t\t\t.fkts.value\t= {\n");
 		    if ($ref->{'flags'}{'get'}) {
 			printf($f "\t\t\t\t.get\t= get%s_%s,\n", $prfx, $ref->{'name'});
-			printf($h "DM_VALUE get%s_%s(const struct tr069_value_table *, tr069_id, const struct tr069_element *, DM_VALUE);\n", $prfx, $ref->{'name'});
+			printf($h "DM_VALUE get%s_%s(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n", $prfx, $ref->{'name'});
 			printf($stubs "DMGetStub(get%s_%s);\n", $prfx, $ref->{'name'});
 		    }
 		    if ($ref->{'flags'}{'set'}) {
 			printf($f "\t\t\t\t.set\t= set%s_%s\n", $prfx, $ref->{'name'});
-			printf($h "int set%s_%s(struct tr069_value_table *, tr069_id, const struct tr069_element *, DM_VALUE *, DM_VALUE);\n", $prfx, $ref->{'name'});
+			printf($h "int set%s_%s(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n", $prfx, $ref->{'name'});
 			printf($stubs "DMSetStub(set%s_%s);\n", $prfx, $ref->{'name'});
 		    }
 		    printf($f "\t\t\t},\n");
@@ -334,8 +334,8 @@ my $stubs;
 open($f, '>', 'p_table.c') or die "Can't create p_table.c: $!";
 printf($f "#include <stdlib.h>\n\n");
 printf($f "#include <limits.h>\n\n");
-printf($f "#include \"tr069.h\"\n");
-printf($f "#include \"tr069_token.h\"\n");
+printf($f "#include \"dm.h\"\n");
+printf($f "#include \"dm_token.h\"\n");
 printf($f "#include \"p_table.h\"\n\n");
 
 open($h, '>', 'p_table.h') or die "Can't create p_table.h: $!";
@@ -345,10 +345,10 @@ printf($h "#define __P_TABLE_H\n\n");
 open($stubs, '>', 'p_table_stubs.c') or die "Can't create p_table_stubs.c: $!";
 printf($stubs "#include <stdlib.h>\n\n");
 printf($stubs "#include <limits.h>\n\n");
-printf($stubs "#include \"tr069.h\"\n");
-printf($stubs "#include \"tr069_token.h\"\n");
-printf($stubs "#include \"tr069_action_table.h\"\n");
-printf($stubs "#include \"tr069_fkt_stubs.c\"\n");
+printf($stubs "#include \"dm.h\"\n");
+printf($stubs "#include \"dm_token.h\"\n");
+printf($stubs "#include \"dm_action_table.h\"\n");
+printf($stubs "#include \"dm_fkt_stubs.c\"\n");
 printf($stubs "#include \"p_table.h\"\n\n");
 
 #print Dumper(\%igd);
