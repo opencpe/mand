@@ -15,7 +15,12 @@
 #endif
 
 #include <stdlib.h>
-#include <talloc/talloc.h>
+
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
 
 #include <sys/tree.h>
 

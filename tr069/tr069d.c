@@ -2,6 +2,7 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -18,26 +19,16 @@
 #include <ev.h>
 #include <event.h>
 
-#include "routers.h"
-
 #include "expat.h"
 #include "tr069_token.h"
 #include "tr069_store.h"
 #include "tr069_serialize.h"
 #include "tr069_deserialize.h"
-#include "tr069_autogen.h"
 
 #include "tr069_dmconfig.h"
 #include "tr069_luaif.h"
 
-#include "ifup.h"
-#include "uevent.h"
 #include "process.h"
-#include "session.h"
-#include "radius.h"
-#include "tr069_event_queue.h"
-#include "tr069_request_queue.h"
-#include "ftools.h"
 
 #define TR069_BASE_CONFIG "/etc/dm"
 #define IPKG_BASE_CONFIG  "/jffs/etc/dm"
@@ -46,24 +37,11 @@
 #define IPKG_DEFAULT_CONFIG  "/jffs/etc/defaults/dm"
 
 #define TR069_CONFIG   "/jffs/etc/tr069.xml"
-#define TR069_EVENTS   "/jffs/etc/dm_events.xml"
-#define TR069_REQUESTS "/jffs/etc/dm_requests.xml"
 
 #define SDEBUG
 #include "debug.h"
 
 extern int libdmconfigSocketType;
-
-time_t igd_parameters_tstamp;
-int mngt_srv_url_change;
-
-struct _fw_callbacks fw_callbacks;
-int firmware_upgrade = 0;
-int default_deserialized = 0;
-pthread_mutex_t firmware_upgrade_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-void build_ipkg_list(void);	/* in tr069_ipkg.c */
-void config_epmd(void);		/* in if_ofswitch.c */
 
 void tr069_save(void)
 {
@@ -89,70 +67,6 @@ void tr069_save(void)
 	free(fname);
 
 	pthread_mutex_unlock(&save_mutex);
-}
-
-void tr069_save_events(void)
-{
-	char *fname;
-	int fd;
-	FILE *fout;
-
-	fname = strdup(TR069_EVENTS".XXXXXX");
-	if ((fd = mkstemp(fname)) < 0) {
-		free(fname);
-		return;
-	}
-	fout = fdopen(fd, "w");
-	if (fout) {
-		tr069_serialize_events(fout);
-		fclose(fout);
-		rename(fname, TR069_EVENTS);
-		free(fname);
-	}
-}
-
-void tr069_load_events(void)
-{
-	FILE *fin;
-
-	fin = fopen(TR069_EVENTS, "r");
-	if (fin) {
-		unlink(TR069_EVENTS);
-		tr069_deserialize_events(fin);
-		fclose(fin);
-	}
-}
-
-void tr069_save_requests(void)
-{
-	char *fname;
-	int fd;
-	FILE *fout;
-
-	fname = strdup(TR069_REQUESTS ".XXXXXX");
-	if ((fd = mkstemp(fname)) < 0) {
-		free(fname);
-		return;
-	}
-	fout = fdopen(fd, "w");
-	if (fout) {
-		tr069_serialize_requests(fout);
-		fclose(fout);
-		rename(fname, TR069_REQUESTS);
-		free(fname);
-	}
-}
-
-void tr069_load_requests(void)
-{
-	FILE *fin;
-
-	fin = fopen(TR069_REQUESTS, "r");
-	if (fin) {
-		unlink(TR069_REQUESTS);
-		tr069_deserialize_requests(fin);
-		fclose(fin);
-	}
 }
 
 void tr069_dump(int fd, const char *element)
@@ -194,52 +108,16 @@ void usage(void)
 {
 }
 
-static void dm_load_base_config()
+static void dm_load_base_config(void)
 {
 	tr069_deserialize_directory(TR069_BASE_CONFIG, DS_BASECONFIG);
 	tr069_deserialize_directory(IPKG_BASE_CONFIG, DS_BASECONFIG);
 }
 
-static void dm_load_default_config()
+static void dm_load_default_config(void)
 {
 	tr069_deserialize_directory(TR069_DEFAULT_CONFIG, DS_USERCONFIG);
 	tr069_deserialize_directory(IPKG_DEFAULT_CONFIG, DS_USERCONFIG);
-}
-
-void tr069_reboot_actions()
-{
-	stop_scg_zones_radius();
-	tr069_save_events();
-	tr069_save_requests();
-}
-
-static DM_RESULT
-readIntoBinaryValue(const char *filename, tr069_selector sel)
-{
-	FILE *file;
-	uint8_t *data;
-	struct stat filestat;
-
-	int r;
-
-	ENTER();
-
-	if (stat(filename, &filestat) ||
-	     !(file = fopen(filename, "r"))) {
-		EXIT();
-		return DM_ERROR;
-	}
-
-	r = !(data = malloc(filestat.st_size)) ||
-	    !fread(data, filestat.st_size, 1, file) ||
-	    tr069_set_binary_data_by_selector(sel, filestat.st_size, data, DV_UPDATED);
-	    		/* FIXME: dupplicate allocation of value's data is avoidable */
-
-	free(data);
-	fclose(file);
-
-	EXIT();
-	return r ? DM_ERROR : DM_OK;
 }
 
 int main(int argc, char *argv[])
@@ -305,8 +183,6 @@ int main(int argc, char *argv[])
 	ev_signal_init(&sigusr2_watcher, sigusr2_cb, SIGUSR2);
 	ev_signal_start(EV_DEFAULT_UC_ &sigusr2_watcher);
 
-	init_uevent(EV_DEFAULT_UC);
-
 	if (init_Lua_environment())
 		debug("(): Couldn't initialize Lua environment");
 
@@ -321,27 +197,8 @@ int main(int argc, char *argv[])
 		tr069_deserialize_store(fin, DS_USERCONFIG | DS_VERSIONCHECK);
 		fclose(fin);
 	} else {
-		default_deserialized = init_auto_default_store();
 		dm_load_default_config();
         }
-
-	build_ipkg_list();
-
-#if defined(WITH_BRCM43XX)
-	int router = getRouterBrand();
-	/** VAR: InternetGatewayDevice.DeviceInfo.HardwareVersion */
-	tr069_set_string_by_selector((tr069_selector){cwmp__InternetGatewayDevice,
-						      cwmp__IGD_DeviceInfo,
-                                                      cwmp__IGD_DevInf_HardwareVersion, 0}, routes_models[router], DV_NONE);
-#endif
-
-#if 0
-	printf("serialize\n");
-	tr069_serialize_store(stdout,  S_ALL);
-#endif
-
-	tr069_load_events();
-	tr069_load_requests();
 
 	if (run_daemon)
 		if (daemon(1, 0) != 0) {
@@ -351,44 +208,10 @@ int main(int argc, char *argv[])
 		}
 
 	tr069_notify_init(EV_DEFAULT_UC);
-	supervisor_init(EV_DEFAULT_UC);
-	net_sched_init();
-	scg_zones_init();
 
 	libdmconfigSocketType = AF_INET;
 	if (init_libdmconfig_server(EV_DEFAULT_UC))
 		debug("Cannot initiate libdmconfig server\n");
-
-	if_startup();
-	start_scg_zones();
-
-	/** VAR: InternetGatewayDevice.DeviceInfo.X_TPLINO_LoggingEnabled */
-	if (!tr069_get_bool_by_selector((tr069_selector) {cwmp__InternetGatewayDevice,
-							  cwmp__IGD_DeviceInfo,
-							  cwmp__IGD_DevInf_X_TPLINO_LoggingEnabled, 0})) {
-		logx_level = LOG_NOTICE;
-	}
-
-	/** VAR: InternetGatewayDevice.X_TPLINO_NET_HTTPServers.SSL_Certificate */
-	readIntoBinaryValue(LUCITTPD_SSL_CRT, (tr069_selector) { cwmp__InternetGatewayDevice,
-								 cwmp__IGD_X_TPLINO_NET_HTTPServers,
-			    					 cwmp__IGD_HTTPSrvs_SSL_Certificate, 0});
-	/** VAR: InternetGatewayDevice.X_TPLINO_NET_HTTPServers.SSL_Key */
-	readIntoBinaryValue(LUCITTPD_SSL_KEY, (tr069_selector) { cwmp__InternetGatewayDevice,
-								 cwmp__IGD_X_TPLINO_NET_HTTPServers,
-			    					 cwmp__IGD_HTTPSrvs_SSL_Key, 0});
-	/** VAR: InternetGatewayDevice.X_TPLINO_NET_HTTPServers.SSL_CA_Certificate */
-	readIntoBinaryValue(LUCITTPD_SSL_CA, (tr069_selector) { cwmp__InternetGatewayDevice,
-								cwmp__IGD_X_TPLINO_NET_HTTPServers,
-			    					cwmp__IGD_HTTPSrvs_SSL_CA_Certificate, 0});
-
-	/*
-	 * Configure Erlang Port Mapper Daemon via process environment
-	 */
-	config_epmd();
-
-	if (fp_Lua_function("fncAdminPasswd", 0))
-		debug("(): Error during Lua function execution");
 
 	ev_loop(EV_DEFAULT_UC_ 0);
 

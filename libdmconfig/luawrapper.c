@@ -60,42 +60,6 @@ typedef struct _Lua_callback {
 	uint8_t		callbackDone;
 } LUA_CALLBACK;
 
-typedef struct {
-	lua_State	*L;
-	int		context_ref;
-
-	int		finish_cb_ref;
-	int		finish_ud_ref;
-	int		progress_cb_ref;
-	int		progress_ud_ref;
-
-	uint8_t		callbackDone;
-} FWUPDATE_CALLBACKS;
-
-typedef struct {
-	lua_State	*L;
-	int		context_ref;
-
-	int		ping_cb_ref;
-	int		ping_ud_ref;
-	int		completed_cb_ref;
-	int		completed_ud_ref;
-
-	uint8_t		callbackDone;
-} PING_CALLBACKS;
-
-typedef struct {
-	lua_State	*L;
-	int		context_ref;
-
-	int		traceroute_cb_ref;
-	int		traceroute_ud_ref;
-	int		completed_cb_ref;
-	int		completed_ud_ref;
-
-	uint8_t		callbackDone;
-} TRACEROUTE_CALLBACKS;
-
 #define LUA_SIG_REGISTER(name)	\
 	LUA_SIG(register_##name)
 
@@ -110,13 +74,6 @@ static uint32_t Lua_decode_unknown(lua_State *L, uint32_t type,
 				   void *data, size_t len);
 static uint32_t Lua_decode_get(lua_State *L, DIAM_AVPGRP *answer);
 static uint32_t Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes);
-static uint32_t Lua_decode_gw_get_client(lua_State *L, DIAM_AVPGRP *answer);
-static uint32_t Lua_decode_gw_get_all_clients(lua_State *L, DIAM_AVPGRP *answer);
-static uint32_t Lua_decode_gw_req_client_accessclass(lua_State *L,
-						     int32_t authReqState,
-						     int32_t authResult,
-						     uint32_t replyCode,
-						     DIAM_AVPGRP *messages);
 static uint32_t Lua_decode_retrieve_enums(lua_State *L, DIAM_AVPGRP *answer);
 static uint32_t Lua_decode_notifications(lua_State *L, DIAM_AVPGRP *answer);
 
@@ -129,32 +86,6 @@ static void generic_Lua_connect_callback(DMCONFIG_EVENT event,
 static void generic_Lua_active_notify_callback(DMCONFIG_EVENT event,
 					       DMCONTEXT *dmCtx __attribute__((unused)),
 					       void *userdata, DIAM_AVPGRP *grp);
-static void generic_Lua_fwupdate_finish_callback(DMCONFIG_EVENT event,
-				     		 DMCONTEXT *dmCtx __attribute__((unused)),
-						 void *userdata, int32_t code, char *msg);
-static void generic_Lua_fwupdate_progress_callback(DMCONFIG_EVENT event,
-				       		   DMCONTEXT *dmCtx __attribute__((unused)),
-						   void *userdata, char *msg, uint32_t state,
-						   int32_t current, int32_t total, char *unit);
-static void generic_Lua_ping_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)),
-			  	      void *userdata, uint32_t bytes, struct in_addr *ip,
-				      uint16_t seq, uint32_t triptime);
-static void generic_Lua_ping_completed_callback(DMCONFIG_EVENT event,
-				    		DMCONTEXT *dmCtx __attribute__((unused)),
-						void *userdata, uint32_t succ_cnt,
-						uint32_t fail_cnt, uint32_t tavg,
-						uint32_t tmin, uint32_t tmax);
-static void generic_Lua_traceroute_callback(DMCONFIG_EVENT event,
-					    DMCONTEXT *dmCtx __attribute__((unused)),
-					    void *userdata, int32_t code, uint8_t hop,
-					    const char *hostname, struct in_addr *ip,
-					    int32_t triptime);
-static void generic_Lua_traceroute_completed_callback(DMCONFIG_EVENT event,
-						      DMCONTEXT *dmCtx __attribute__((unused)),
-						      void *userdata, int32_t res);
-static void generic_Lua_pcap_aborted_callback(DMCONFIG_EVENT event,
-					      DMCONTEXT *dmCtx __attribute__((unused)),
-					      void *userdata, uint32_t res);
 
 static void Lua_init_eval(lua_State *L, char *udata, DMCONTEXT **dmCtx,
 			  int *type);
@@ -173,12 +104,6 @@ static void Lua_encode_value(lua_State *L, uint32_t type, const char *path,
 static DIAM_AVPGRP *Lua_build_set_grp(lua_State *L);
 static DIAM_AVPGRP *Lua_build_get_grp(lua_State *L);
 
-static int Lua_dhcp_cmd_sequential(lua_State *L, uint32_t code);
-static int Lua_dhcp_cmd_events(lua_State *L, uint32_t code);
-
-static int Lua_dhcpc_sequential(lua_State *L, uint32_t code);
-static int Lua_dhcpc_events(lua_State *L, uint32_t code);
-
 static int Lua_generic_request(lua_State *L, uint32_t code);
 static int Lua_generic_register(lua_State *L, uint32_t code);
 
@@ -190,10 +115,6 @@ LUA_SIG(utils_encode_base64);
 LUA_SIG(utils_decode_base64);
 
 LUA_SIG_REGISTER(connect);
-LUA_SIG_REGISTER(fwupdate);
-LUA_SIG_REGISTER(ping);
-LUA_SIG_REGISTER(traceroute);
-LUA_SIG_REGISTER(pcap);
 
 #define LUA_HEADER_BOTH(name)	\
 	LUA_SIG(name);		\
@@ -209,18 +130,6 @@ LUA_HEADER_BOTH(add)
 LUA_HEADER_BOTH(delete)
 LUA_HEADER_BOTH(find)
 LUA_HEADER_BOTH(dump)
-LUA_HEADER_BOTH(getdevice)
-LUA_HEADER_BOTH(gw_get_client)
-LUA_HEADER_BOTH(gw_get_all_clients)
-LUA_HEADER_BOTH(gw_req_client_accessclass)
-LUA_HEADER_BOTH(gw_set_client_accessclass)
-LUA_HEADER_BOTH(hotplug)
-LUA_HEADER_BOTH(dhcpinfo)
-LUA_HEADER_BOTH(dhcp_circuit)
-LUA_HEADER_BOTH(dhcp_remote)
-LUA_HEADER_BOTH(dhcpc_renew)
-LUA_HEADER_BOTH(dhcpc_release)
-LUA_HEADER_BOTH(dhcpc_restart)
 LUA_HEADER_BOTH(start)
 LUA_HEADER_BOTH(switch)
 LUA_HEADER_BOTH(terminate)
@@ -230,20 +139,10 @@ LUA_HEADER_BOTH(shutdown)
 LUA_HEADER_BOTH(commit)
 LUA_HEADER_BOTH(cancel)
 LUA_HEADER_BOTH(save)
-LUA_HEADER_BOTH(bootstrap)
-LUA_HEADER_BOTH(wanup)
-LUA_HEADER_BOTH(wandown)
-LUA_HEADER_BOTH(sysup)
 LUA_HEADER_BOTH(save_config)
 LUA_HEADER_BOTH(restore_config)
-LUA_HEADER_BOTH(boot)
-LUA_HEADER_BOTH(reboot)
-LUA_HEADER_BOTH(reset)
 LUA_HEADER_BOTH(subscribe)
 LUA_HEADER_BOTH(recursive_param_notify)
-LUA_HEADER_BOTH(ping_abort)
-LUA_HEADER_BOTH(traceroute_abort)
-LUA_HEADER_BOTH(pcap_abort)
 LUA_HEADER_BOTH(param_notify)
 LUA_HEADER_BOTH(get_passive_notifications)
 LUA_HEADER_BOTH(unsubscribe)
@@ -255,9 +154,6 @@ int luaopen_libluadmconfig(lua_State *L);
 static int dmcontext_sequential_gc(lua_State *L);
 static int dmcontext_events_gc(lua_State *L);
 static int callback_gc(lua_State *L);
-static int fwupdate_callbacks_gc(lua_State *L);
-static int ping_callbacks_gc(lua_State *L);
-static int traceroute_callbacks_gc(lua_State *L);
 
 #define L_SESSIONID				"Invalid session ID (object property)"
 
@@ -265,9 +161,6 @@ static int traceroute_callbacks_gc(lua_State *L);
 #define DMCONFIG_SESSION_SEQUENTIAL_MT		"DMCONFIG.SESSION.SEQUENTIAL.MT"
 #define DMCONFIG_SESSION_EVENTS_MT		"DMCONFIG.SESSION.EVENTS.MT"
 #define DMCONFIG_CALLBACK_MT			"DMCONFIG.CALLBACK.MT"
-#define DMCONFIG_FWUPDATE_CALLBACKS_MT		"DMCONFIG.FWUPDATE_CALLBACKS.MT"
-#define DMCONFIG_PING_CALLBACKS_MT		"DMCONFIG.PING_CALLBACKS.MT"
-#define DMCONFIG_TRACEROUTE_CALLBACKS_MT	"DMCONFIG.TRACEROUTE_CALLBACKS.MT"
 
 static uint32_t
 Lua_decode_get_session_info(lua_State *L, DIAM_AVPGRP *answer)
@@ -488,283 +381,6 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 }
 
 static uint32_t
-Lua_decode_gw_get_all_clients(lua_State *L, DIAM_AVPGRP *answer)
-{
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
-
-	lua_newtable(L);
-
-	for (unsigned int i = 1;
-	     !diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len);
-	     i++) {
-		DIAM_AVPGRP	*grp;
-		uint32_t	rc;
-
-		if (!(grp = diam_decode_avpgrp(answer, data, len)))
-			return RC_ERR_MISC;
-
-		lua_pushinteger(L, i);
-
-		rc = Lua_decode_gw_get_client(L, grp);
-		talloc_free(grp);
-		if (rc)
-			return rc;
-
-		lua_settable(L, -3);
-	}
-
-	return RC_OK;
-}
-
-static uint32_t
-Lua_decode_gw_get_client(lua_State *L, DIAM_AVPGRP *answer)
-{
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
-
-	int		af;
-	struct in_addr	addr;
-	char		buf[21];
-
-	lua_newtable(L);
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	lua_pushinteger(L, diam_get_uint16_avp(data));
-	lua_setfield(L, -2, "zone");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	lua_pushinteger(L, diam_get_uint16_avp(data));
-	lua_setfield(L, -2, "clientid");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "macaddress");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "token");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "acctsessionid");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "sessionid");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "username");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "locationid");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	if (diam_get_uint16_avp(data)) {
-		lua_pushinteger(L, diam_get_uint16_avp(data));
-		lua_setfield(L, -2, "accessclass");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_ADDRESS ||
-	    !diam_get_address_avp(&af, &addr, data) || af != AF_INET)
-		return RC_ERR_MISC;
-	lua_pushstring(L, inet_ntoa(addr));
-	lua_setfield(L, -2, "ip");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_ADDRESS ||
-	    !diam_get_address_avp(&af, &addr, data) || af != AF_INET)
-		return RC_ERR_MISC;
-	lua_pushstring(L, inet_ntoa(addr));
-	lua_setfield(L, -2, "natip");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "redirecturl");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_DATE)
-		return RC_ERR_MISC;
-	lua_pushinteger(L, diam_get_time_avp(data));
-	lua_setfield(L, -2, "starttime");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT32 || len != sizeof(uint32_t))
-		return RC_ERR_MISC;
-	lua_pushinteger(L, diam_get_uint32_avp(data));
-	lua_setfield(L, -2, "sessiontimeout");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT32 || len != sizeof(uint32_t))
-		return RC_ERR_MISC;
-	lua_pushinteger(L, diam_get_uint32_avp(data));
-	lua_setfield(L, -2, "sessiontime");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT64 || len != sizeof(uint64_t))
-		return RC_ERR_MISC;
-	snprintf(buf, sizeof(buf), "%" PRIu64, diam_get_uint64_avp(data));
-	lua_pushstring(L, buf);
-	lua_setfield(L, -2, "outoctets");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT64 || len != sizeof(uint64_t))
-		return RC_ERR_MISC;
-	snprintf(buf, sizeof(buf), "%" PRIu64, diam_get_uint64_avp(data));
-	lua_pushstring(L, buf);
-	lua_setfield(L, -2, "inoctets");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_BINARY)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "agentcircuitid");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_BINARY)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "agentremoteid");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "chargeableuseridentity");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	if (diam_get_uint16_avp(data)) {
-		lua_pushinteger(L, diam_get_uint16_avp(data));
-		lua_setfield(L, -2, "natportstart");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	if (diam_get_uint16_avp(data)) {
-		lua_pushinteger(L, diam_get_uint16_avp(data));
-		lua_setfield(L, -2, "natportend");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT16 || len != sizeof(uint16_t))
-		return RC_ERR_MISC;
-	if (diam_get_uint16_avp(data)) {
-		lua_pushinteger(L, diam_get_uint16_avp(data));
-		lua_setfield(L, -2, "montarget");
-	}
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT64 || len != sizeof(uint64_t))
-		return RC_ERR_MISC;
-	snprintf(buf, sizeof(buf), "%" PRIu64, diam_get_uint64_avp(data));
-	lua_pushstring(L, buf);
-	lua_setfield(L, -2, "maxinputoctets");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT64 || len != sizeof(uint64_t))
-		return RC_ERR_MISC;
-	snprintf(buf, sizeof(buf), "%" PRIu64, diam_get_uint64_avp(data));
-	lua_pushstring(L, buf);
-	lua_setfield(L, -2, "maxoutputoctets");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_UINT64 || len != sizeof(uint64_t))
-		return RC_ERR_MISC;
-	snprintf(buf, sizeof(buf), "%" PRIu64, diam_get_uint64_avp(data));
-	lua_pushstring(L, buf);
-	lua_setfield(L, -2, "maxtotaloctets");
-
-	if (diam_avpgrp_get_avp(answer, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_STRING)
-		return RC_ERR_MISC;
-	if (len) {
-		lua_pushlstring(L, data, len);
-		lua_setfield(L, -2, "accessgroupid");
-	}
-
-	return RC_OK;
-}
-
-static uint32_t
-Lua_decode_gw_req_client_accessclass(lua_State *L, int32_t authReqState,
-				     int32_t authResult, uint32_t replyCode,
-				     DIAM_AVPGRP *messages)
-{
-	char		*val;
-	uint32_t	rc;
-
-	lua_pushinteger(L, authReqState);
-	lua_pushinteger(L, authResult);
-	lua_pushinteger(L, replyCode);
-
-	if (!messages)
-		return RC_OK;
-
-	lua_newtable(L);
-
-	for (int i = 1; !(rc = dm_decode_string(messages, &val)); i++) {
-		lua_pushinteger(L, i);
-		lua_pushstring(L, val);
-		lua_settable(L, -3);
-		free(val);
-	}
-
-	return rc == RC_ERR_MISC ? RC_OK : rc;
-}
-
-static uint32_t
 Lua_decode_retrieve_enums(lua_State *L, DIAM_AVPGRP *answer)
 {
 	char		*val;
@@ -905,9 +521,6 @@ generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data,
 			lua_pushnumber(L, instance);
 			break;
 		}
-		case CMD_DEV_GETDEVICE:
-		case CMD_DEV_DHCP_CIRCUIT:
-		case CMD_DEV_DHCP_REMOTE:
 		case CMD_DB_DUMP: {
 			char *data;
 
@@ -929,35 +542,11 @@ generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data,
 			if (Lua_decode_retrieve_enums(L, answer_grp))
 				L_ERROR(L_ALLOC);
 			break;
-		case CMD_GW_GET_CLIENT:
-			if (Lua_decode_gw_get_client(L, answer_grp))
-				L_ERROR(L_ALLOC);
-			break;
-		case CMD_GW_GET_ALL_CLIENTS:
-			if (Lua_decode_gw_get_all_clients(L, answer_grp))
-				L_ERROR(L_ALLOC);
-			break;
+
 		case CMD_GET_PASSIVE_NOTIFICATIONS:
 			if (Lua_decode_notifications(L, answer_grp))
 				L_ERROR(L_ALLOC);
 			break;
-		case CMD_GW_CLIENT_REQ_ACCESSCLASS: {
-			int32_t		authReqState, authResult;
-			uint32_t	replyCode;
-			DIAM_AVPGRP	*messages;
-			uint32_t	rc;
-
-			if (dm_decode_gw_req_client_accessclass(
-				answer_grp, &authReqState, &authResult,
-				&replyCode, &messages))
-				L_ERROR(L_ALLOC);
-			rc = Lua_decode_gw_req_client_accessclass(
-				L, authReqState, authResult, replyCode, messages);
-			dm_grp_free(messages);
-			if (rc)
-				L_ERROR(L_ALLOC);
-			break;
-		}
 		}
 
 	lua_call(L, lua_gettop(L) - top, 0);
@@ -1009,207 +598,6 @@ generic_Lua_active_notify_callback(DMCONFIG_EVENT event,
 	lua_call(L, 4, 0);
 
 	/* active notifications can occur several times, so keep the references */
-}
-
-static void
-generic_Lua_fwupdate_finish_callback(DMCONFIG_EVENT event,
-				     DMCONTEXT *dmCtx __attribute__((unused)),
-				     void *userdata, int32_t code, char *msg)
-{
-	FWUPDATE_CALLBACKS	*cb = userdata;
-	lua_State		*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->finish_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->finish_ud_ref);
-
-	lua_pushinteger(L, code);
-	if (msg)			/* FIXME: nil could be pushed onto the stack -> nr of arguments is constant */
-		lua_pushstring(L, msg);
-
-	lua_call(L, msg ? 5 : 4, 0);
-
-	if (code == -1) {
-		luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-		luaL_unref(L, LUA_REGISTRYINDEX, cb->finish_cb_ref);
-		luaL_unref(L, LUA_REGISTRYINDEX, cb->finish_ud_ref);
-		luaL_unref(L, LUA_REGISTRYINDEX, cb->progress_cb_ref);
-		luaL_unref(L, LUA_REGISTRYINDEX, cb->progress_ud_ref);
-
-		cb->callbackDone = 1;
-	}
-}
-
-static void
-generic_Lua_fwupdate_progress_callback(DMCONFIG_EVENT event,
-				       DMCONTEXT *dmCtx __attribute__((unused)),
-				       void *userdata, char *msg, uint32_t state,
-				       int32_t current, int32_t total, char *unit)
-{
-	FWUPDATE_CALLBACKS	*cb = userdata;
-	lua_State		*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->progress_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->progress_ud_ref);
-
-	if (msg)
-		lua_pushstring(L, msg);
-	else
-		lua_pushnil(L);
-	lua_pushinteger(L, state);
-	lua_pushinteger(L, current);
-	lua_pushinteger(L, total);
-	if (unit)			/* FIXME: nil could be pushed onto the stack -> nr of arguments is constant */
-		lua_pushstring(L, unit);
-
-	lua_call(L, unit ? 8 : 7, 0);
-
-	/* callback data is not cleaned up - a 'finish' callback is always the last one */
-}
-
-static void
-generic_Lua_ping_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)),
-			  void *userdata, uint32_t bytes, struct in_addr *ip,
-			  uint16_t seq, uint32_t triptime)
-{
-	PING_CALLBACKS	*cb = userdata;
-	lua_State	*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->ping_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->ping_ud_ref);
-
-	lua_pushinteger(L, bytes);
-	if (ip)
-		lua_pushstring(L, inet_ntoa(*ip));
-	else
-		lua_pushnil(L);
-	lua_pushinteger(L, seq);
-	lua_pushinteger(L, triptime);
-
-	lua_call(L, 7, 0);
-
-	/* 'completed' callback is always the last one */
-}
-
-static void
-generic_Lua_ping_completed_callback(DMCONFIG_EVENT event,
-				    DMCONTEXT *dmCtx __attribute__((unused)),
-			  	    void *userdata, uint32_t succ_cnt, uint32_t fail_cnt,
-				    uint32_t tavg, uint32_t tmin, uint32_t tmax)
-{
-	PING_CALLBACKS	*cb = userdata;
-	lua_State	*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
-
-	lua_pushinteger(L, succ_cnt);
-	lua_pushinteger(L, fail_cnt);
-	lua_pushinteger(L, tavg);
-	lua_pushinteger(L, tmin);
-	lua_pushinteger(L, tmax);
-
-	lua_call(L, 8, 0);
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->ping_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->ping_ud_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
-
-	cb->callbackDone = 1;
-}
-
-static void
-generic_Lua_traceroute_callback(DMCONFIG_EVENT event,
-				DMCONTEXT *dmCtx __attribute__((unused)),
-				void *userdata, int32_t code, uint8_t hop,
-				const char *hostname, struct in_addr *ip,
-				int32_t triptime)
-{
-	TRACEROUTE_CALLBACKS	*cb = userdata;
-	lua_State		*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->traceroute_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->traceroute_ud_ref);
-
-	lua_pushinteger(L, code);
-	lua_pushinteger(L, hop);
-	if (hostname)
-		lua_pushstring(L, hostname);
-	else
-		lua_pushnil(L);
-	if (ip)
-		lua_pushstring(L, inet_ntoa(*ip));
-	else
-		lua_pushnil(L);
-	if (triptime != -1)
-		lua_pushinteger(L, triptime);
-	else
-		lua_pushnil(L);
-
-	lua_call(L, 8, 0);
-
-	/* 'completed' callback is always the last one */
-}
-
-static void
-generic_Lua_traceroute_completed_callback(DMCONFIG_EVENT event,
-					  DMCONTEXT *dmCtx __attribute__((unused)),
-					  void *userdata, int32_t res)
-{
-	TRACEROUTE_CALLBACKS	*cb = userdata;
-	lua_State		*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
-
-	lua_pushinteger(L, res);
-
-	lua_call(L, 4, 0);
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->traceroute_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->traceroute_ud_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
-
-	cb->callbackDone = 1;
-}
-
-static void
-generic_Lua_pcap_aborted_callback(DMCONFIG_EVENT event,
-				  DMCONTEXT *dmCtx __attribute__((unused)),
-				  void *userdata, uint32_t res)
-{
-	LUA_CALLBACK	*cb = userdata;
-	lua_State	*L = cb->L;
-
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->callback_ref);
-	lua_pushnumber(L, event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->user_data_ref);
-
-	lua_pushinteger(L, res);
-
-	lua_call(L, 4, 0);
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->callback_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->user_data_ref);
-
-	cb->callbackDone = 1;
 }
 
 static void
@@ -2010,229 +1398,6 @@ LUA_SIG_REGISTER(unsubscribe)
 	return 2;
 }
 
-LUA_SIG_REGISTER(fwupdate)
-{
-	DMCONTEXT		*ctx;
-	LUA_CALLBACK 		*cb;
-	uint32_t		rc;
-
-	int			top, atop;
-
-	FWUPDATE_CALLBACKS	*fwupdate_callbacks;
-	const char		*fwfile, *device;
-	uint32_t		flags;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 7 && top <= 10, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_FWUPDATE, &ctx, &cb);
-	atop = lua_gettop(L);
-	luaL_argcheck(L, atop == 7 || atop == 8, top, L_NUMBER);
-	fwfile = luaL_checkstring(L, 2);
-	device = luaL_checkstring(L, 3);
-	flags = luaL_optint(L, 4, 0);
-
-	if (atop == 7)			/* Lua progress cb user data may be omitted */
-		lua_pushnil(L);
-
-	if (!(fwupdate_callbacks = lua_newuserdata(L, sizeof(FWUPDATE_CALLBACKS))))
-		L_ERROR(L_ALLOC);
-	luaL_getmetatable(L, DMCONFIG_FWUPDATE_CALLBACKS_MT);
-	lua_setmetatable(L, -2);
-
-	lua_insert(L, 2);		/* move userdata after the requests userdata */
-
-	fwupdate_callbacks->L = L;
-	fwupdate_callbacks->progress_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	fwupdate_callbacks->progress_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	fwupdate_callbacks->finish_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	fwupdate_callbacks->finish_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	fwupdate_callbacks->context_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	fwupdate_callbacks->callbackDone = 0;
-
-	lua_pop(L, 3);			/* remove fwfile, device, flags from stack */
-
-	rc = dm_register_cmd_fwupdate(ctx, fwfile, device, flags,
-				      generic_Lua_fwupdate_finish_callback,
-				      fwupdate_callbacks,
-				      generic_Lua_fwupdate_progress_callback,
-				      fwupdate_callbacks,
-				      cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_insert(L, -3);		/* pull userdatas */
-	return 3;
-}
-
-LUA_SIG_REGISTER(ping)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	int		top, atop;
-
-	PING_CALLBACKS	*ping_callbacks;
-	const char	*hostname;
-	uint32_t	send_cnt, timeout;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 7 && top <= 10, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_PING, &ctx, &cb);
-	atop = lua_gettop(L);
-	luaL_argcheck(L, atop == 7 || atop == 8, top, L_NUMBER);
-	hostname = luaL_checkstring(L, 2);
-	send_cnt = luaL_checkint(L, 3);
-	timeout = luaL_checkint(L, 4);
-
-	if (atop == 7)			/* Lua completed cb user data may be omitted */
-		lua_pushnil(L);
-
-	if (!(ping_callbacks = lua_newuserdata(L, sizeof(PING_CALLBACKS))))
-		L_ERROR(L_ALLOC);
-	luaL_getmetatable(L, DMCONFIG_PING_CALLBACKS_MT);
-	lua_setmetatable(L, -2);
-
-	lua_insert(L, 2);		/* move userdata after the requests userdata */
-
-	ping_callbacks->L = L;
-	ping_callbacks->completed_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	ping_callbacks->completed_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	ping_callbacks->ping_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	ping_callbacks->ping_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	ping_callbacks->context_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	ping_callbacks->callbackDone = 0;
-
-	lua_pop(L, 3);			/* remove hostname, send_cnt, timeout from stack */
-
-	rc = dm_register_cmd_ping(ctx, hostname, send_cnt, timeout,
-				  generic_Lua_ping_callback, ping_callbacks,
-				  generic_Lua_ping_completed_callback, ping_callbacks,
-				  cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_insert(L, -3);		/* pull userdatas */
-	return 3;
-}
-
-LUA_SIG_REGISTER(traceroute)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	int		top, atop;
-
-	TRACEROUTE_CALLBACKS	*traceroute_callbacks;
-	const char		*hostname;
-	uint8_t 		tries;
-	uint32_t		timeout;
-	uint16_t		size;
-	uint8_t 		maxhop;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 9 && top <= 12, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_TRACEROUTE, &ctx, &cb);
-	atop = lua_gettop(L);
-	luaL_argcheck(L, atop == 9 || atop == 10, top, L_NUMBER);
-	hostname = luaL_checkstring(L, 2);
-	tries = (uint8_t)luaL_checkint(L, 3);
-	timeout = luaL_checkint(L, 4);
-	size = (uint16_t)luaL_checkint(L, 5);
-	maxhop = (uint8_t)luaL_checkint(L, 6);
-
-	if (atop == 9)			/* Lua completed cb user data may be omitted */
-		lua_pushnil(L);
-
-	if (!(traceroute_callbacks = lua_newuserdata(L, sizeof(TRACEROUTE_CALLBACKS))))
-		L_ERROR(L_ALLOC);
-	luaL_getmetatable(L, DMCONFIG_TRACEROUTE_CALLBACKS_MT);
-	lua_setmetatable(L, -2);
-
-	lua_insert(L, 2);		/* move userdata after the requests userdata */
-
-	traceroute_callbacks->L = L;
-	traceroute_callbacks->completed_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	traceroute_callbacks->completed_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	traceroute_callbacks->traceroute_ud_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	traceroute_callbacks->traceroute_cb_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	traceroute_callbacks->context_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	traceroute_callbacks->callbackDone = 0;
-
-	lua_pop(L, 5);			/* remove parameters from stack */
-
-	rc = dm_register_cmd_traceroute(ctx, hostname, tries, timeout, size, maxhop,
-					generic_Lua_traceroute_callback, traceroute_callbacks,
-					generic_Lua_traceroute_completed_callback, traceroute_callbacks,
-					cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_insert(L, -3);		/* pull userdatas */
-	return 3;
-}
-
-LUA_SIG_REGISTER(pcap)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	int		top, atop;
-
-	LUA_CALLBACK	*pcap_cb;
-	const char	*interface, *url;
-	uint32_t	timeout;
-	uint16_t	packets, kbytes;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 7 && top <= 10, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_PCAP, &ctx, &cb);
-	atop = lua_gettop(L);
-	luaL_argcheck(L, atop == 7 || atop == 8, top, L_NUMBER);
-	interface = luaL_checkstring(L, 2);
-	url = luaL_checkstring(L, 3);
-	timeout = luaL_checkint(L, 4);
-	packets = luaL_checkint(L, 5);
-	kbytes = luaL_checkint(L, 6);
-
-	if (atop == 7)			/* Lua aborted cb user data may be omitted */
-		lua_pushnil(L);
-
-	if (!(pcap_cb = lua_newuserdata(L, sizeof(LUA_CALLBACK))))
-		L_ERROR(L_ALLOC);
-	luaL_getmetatable(L, DMCONFIG_CALLBACK_MT);
-	lua_setmetatable(L, -2);
-
-	lua_insert(L, 2);		/* move userdata after the requests userdata */
-
-	pcap_cb->L = L;
-	pcap_cb->user_data_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	pcap_cb->callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, cb->context_ref);
-	pcap_cb->context_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-	pcap_cb->callbackDone = 0;
-
-	lua_pop(L, 5);			/* remove parameters from stack */
-
-	rc = dm_register_cmd_pcap(ctx, interface, url, timeout, packets, kbytes,
-				  generic_Lua_pcap_aborted_callback, pcap_cb,
-				  cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_insert(L, -3);		/* pull userdatas */
-	return 3;
-}
-
 #define TABLE_ERR2() {			\
 	dm_grp_free(*grp);		\
 	luaL_argerror(L, 2, L_TABLE);	\
@@ -2899,525 +2064,6 @@ LUA_SIG_REGISTER(dump)
 	return 2;
 }
 
-LUA_SIG(getdevice)
-{
-	DMCONTEXT	*ctx;
-	const char	*path;
-
-	uint32_t	rc;
-	char		*result;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 2, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	path = luaL_checkstring(L, 2);
-
-	lua_pushinteger(L, rc = dm_send_cmd_getdevice(ctx, path, &result));
-	if (rc)
-		return 1;
-
-	lua_pushstring(L, result);
-	free(result);
-	return 2;
-}
-
-LUA_SIG_REGISTER(getdevice)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	const char	*path;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 4, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_GETDEVICE, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 2, top, L_NUMBER);
-	path = luaL_checkstring(L, 2);
-	lua_insert(L, 1);
-
-	rc = dm_register_cmd_getdevice(ctx, path,
-				       cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-/** signature: session:gw_get_client(ip [, isNATIP [, zone [, port]]]) */
-LUA_SIG(gw_get_client)
-{
-	DMCONTEXT	*ctx;
-	int		top;
-	uint32_t	rc;
-
-	struct in_addr	addr;
-	DIAM_AVPGRP	*answer;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 5, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	luaL_argcheck(L, inet_aton(luaL_checkstring(L, 2), &addr), 2, L_VALUE);
-
-	rc = dm_send_gw_get_client(ctx, luaL_optint(L, 4, UINT16_MAX), lua_toboolean(L, 3),
-				   addr, luaL_optint(L, 5, 0), &answer);
-	if (!rc) {
-		rc = Lua_decode_gw_get_client(L, answer);
-		dm_grp_free(answer);
-	}
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull result table */
-
-	return 2;
-}
-
-/** signature: session:gw_get_client(ip [, isNATIP [, zone [, port]]][, callback [, userdata]) */
-LUA_SIG_REGISTER(gw_get_client)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	struct in_addr	addr;
-	uint8_t		isNATIP;
-	uint16_t	zone;
-	uint16_t	port;
-	int		top, atop;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 7, top, L_NUMBER);
-	Lua_register_eval(L, CMD_GW_GET_CLIENT, &ctx, &cb);
-	atop = lua_gettop(L);
-	luaL_argcheck(L, atop >= 2 && atop <= 5, top, L_NUMBER);
-	luaL_argcheck(L, inet_aton(luaL_checkstring(L, 2), &addr), 2, L_VALUE);
-	isNATIP = lua_toboolean(L, 3);
-	zone = luaL_optint(L, 4, UINT16_MAX);
-	port = luaL_optint(L, 5, 0);
-
-	lua_pop(L, atop - 1);
-
-	rc = dm_register_gw_get_client(ctx, zone, isNATIP, addr, port,
-				       cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-LUA_SIG(gw_get_all_clients)
-{
-	DMCONTEXT	*ctx;
-	int		top;
-	uint32_t	rc;
-
-	DIAM_AVPGRP	*answer;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 2, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-
-	rc = dm_send_gw_get_all_clients(ctx, luaL_checkint(L, 2), &answer);
-	if (!rc) {
-		rc = Lua_decode_gw_get_all_clients(L, answer);
-		dm_grp_free(answer);
-	}
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull result table */
-
-	return 2;
-}
-
-LUA_SIG_REGISTER(gw_get_all_clients)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	uint16_t	zone;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 4, top, L_NUMBER);
-	Lua_register_eval(L, CMD_GW_GET_ALL_CLIENTS, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 2, top, L_NUMBER);
-	zone = luaL_checkint(L, 2);
-	lua_pop(L, 1);
-
-	rc = dm_register_gw_get_all_clients(ctx, zone, cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-LUA_SIG(gw_req_client_accessclass)
-{
-	DMCONTEXT	*ctx;
-	int		top;
-
-	struct timeval	timeout;
-	uint32_t	rc;
-
-	int32_t		authReqState, authResult;
-	uint32_t	replyCode;
-	DIAM_AVPGRP	*messages;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 5 && top <= 7, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-
-	if (!lua_isnoneornil(L, 7)) {
-		timeout.tv_sec = (time_t)luaL_checkint(L, 7);
-		timeout.tv_usec = 0;
-	}
-
-	rc = dm_send_gw_req_client_accessclass(
-		ctx, luaL_checkstring(L, 2), luaL_checkstring(L, 3),
-		luaL_checkstring(L, 4), luaL_checkstring(L, 5),
-		luaL_optstring(L, 6, NULL),
-		lua_isnoneornil(L, 7) ? NULL : &timeout,
-		&authReqState, &authResult, &replyCode, &messages);
-	if (!rc) {
-		rc = Lua_decode_gw_req_client_accessclass(L, authReqState, authResult,
-							  replyCode, messages);
-		dm_grp_free(messages);
-	}
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_insert(L, messages ? -5 : -4);
-	return messages ? 5 : 4;
-}
-
-LUA_SIG_REGISTER(gw_req_client_accessclass)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-	int		top, newtop;
-
-	const char	*path, *username, *password, *class, *useragent;
-	struct timeval	timeout, *p_timeout;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 5 && top <= 9, top, L_NUMBER);
-	Lua_register_eval(L, CMD_GW_CLIENT_REQ_ACCESSCLASS, &ctx, &cb);
-	newtop = lua_gettop(L);
-	luaL_argcheck(L, newtop >= 5 && newtop <= 7, top, L_NUMBER);
-	path = luaL_checkstring(L, 2);
-	username = luaL_checkstring(L, 3);
-	password = luaL_checkstring(L, 4);
-	class = luaL_checkstring(L, 5);
-	useragent = luaL_optstring(L, 6, NULL);
-
-	if (!lua_isnoneornil(L, 7)) {
-		timeout.tv_sec = (time_t)luaL_checkint(L, 7);
-		timeout.tv_usec = 0;
-		p_timeout = &timeout;
-	} else
-		p_timeout = NULL;
-
-	for (int i = 0; i < newtop - 1; i++)
-		lua_insert(L, 1);
-
-	rc = dm_register_gw_req_client_accessclass(
-		ctx, path, username, password, class, useragent,
-		p_timeout, cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-LUA_SIG(gw_set_client_accessclass)
-{
-	DMCONTEXT	*ctx;
-	int		top;
-	uint32_t	rc;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 4, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-
-	rc = dm_send_gw_set_client_accessclass(ctx,
-					       luaL_checkstring(L, 2),
-					       lua_isnil(L, 3) ? NULL : luaL_checkstring(L, 3),
-					       luaL_checkstring(L, 4));
-	lua_pushinteger(L, rc);
-
-	return 1;
-}
-
-LUA_SIG_REGISTER(gw_set_client_accessclass)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-	int		top;
-
-	const char	*path, *username, *class;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 4 && top <= 6, top, L_NUMBER);
-	Lua_register_eval(L, CMD_GW_CLIENT_SET_ACCESSCLASS, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 4, top, L_NUMBER);
-	path = luaL_checkstring(L, 2);
-	username = lua_isnil(L, 3) ? NULL : luaL_checkstring(L, 3);
-	class = luaL_checkstring(L, 4);
-	lua_insert(L, 1);
-	lua_insert(L, 1);
-	lua_insert(L, 1);
-
-	rc = dm_register_gw_set_client_accessclass(ctx, path, username, class,
-						   cb ? generic_Lua_callback : NULL,
-						   cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-		/* not sure whether a Lua program will ever need these wrappers... */
-
-LUA_SIG(hotplug)
-{
-	DMCONTEXT	*ctx;
-	const char	*str;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 2, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	str = luaL_checkstring(L, 2);
-
-	lua_pushinteger(L, dm_send_cmd_hotplug(ctx, str));
-
-	return 1;
-}
-
-LUA_SIG_REGISTER(hotplug)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	const char	*str;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 4, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_HOTPLUG, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 2, top, L_NUMBER);
-	str = luaL_checkstring(L, 2);
-	lua_insert(L, 1);
-
-	rc = dm_register_cmd_hotplug(ctx, str, cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-LUA_SIG(dhcpinfo)
-{
-	DMCONTEXT	*ctx;
-	const char	*str;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 2, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	str = luaL_checkstring(L, 2);
-
-	lua_pushinteger(L, dm_send_cmd_dhcpinfo(ctx, str));
-
-	return 1;
-}
-
-LUA_SIG_REGISTER(dhcpinfo)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	const char	*str;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 2 && top <= 4, top, L_NUMBER);
-	Lua_register_eval(L, CMD_DEV_DHCP_INFO, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 2, top, L_NUMBER);
-	str = luaL_checkstring(L, 2);
-	lua_insert(L, 1);
-
-	rc = dm_register_cmd_dhcpinfo(ctx, str, cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-
-static int
-Lua_dhcp_cmd_sequential(lua_State *L, uint32_t code)
-{
-	DMCONTEXT	*ctx;
-	const char	*str1, *str2;
-
-	char		*ret;
-	uint32_t	rc;
-	struct in_addr	addr;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top == 3, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	str1 = luaL_checkstring(L, 2);
-	str2 = luaL_checkstring(L, 3);
-
-	if (!inet_aton(str2, &addr))
-		return luaL_argerror(L, 3, L_VALUE);
-
-	rc = dm_generic_send_request_char_address_get_char(ctx, code, str1,
-							   addr, &ret);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-
-	lua_pushstring(L, ret);
-	free(ret);
-	return 2;
-}
-#define LSTD_FUNC(FNAME, CODE)					\
-	LUA_SIG(FNAME)						\
-	{							\
-		return Lua_dhcp_cmd_sequential(L, CODE);	\
-	}
-
-static int
-Lua_dhcp_cmd_events(lua_State *L, uint32_t code)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	const char	*str1, *str2;
-	struct in_addr	addr;
-	int		top;
-
-	top = lua_gettop(L);
-	luaL_argcheck(L, top >= 3 && top <= 5, top, L_NUMBER);
-	Lua_register_eval(L, code, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 3, top, L_NUMBER);
-	str1 = luaL_checkstring(L, 2);
-	str2 = luaL_checkstring(L, 3);
-	lua_insert(L, 1);
-	lua_insert(L, 1);
-
-	if (!inet_aton(str2, &addr))
-		return luaL_argerror(L, 3, L_VALUE);
-
-	rc = dm_generic_register_request_char_address(ctx, code, str1, addr,
-						      cb ? generic_Lua_callback : NULL,
-						      cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-#define LSTD_FUNC_REGISTER(FNAME, CODE)				\
-	LUA_SIG_REGISTER(FNAME)					\
-	{							\
-		return Lua_dhcp_cmd_events(L, CODE);		\
-	}
-
-LSTD_FUNC_BOTH(dhcp_circuit, CMD_DEV_DHCP_CIRCUIT)
-LSTD_FUNC_BOTH(dhcp_remote, CMD_DEV_DHCP_REMOTE)
-
-#undef LSTD_FUNC_REGISTER
-#undef LSTD_FUNC
-
-static int
-Lua_dhcpc_sequential(lua_State *L, uint32_t code)
-{
-	DMCONTEXT	*ctx;
-	const char	*iface;
-
-	int		top = lua_gettop(L);
-
-	luaL_argcheck(L, top == 2, top, L_NUMBER);
-	ctx = luaL_checkudata(L, 1, DMCONFIG_SESSION_SEQUENTIAL_MT);
-	iface = luaL_checkstring(L, 2);
-
-	lua_pushinteger(L, dm_generic_send_request_path_get_grp(ctx, code, iface, NULL));
-	return 1;
-}
-#define LSTD_FUNC(FNAME, CODE)				\
-	LUA_SIG(FNAME)					\
-	{						\
-		return Lua_dhcpc_sequential(L, CODE);	\
-	}
-
-static int
-Lua_dhcpc_events(lua_State *L, uint32_t code)
-{
-	DMCONTEXT	*ctx;
-	LUA_CALLBACK 	*cb;
-	uint32_t	rc;
-
-	const char	*iface;
-	int		top = lua_gettop(L);
-
-	luaL_argcheck(L, top >= 2 && top <= 4, top, L_NUMBER);
-	Lua_register_eval(L, code, &ctx, &cb);
-	luaL_argcheck(L, lua_gettop(L) == 2, top, L_NUMBER);
-	iface = luaL_checkstring(L, 2);
-	lua_insert(L, 1);
-
-	rc = dm_generic_register_request_path(ctx, code, iface,
-					      cb ? generic_Lua_callback : NULL, cb);
-	lua_pushinteger(L, rc);
-	if (rc)
-		return 1;
-	lua_insert(L, -2);	/* pull the user data */
-
-	return 2;
-}
-#define LSTD_FUNC_REGISTER(FNAME, CODE)			\
-	LUA_SIG_REGISTER(FNAME)				\
-	{						\
-		return Lua_dhcpc_events(L, CODE);	\
-	}
-
-LSTD_FUNC_BOTH(dhcpc_renew, CMD_DEV_DHCPC_RENEW)
-LSTD_FUNC_BOTH(dhcpc_release, CMD_DEV_DHCPC_RELEASE)
-LSTD_FUNC_BOTH(dhcpc_restart, CMD_DEV_DHCPC_RESTART)
-
-#undef LSTD_FUNC_REGISTER
-#undef LSTD_FUNC
-
 static int
 Lua_generic_request(lua_State *L, uint32_t code)
 {
@@ -3470,16 +2116,6 @@ Lua_generic_register(lua_State *L, uint32_t code)
 LSTD_FUNC_BOTH(commit, CMD_DB_COMMIT)
 LSTD_FUNC_BOTH(cancel, CMD_DB_CANCEL)
 LSTD_FUNC_BOTH(save, CMD_DB_SAVE)
-LSTD_FUNC_BOTH(bootstrap, CMD_DEV_BOOTSTRAP)
-LSTD_FUNC_BOTH(wanup, CMD_DEV_WANUP)
-LSTD_FUNC_BOTH(wandown, CMD_DEV_WANDOWN)
-LSTD_FUNC_BOTH(sysup, CMD_DEV_SYSUP)
-LSTD_FUNC_BOTH(boot, CMD_DEV_BOOT)
-LSTD_FUNC_BOTH(reboot, CMD_DEV_REBOOT)
-LSTD_FUNC_BOTH(reset, CMD_DEV_RESET)
-LSTD_FUNC_BOTH(ping_abort, CMD_DEV_PING_ABORT) /* FIXME */
-LSTD_FUNC_BOTH(traceroute_abort, CMD_DEV_TRACEROUTE_ABORT) /* FIXME */
-LSTD_FUNC_BOTH(pcap_abort, CMD_DEV_PCAP_ABORT)
 
 LSTD_FUNC(subscribe, CMD_SUBSCRIBE_NOTIFY)
 LSTD_FUNC(unsubscribe, CMD_UNSUBSCRIBE_NOTIFY)
@@ -3536,57 +2172,6 @@ callback_gc(lua_State *L)
 	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
 	luaL_unref(L, LUA_REGISTRYINDEX, cb->callback_ref);
 	luaL_unref(L, LUA_REGISTRYINDEX, cb->user_data_ref);
-
-	return 0;
-}
-
-static int
-fwupdate_callbacks_gc(lua_State *L)
-{
-	FWUPDATE_CALLBACKS *cb = luaL_checkudata(L, 1, DMCONFIG_FWUPDATE_CALLBACKS_MT);
-
-	if (cb->callbackDone)
-		return 0;
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->finish_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->finish_ud_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->progress_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->progress_ud_ref);
-
-	return 0;
-}
-
-static int
-ping_callbacks_gc(lua_State *L)
-{
-	PING_CALLBACKS *cb = luaL_checkudata(L, 1, DMCONFIG_PING_CALLBACKS_MT);
-
-	if (cb->callbackDone)
-		return 0;
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->ping_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->ping_ud_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
-
-	return 0;
-}
-
-static int
-traceroute_callbacks_gc(lua_State *L)
-{
-	TRACEROUTE_CALLBACKS *cb = luaL_checkudata(L, 1, DMCONFIG_TRACEROUTE_CALLBACKS_MT);
-
-	if (cb->callbackDone)
-		return 0;
-
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->context_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->traceroute_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->traceroute_ud_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_cb_ref);
-	luaL_unref(L, LUA_REGISTRYINDEX, cb->completed_ud_ref);
 
 	return 0;
 }
@@ -3674,33 +2259,11 @@ luaopen_libluadmconfig(lua_State *L)
 		NAMETOFUNC(commit),
 		NAMETOFUNC(cancel),
 		NAMETOFUNC(save),
-		NAMETOFUNC(bootstrap),
-		NAMETOFUNC(wanup),
-		NAMETOFUNC(wandown),
-		NAMETOFUNC(sysup),
 		NAMETOFUNC(save_config),
 		NAMETOFUNC(restore_config),
-		NAMETOFUNC(boot),
-		NAMETOFUNC(reboot),
-		NAMETOFUNC(reset),
 		NAMETOFUNC(dump),
-		NAMETOFUNC(getdevice),
-		NAMETOFUNC(gw_get_client),
-		NAMETOFUNC(gw_get_all_clients),
-		NAMETOFUNC(gw_req_client_accessclass),
-		NAMETOFUNC(gw_set_client_accessclass),
-		NAMETOFUNC(hotplug),
-		NAMETOFUNC(dhcpinfo),
-		NAMETOFUNC(dhcp_circuit),
-		NAMETOFUNC(dhcp_remote),
-		NAMETOFUNC(dhcpc_renew),
-		NAMETOFUNC(dhcpc_release),
-		NAMETOFUNC(dhcpc_restart),
 		NAMETOFUNC(subscribe),
 		NAMETOFUNC(unsubscribe),
-		NAMETOFUNC(ping_abort),
-		NAMETOFUNC(traceroute_abort),
-		NAMETOFUNC(pcap_abort),
 		NAMETOFUNC(param_notify),
 		NAMETOFUNC(recursive_param_notify),
 		NAMETOFUNC(get_passive_notifications),
@@ -3719,18 +2282,6 @@ luaopen_libluadmconfig(lua_State *L)
 		NAMETOFUNC_REGISTER(delete),
 		NAMETOFUNC_REGISTER(find),
 		NAMETOFUNC_REGISTER(dump),
-		NAMETOFUNC_REGISTER(getdevice),
-		NAMETOFUNC_REGISTER(gw_get_client),
-		NAMETOFUNC_REGISTER(gw_get_all_clients),
-		NAMETOFUNC_REGISTER(gw_req_client_accessclass),
-		NAMETOFUNC_REGISTER(gw_set_client_accessclass),
-		NAMETOFUNC_REGISTER(hotplug),
-		NAMETOFUNC_REGISTER(dhcpinfo),
-		NAMETOFUNC_REGISTER(dhcp_circuit),
-		NAMETOFUNC_REGISTER(dhcp_remote),
-		NAMETOFUNC_REGISTER(dhcpc_renew),
-		NAMETOFUNC_REGISTER(dhcpc_release),
-		NAMETOFUNC_REGISTER(dhcpc_restart),
 		NAMETOFUNC_REGISTER(connect),
 		NAMETOFUNC_REGISTER(start),
 		NAMETOFUNC_REGISTER(switch),
@@ -3741,24 +2292,10 @@ luaopen_libluadmconfig(lua_State *L)
 		NAMETOFUNC_REGISTER(commit),
 		NAMETOFUNC_REGISTER(cancel),
 		NAMETOFUNC_REGISTER(save),
-		NAMETOFUNC_REGISTER(bootstrap),
-		NAMETOFUNC_REGISTER(wanup),
-		NAMETOFUNC_REGISTER(wandown),
-		NAMETOFUNC_REGISTER(sysup),
 		NAMETOFUNC_REGISTER(save_config),
 		NAMETOFUNC_REGISTER(restore_config),
-		NAMETOFUNC_REGISTER(boot),
-		NAMETOFUNC_REGISTER(reboot),
-		NAMETOFUNC_REGISTER(reset),
 		NAMETOFUNC_REGISTER(subscribe),
 		NAMETOFUNC_REGISTER(unsubscribe),
-		NAMETOFUNC_REGISTER(fwupdate),
-		NAMETOFUNC_REGISTER(ping),
-		NAMETOFUNC_REGISTER(ping_abort),
-		NAMETOFUNC_REGISTER(traceroute),
-		NAMETOFUNC_REGISTER(traceroute_abort),
-		NAMETOFUNC_REGISTER(pcap),
-		NAMETOFUNC_REGISTER(pcap_abort),
 		NAMETOFUNC_REGISTER(param_notify),
 		NAMETOFUNC_REGISTER(recursive_param_notify),
 		NAMETOFUNC_REGISTER(get_passive_notifications),
@@ -3769,8 +2306,6 @@ luaopen_libluadmconfig(lua_State *L)
 	static const LUA_CONSTANTS mapping[] = {
 		{"s_readwrite",				CMD_FLAG_READWRITE},
 		{"s_configure",				CMD_FLAG_CONFIGURE},
-
-		{"f_force",				CMD_FLAG_FWUPDATE_FORCE},
 
 		{"c_add_instance_auto",			DM_ADD_INSTANCE_AUTO},
 
@@ -3798,12 +2333,6 @@ luaopen_libluadmconfig(lua_State *L)
 		{"e_created",				NOTIFY_INSTANCE_CREATED},
 		{"e_deleted",				NOTIFY_INSTANCE_DELETED},
 
-		{"f_step_unknown",			FWUPDATE_STEP_UNKNOWN},
-		{"f_step_sign",				FWUPDATE_STEP_SIGN},
-		{"f_step_crc",				FWUPDATE_STEP_CRC},
-		{"f_step_erase",			FWUPDATE_STEP_ERASE},
-		{"f_step_write",			FWUPDATE_STEP_WRITE},
-
 		{"af_unix",				AF_UNIX},
 		{"af_inet",				AF_INET},
 
@@ -3817,9 +2346,6 @@ luaopen_libluadmconfig(lua_State *L)
 		{DMCONFIG_SESSION_SEQUENTIAL_MT,	dmcontext_sequential_gc},
 		{DMCONFIG_SESSION_EVENTS_MT,		dmcontext_events_gc},
 		{DMCONFIG_CALLBACK_MT,			callback_gc},
-		{DMCONFIG_FWUPDATE_CALLBACKS_MT,	fwupdate_callbacks_gc},
-		{DMCONFIG_PING_CALLBACKS_MT,		ping_callbacks_gc},
-		{DMCONFIG_TRACEROUTE_CALLBACKS_MT,	traceroute_callbacks_gc},
 		{NULL, NULL}
 	};
 

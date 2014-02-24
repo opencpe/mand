@@ -2,12 +2,20 @@
 
 #ifdef LIBDMCONFIG_DEBUG
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <string.h>
 
-#include <talloc/talloc.h>
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
 
 #include <libdmconfig/diammsg.h>
 #include <libdmconfig/debug.h>

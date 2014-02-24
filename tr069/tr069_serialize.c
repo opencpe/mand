@@ -6,13 +6,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "svn_version.h"
-
 #include "tr069.h"
 #include "tr069_token.h"
 #include "tr069_store.h"
 #include "tr069_serialize.h"
 #include "tr069_strings.h"
+#include "tr069_cfgversion.h"
 
 #include "utils/binary.h"
 
@@ -307,7 +306,7 @@ static int walk_cb(void *userData, CB_type type, tr069_id id,
 			    (w->flags & S_SYS) != 0) {
 				findent(w->stream, w->indent);
 				if (elem->flags & F_VERSION)
-					fprintf(w->stream, "<%s version=\"%d\">\n", elem->key, SVN_NUMVER);
+					fprintf(w->stream, "<%s version=\"%s\">\n", elem->key, CFG_VERSION);
 				else
 					fprintf(w->stream, "<%s>\n", elem->key);
 				w->indent++;

@@ -14,11 +14,11 @@
 
 #include <time.h>
 #include <inttypes.h>
+#include <string.h>
 #include <netinet/ip.h>
 
 #include "tr069.h"
 #include "tr069_action_table.h"
-#include "soapH.h"
 
 enum {
 	T_NONE      = 0x00,
@@ -390,8 +390,6 @@ struct tr069_element {
 };
 
 struct tr069_token {
-	/*	struct soap *soap;*/
-
 	int cntr[4];
 	const struct tr069_element *element;
 };
@@ -416,10 +414,6 @@ extern struct tr069_value_table *tr069_value_store;
 
 extern time_t igd_parameters_tstamp;
 extern int mngt_srv_url_change;
-
-void cwmp_fault(struct soap *soap,
-		unsigned int code,
-		char *msg);
 
 int tr069_enum2int(const struct tr069_enum *, const char *);
 const char *tr069_int2enum(const struct tr069_enum *, int);

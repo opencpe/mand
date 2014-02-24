@@ -24,7 +24,6 @@
 #include "compiler.h"
 
 #include "tr069.h"
-#include "soapH.h"
 #include "tr069_token.h"
 #include "tr069_index.h"
 #include "tr069_store.h"

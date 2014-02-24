@@ -13,6 +13,10 @@
 #ifndef __DMCONFIG_H
 #define __DMCONFIG_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -25,7 +29,12 @@
 #include <unistd.h>
 #include <ev.h>
 #include <event.h>
-#include <talloc/talloc.h>
+
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
 
 #include "diammsg.h"
 #include "codes.h"
@@ -174,35 +183,6 @@ struct dmContext {
 			DMCONFIG_ACTIVE_NOTIFY	callback;
 			void			*user_data;
 		} active_notification;
-
-		struct _callback_fwupdate_feedback {
-			DMCONFIG_FWUPDATE_FINISH	finish_cb;
-			void				*finish_ud;
-
-			DMCONFIG_FWUPDATE_PROGRESS	progress_cb;
-			void				*progress_ud;
-		} fwupdate_feedback;
-
-		struct _callback_ping_feedback {
-			DMCONFIG_PING		ping_cb;
-			void			*ping_ud;
-
-			DMCONFIG_PING_COMPLETED	completed_cb;
-			void			*completed_ud;
-		} ping_feedback;
-
-		struct _callback_traceroute_feedback {
-			DMCONFIG_TRACEROUTE		traceroute_cb;
-			void				*traceroute_ud;
-
-			DMCONFIG_TRACEROUTE_COMPLETED	completed_cb;
-			void				*completed_ud;
-		} traceroute_feedback;
-
-		struct _callback_pcap_feedback {
-			DMCONFIG_PCAP_ABORTED	aborted_cb;
-			void			*aborted_ud;
-		} pcap_feedback;
 	} callbacks;
 };
 
@@ -310,98 +290,20 @@ uint32_t dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx,
 uint32_t dm_grp_set(DIAM_AVPGRP **grp, const char *name, int type, void *value,
 		    size_t size);
 
-uint32_t dm_send_gw_get_client(DMCONTEXT *dmCtx, uint16_t zone, uint8_t isNATIP,
-			       struct in_addr addr, uint16_t port, DIAM_AVPGRP **ret);
-uint32_t dm_send_gw_get_all_clients(DMCONTEXT *dmCtx, uint16_t zone, DIAM_AVPGRP **ret);
-uint32_t dm_send_gw_req_client_accessclass(DMCONTEXT *dmCtx, const char *path,
-					   const char *username,
-					   const char *password,
-					   const char *class,
-					   const char *useragent,
-					   struct timeval *timeout,
-					   int32_t *authReqState,
-					   int32_t *authResult,
-					   uint32_t *replyCode,
-					   DIAM_AVPGRP **messages);
-uint32_t dm_send_gw_set_client_accessclass(DMCONTEXT *dmCtx, const char *path,
-					   const char *username,
-					   const char *class);
-
-uint32_t dm_send_cmd_hotplug(DMCONTEXT *dmCtx, const char *cmd);
 uint32_t dm_send_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t *instance);
 uint32_t dm_send_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 		      DIAM_AVPGRP **answer);
-
-uint32_t dm_register_gw_get_client(DMCONTEXT *dmCtx, uint16_t zone, uint8_t isNATIP,
-				   struct in_addr addr, uint16_t port,
-				   DMCONFIG_CALLBACK callback, void *callback_ud);
-uint32_t dm_register_gw_get_all_clients(DMCONTEXT *dmCtx, uint16_t zone,
-					DMCONFIG_CALLBACK callback, void *callback_ud);
-uint32_t dm_register_gw_req_client_accessclass(DMCONTEXT *dmCtx,
-					       const char *path,
-					       const char *username,
-					       const char *password,
-					       const char *class,
-					       const char *useragent,
-					       struct timeval *timeout,
-					       DMCONFIG_CALLBACK callback,
-					       void *callback_ud);
-uint32_t dm_register_gw_set_client_accessclass(DMCONTEXT *dmCtx,
-					       const char *path,
-					       const char *username,
-					       const char *class,
-					       DMCONFIG_CALLBACK callback,
-					       void *callback_ud);
-
-uint32_t dm_register_gw_sol_inform(DMCONTEXT *, uint16_t, uint16_t,
-				   struct in_addr, const char *,
-				   DMCONFIG_CALLBACK, void *);
-
-uint32_t dm_register_cmd_hotplug(DMCONTEXT *dmCtx, const char *cmd,
-				 DMCONFIG_CALLBACK callback, void *callback_ud);
 
 uint32_t dm_register_subscribe_notify(DMCONTEXT *dmCtx,
 				      DMCONFIG_ACTIVE_NOTIFY notify_callback,
 				      void *notify_callback_ud,
 				      DMCONFIG_CALLBACK callback,
 				      void *callback_ud);
-uint32_t dm_register_subscribe_gw_notify(DMCONTEXT *dmCtx,
-					 DMCONFIG_ACTIVE_NOTIFY notify_callback,
-					 void *notify_callback_ud,
-					 DMCONFIG_CALLBACK callback,
-					 void *callback_ud);
 
 uint32_t dm_register_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t instance,
 				  DMCONFIG_CALLBACK callback, void *callback_ud);
 uint32_t dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 			  DMCONFIG_CALLBACK callback, void *callback_ud);
-uint32_t dm_register_cmd_fwupdate(DMCONTEXT *dmCtx, const char *fwfile,
-				  const char *device, uint32_t flags,
-				  DMCONFIG_FWUPDATE_FINISH finish_cb,
-				  void *finish_ud,
-  				  DMCONFIG_FWUPDATE_PROGRESS progress_cb,
-				  void *progress_ud,
-				  DMCONFIG_CALLBACK callback,
-				  void *callback_ud);
-uint32_t dm_register_cmd_ping(DMCONTEXT *dmCtx, const char *hostname,
-		     	      uint32_t send_cnt, uint32_t timeout,
-			      DMCONFIG_PING ping_cb, void *ping_ud,
-			      DMCONFIG_PING_COMPLETED completed_cb, void *completed_ud,
-			      DMCONFIG_CALLBACK callback, void *callback_ud);
-uint32_t dm_register_cmd_traceroute(DMCONTEXT *dmCtx, const char *hostname,
-				    uint8_t tries, uint32_t timeout, uint16_t size,
-				    uint8_t maxhop,
-				    DMCONFIG_TRACEROUTE traceroute_cb, void *traceroute_ud,
-				    DMCONFIG_TRACEROUTE_COMPLETED completed_cb, void *completed_ud,
-				    DMCONFIG_CALLBACK callback, void *callback_ud);
-uint32_t dm_register_cmd_pcap(DMCONTEXT *dmCtx, const char *interface, const char *url,
-			      uint32_t timeout, uint16_t packets, uint16_t kbytes,
-			      DMCONFIG_PCAP_ABORTED aborted_cb, void *aborted_ud,
-			      DMCONFIG_CALLBACK callback, void *callback_ud);
-
-uint32_t dm_decode_gw_req_client_accessclass(DIAM_AVPGRP *grp, int32_t *authReqState,
-				    	     int32_t *authResult, uint32_t *replyCode,
-					     DIAM_AVPGRP **messages);
 
 uint32_t dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type,
 				 DIAM_AVPGRP **notify);
@@ -501,7 +403,6 @@ static inline uint32_t dm_send_retrieve_enums(DMCONTEXT *dmCtx,
 					      const char *name,
 					      DIAM_AVPGRP **answer);
 static inline uint32_t dm_send_subscribe_notify(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_subscribe_gw_notify(DMCONTEXT *dmCtx);
 static inline uint32_t dm_send_recursive_param_notify(DMCONTEXT *dmCtx,
 						      uint8_t isActiveNotify __attribute__((unused)),
 						      const char *path);
@@ -518,37 +419,12 @@ static inline uint32_t dm_send_packet_get(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp,
 static inline uint32_t dm_send_commit(DMCONTEXT *dmCtx);
 static inline uint32_t dm_send_cancel(DMCONTEXT *dmCtx);
 static inline uint32_t dm_send_save(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_bootstrap(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_wanup(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_wandown(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_sysup(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_boot(DMCONTEXT *dmCtx);
 static inline uint32_t dm_send_cmd_dump(DMCONTEXT *dmCtx, const char *path,
 					char **data);
-static inline uint32_t dm_send_cmd_getdevice(DMCONTEXT *dmCtx, const char *path,
-					     char **data);
-static inline uint32_t dm_send_cmd_reboot(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_reset(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_dhcp_circuit(DMCONTEXT *dmCtx,
-						const char *dev,
-						struct in_addr addr,
-						char **data);
-static inline uint32_t dm_send_cmd_dhcp_remote(DMCONTEXT *dmCtx,
-					       const char *dev,
-					       struct in_addr addr,
-					       char **data);
-static inline uint32_t dm_send_cmd_dhcpinfo(DMCONTEXT *dmCtx, const char *if_name);
-
-static inline uint32_t dm_send_cmd_dhcpc_renew(DMCONTEXT *, const char *);
-static inline uint32_t dm_send_cmd_dhcpc_release(DMCONTEXT *, const char *);
-static inline uint32_t dm_send_cmd_dhcpc_restart(DMCONTEXT *, const char *);
 
 static inline uint32_t dm_send_cmd_conf_save(DMCONTEXT *dmCtx, const char *server);
 static inline uint32_t dm_send_cmd_conf_restore(DMCONTEXT *dmCtx,
 						const char *server);
-static inline uint32_t dm_send_cmd_ping_abort(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_traceroute_abort(DMCONTEXT *dmCtx);
-static inline uint32_t dm_send_cmd_pcap_abort(DMCONTEXT *dmCtx);
 
 static inline uint32_t dm_register_start_session(DMCONTEXT *dmCtx,
 						 uint32_t flags,
@@ -583,9 +459,6 @@ static inline uint32_t dm_register_retrieve_enums(DMCONTEXT *dmCtx,
 static inline uint32_t dm_register_unsubscribe_notify(DMCONTEXT *dmCtx,
 						      DMCONFIG_CALLBACK callback,
 						      void *callback_ud);
-static inline uint32_t dm_register_unsubscribe_gw_notify(DMCONTEXT *dmCtx,
-							 DMCONFIG_CALLBACK callback,
-							 void *callback_ud);
 static inline uint32_t dm_register_recursive_param_notify(DMCONTEXT *dmCtx,
 							  uint8_t isActiveNotify,
 							  const char *path,
@@ -617,49 +490,9 @@ static inline uint32_t dm_register_cancel(DMCONTEXT *dmCtx,
 static inline uint32_t dm_register_save(DMCONTEXT *dmCtx,
 					DMCONFIG_CALLBACK callback,
 					void *callback_ud);
-static inline uint32_t dm_register_cmd_bootstrap(DMCONTEXT *dmCtx,
-						 DMCONFIG_CALLBACK callback,
-						 void *callback_ud);
-static inline uint32_t dm_register_cmd_wanup(DMCONTEXT *dmCtx,
-					     DMCONFIG_CALLBACK callback,
-					     void *callback_ud);
-static inline uint32_t dm_register_cmd_wandown(DMCONTEXT *dmCtx,
-					       DMCONFIG_CALLBACK callback,
-					       void *callback_ud);
-static inline uint32_t dm_register_cmd_boot(DMCONTEXT *dmCtx,
-					    DMCONFIG_CALLBACK callback,
-					    void *callback_ud);
 static inline uint32_t dm_register_cmd_dump(DMCONTEXT *dmCtx, const char *path,
 					    DMCONFIG_CALLBACK callback,
 					    void *callback_ud);
-static inline uint32_t dm_register_cmd_getdevice(DMCONTEXT *dmCtx,
-						 const char *path,
-						 DMCONFIG_CALLBACK callback,
-						 void *callback_ud);
-static inline uint32_t dm_register_cmd_reboot(DMCONTEXT *dmCtx,
-					      DMCONFIG_CALLBACK callback,
-					      void *callback_ud);
-static inline uint32_t dm_register_cmd_reset(DMCONTEXT *dmCtx,
-					     DMCONFIG_CALLBACK callback,
-					     void *callback_ud);
-static inline uint32_t dm_register_cmd_dhcp_circuit(DMCONTEXT *dmCtx,
-						    const char *dev,
-						    struct in_addr addr,
-						    DMCONFIG_CALLBACK callback,
-						    void *callback_ud);
-static inline uint32_t dm_register_cmd_dhcp_remote(DMCONTEXT *dmCtx,
-						   const char *dev,
-						   struct in_addr addr,
-						   DMCONFIG_CALLBACK callback,
-						   void *callback_ud);
-static inline uint32_t dm_register_cmd_dhcpinfo(DMCONTEXT *dmCtx,
-						const char *if_name,
-						DMCONFIG_CALLBACK callback,
-						void *callback_ud);
-
-static inline uint32_t dm_register_cmd_dhcpc_renew(DMCONTEXT *, const char *, DMCONFIG_CALLBACK, void *);
-static inline uint32_t dm_register_cmd_dhcpc_release(DMCONTEXT *, const char *, DMCONFIG_CALLBACK, void *);
-static inline uint32_t dm_register_cmd_dhcpc_restart(DMCONTEXT *, const char *, DMCONFIG_CALLBACK, void *);
 
 static inline uint32_t dm_register_cmd_conf_save(DMCONTEXT *dmCtx,
 						 const char *server,
@@ -669,15 +502,6 @@ static inline uint32_t dm_register_cmd_conf_restore(DMCONTEXT *dmCtx,
 						    const char *server,
 						    DMCONFIG_CALLBACK callback,
 						    void *callback_ud);
-static inline uint32_t dm_register_cmd_ping_abort(DMCONTEXT *dmCtx,
-						  DMCONFIG_CALLBACK callback,
-						  void *callback_ud);
-static inline uint32_t dm_register_cmd_traceroute_abort(DMCONTEXT *dmCtx,
-						        DMCONFIG_CALLBACK callback,
-						        void *callback_ud);
-static inline uint32_t dm_register_cmd_pcap_abort(DMCONTEXT *dmCtx,
-					          DMCONFIG_CALLBACK callback,
-					          void *callback_ud);
 
 static inline uint32_t dm_decode_start_session(DMCONTEXT *dmCtx,
 					       DIAM_AVPGRP *grp);
@@ -690,11 +514,6 @@ static inline uint32_t dm_decode_add_instance(DIAM_AVPGRP *grp,
 static inline uint32_t dm_decode_find_instance(DIAM_AVPGRP *grp,
 					       uint16_t *instance);
 static inline uint32_t dm_decode_cmd_dump(DIAM_AVPGRP *grp, char **data);
-static inline uint32_t dm_decode_cmd_getdevice(DIAM_AVPGRP *grp, char **data);
-static inline uint32_t dm_decode_cmd_dhcp_circuit(DIAM_AVPGRP *grp, char **data);
-static inline uint32_t dm_decode_cmd_dhcp_remote(DIAM_AVPGRP *grp, char **data);
-
-static inline uint32_t dm_decode_gw_sol_inform(DIAM_AVPGRP *grp, int32_t *authRes);
 
 static inline void dm_decode_reset(DIAM_AVPGRP *grp);
 static inline uint32_t dm_decode_string(DIAM_AVPGRP *grp, char **val);
@@ -1186,13 +1005,6 @@ dm_send_subscribe_notify(DMCONTEXT *dmCtx)
 }
 
 static inline uint32_t
-dm_send_subscribe_gw_notify(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_SUBSCRIBE_GW_NOTIFY, NULL,
-				       NULL);
-}
-
-static inline uint32_t
 dm_send_recursive_param_notify(DMCONTEXT *dmCtx,
 			       uint8_t isActiveNotify __attribute__((unused)), /* FIXME: this is only for backwards compatibility */
 			       const char *path)
@@ -1231,12 +1043,6 @@ static inline uint32_t
 dm_send_unsubscribe_notify(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_UNSUBSCRIBE_NOTIFY, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_unsubscribe_gw_notify(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_UNSUBSCRIBE_GW_NOTIFY, NULL, NULL);
 }
 
 static inline uint32_t
@@ -1282,101 +1088,10 @@ dm_send_save(DMCONTEXT *dmCtx)
 }
 
 static inline uint32_t
-dm_send_cmd_bootstrap(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_BOOTSTRAP, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_wanup(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_WANUP, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_wandown(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_WANDOWN, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_sysup(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_SYSUP, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_boot(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_BOOT, NULL, NULL);
-}
-
-static inline uint32_t
 dm_send_cmd_dump(DMCONTEXT *dmCtx, const char *path, char **data)
 {
 	return dm_generic_send_request_path_get_char(dmCtx, CMD_DB_DUMP, path,
 						     data);
-}
-
-static inline uint32_t
-dm_send_cmd_getdevice(DMCONTEXT *dmCtx, const char *path, char **data)
-{
-	return dm_generic_send_request_path_get_char(dmCtx, CMD_DEV_GETDEVICE,
-						     path, data);
-}
-
-static inline uint32_t
-dm_send_cmd_reboot(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_REBOOT, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_reset(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_RESET, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcp_circuit(DMCONTEXT *dmCtx, const char *dev, struct in_addr addr,
-			 char **data)
-{
-	return dm_generic_send_request_char_address_get_char(dmCtx,
-							     CMD_DEV_DHCP_CIRCUIT,
-							     dev, addr, data);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcp_remote(DMCONTEXT *dmCtx, const char *dev, struct in_addr addr,
-			char **data)
-{
-	return dm_generic_send_request_char_address_get_char(dmCtx,
-							     CMD_DEV_DHCP_REMOTE,
-							     dev, addr, data);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcpinfo(DMCONTEXT *dmCtx, const char *if_name)
-{
-	return dm_generic_send_request_string(dmCtx, CMD_DEV_DHCP_INFO, if_name);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcpc_renew(DMCONTEXT *dmCtx, const char *iface)
-{
-	return dm_generic_send_request_path_get_grp(dmCtx, CMD_DEV_DHCPC_RENEW, iface, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcpc_release(DMCONTEXT *dmCtx, const char *iface)
-{
-	return dm_generic_send_request_path_get_grp(dmCtx, CMD_DEV_DHCPC_RELEASE, iface, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_dhcpc_restart(DMCONTEXT *dmCtx, const char *iface)
-{
-	return dm_generic_send_request_path_get_grp(dmCtx, CMD_DEV_DHCPC_RESTART, iface, NULL);
 }
 
 static inline uint32_t
@@ -1390,27 +1105,6 @@ dm_send_cmd_conf_restore(DMCONTEXT *dmCtx, const char *server)
 {
 	return dm_generic_send_request_string(dmCtx, CMD_DEV_CONF_RESTORE, server);
 }
-
-		/* FIXME */
-static inline uint32_t
-dm_send_cmd_ping_abort(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_PING_ABORT, NULL, NULL);
-}
-
-		/* FIXME */
-static inline uint32_t
-dm_send_cmd_traceroute_abort(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_TRACEROUTE_ABORT, NULL, NULL);
-}
-
-static inline uint32_t
-dm_send_cmd_pcap_abort(DMCONTEXT *dmCtx)
-{
-	return dm_generic_send_request(dmCtx, CMD_DEV_PCAP_ABORT, NULL, NULL);
-}
-		/* register requests (nonblocking API) */
 
 static inline uint32_t
 dm_register_start_session(DMCONTEXT *dmCtx, uint32_t flags,
@@ -1485,14 +1179,6 @@ dm_register_unsubscribe_notify(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 			       void *callback_ud)
 {
 	return dm_generic_register_request(dmCtx, CMD_UNSUBSCRIBE_NOTIFY,
-					   NULL, callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_unsubscribe_gw_notify(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-				  void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_UNSUBSCRIBE_GW_NOTIFY,
 					   NULL, callback, callback_ud);
 }
 
@@ -1585,129 +1271,11 @@ dm_register_save(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback, void *callback_ud
 }
 
 static inline uint32_t
-dm_register_cmd_bootstrap(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-			  void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_BOOTSTRAP, NULL,
-					   callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_wanup(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-		      void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_WANUP, NULL, callback,
-					   callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_wandown(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-			void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_WANDOWN, NULL,
-					   callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_sysup(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-		      void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_SYSUP, NULL, callback,
-					   callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_boot(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-		     void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_BOOT, NULL, callback,
-					   callback_ud);
-}
-
-static inline uint32_t
 dm_register_cmd_dump(DMCONTEXT *dmCtx, const char *path,
 		     DMCONFIG_CALLBACK callback, void *callback_ud)
 {
 	return dm_generic_register_request_path(dmCtx, CMD_DB_DUMP, path,
 						callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_getdevice(DMCONTEXT *dmCtx, const char *path,
-			  DMCONFIG_CALLBACK callback, void *callback_ud)
-{
-	return dm_generic_register_request_path(dmCtx, CMD_DEV_GETDEVICE, path,
-						callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_reboot(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-		       void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_REBOOT, NULL,
-					   callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_reset(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-		      void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_RESET, NULL,
-					   callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcp_circuit(DMCONTEXT *dmCtx, const char *dev,
-			     struct in_addr addr, DMCONFIG_CALLBACK callback,
-			     void *callback_ud)
-{
-	return dm_generic_register_request_char_address(dmCtx,
-							CMD_DEV_DHCP_CIRCUIT,
-							dev, addr, callback,
-							callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcp_remote(DMCONTEXT *dmCtx, const char *dev,
-			    struct in_addr addr, DMCONFIG_CALLBACK callback,
-			    void *callback_ud)
-{
-	return dm_generic_register_request_char_address(dmCtx,
-							CMD_DEV_DHCP_REMOTE,
-							dev, addr, callback,
-							callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcpinfo(DMCONTEXT *dmCtx, const char *if_name,
-			 DMCONFIG_CALLBACK callback, void *callback_ud)
-{
-	return dm_generic_register_request_string(dmCtx, CMD_DEV_DHCP_INFO,
-						  if_name, callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcpc_renew(DMCONTEXT *dmCtx, const char *iface,
-			    DMCONFIG_CALLBACK callback, void *callback_ud)
-{
-	return dm_generic_register_request_path(dmCtx, CMD_DEV_DHCPC_RENEW,
-						iface, callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcpc_release(DMCONTEXT *dmCtx, const char *iface,
-			      DMCONFIG_CALLBACK callback, void *callback_ud)
-{
-	return dm_generic_register_request_path(dmCtx, CMD_DEV_DHCPC_RELEASE,
-						iface, callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_dhcpc_restart(DMCONTEXT *dmCtx, const char *iface,
-			      DMCONFIG_CALLBACK callback, void *callback_ud)
-{
-	return dm_generic_register_request_path(dmCtx, CMD_DEV_DHCPC_RESTART,
-						iface, callback, callback_ud);
 }
 
 static inline uint32_t
@@ -1724,32 +1292,6 @@ dm_register_cmd_conf_restore(DMCONTEXT *dmCtx, const char *server,
 {
 	return dm_generic_register_request_string(dmCtx, CMD_DEV_CONF_RESTORE,
 						  server, callback, callback_ud);
-}
-
-		/* FIXME */
-static inline uint32_t
-dm_register_cmd_ping_abort(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-			   void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_PING_ABORT, NULL,
-					   callback, callback_ud);
-}
-
-		/* FIXME */
-static inline uint32_t
-dm_register_cmd_traceroute_abort(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-				 void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_TRACEROUTE_ABORT, NULL,
-					   callback, callback_ud);
-}
-
-static inline uint32_t
-dm_register_cmd_pcap_abort(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
-			   void *callback_ud)
-{
-	return dm_generic_register_request(dmCtx, CMD_DEV_PCAP_ABORT, NULL,
-					   callback, callback_ud);
 }
 
 		/* request-specific decode routines - useful in answer handlers (nonblocking API) */
@@ -1798,30 +1340,6 @@ static inline uint32_t
 dm_decode_cmd_dump(DIAM_AVPGRP *grp, char **data)
 {
 	return dm_decode_string(grp, data);
-}
-
-static inline uint32_t
-dm_decode_cmd_getdevice(DIAM_AVPGRP *grp, char **data)
-{
-	return dm_decode_string(grp, data);
-}
-
-static inline uint32_t
-dm_decode_cmd_dhcp_circuit(DIAM_AVPGRP *grp, char **data)
-{
-	return dm_decode_string(grp, data);
-}
-
-static inline uint32_t
-dm_decode_cmd_dhcp_remote(DIAM_AVPGRP *grp, char **data)
-{
-	return dm_decode_string(grp, data);
-}
-
-static inline uint32_t
-dm_decode_gw_sol_inform(DIAM_AVPGRP *grp, int32_t *authRes)
-{
-	return dm_decode_enumid(grp, authRes);
 }
 
 		/* process AVP group returned by dm_send_packet_get */

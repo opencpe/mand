@@ -13,6 +13,8 @@
 #ifndef __HAVE_TR069_CFGVERSION_H
 #define __HAVE_TR069_CFGVERSION_H
 
+#define CFG_VERSION  1
+
 int tr069_get_cfg_version(void);
 void tr069_set_cfg_version(int v);
 

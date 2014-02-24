@@ -6,8 +6,7 @@
  * \__/_/   \__,_/ |___/\___/_/ .___/_/_/ /_/\__, /
  *                           /_/            /____/
  *
- * (c) 2004-2006 Andreas Schultz <aschultz@warp10.net>
- * (c) 2007 Travelping GmbH <info@travelping.com>
+ * (c) Travelping GmbH <info@travelping.com>
  *
  */
 

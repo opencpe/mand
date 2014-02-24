@@ -5,9 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
 #include <sys/param.h>
-
-#include "svn_version.h"
 
 #include "expat.h"
 #include "tr069_token.h"
@@ -18,7 +17,6 @@
 #include "tr069_strings.h"
 #include "tr069_luaif.h"
 #include "tr069_cfgversion.h"
-#include "tr069_autogen.h"
 #include "tr069_index.h"
 
 #define SDEBUG
@@ -65,7 +63,6 @@ startElement(void *userData, const char *name, const char **atts)
 	const struct tr069_element *element = (*state)->element;
 	DM_VALUE *value = (*state)->value;
 
-	int autoid = AG_NULL;
 	int xid = 0;
 	int ntfy = 0;
 	tr069_id id;
@@ -92,18 +89,6 @@ startElement(void *userData, const char *name, const char **atts)
 			xml_debug("%s: config version: %s\n", name, atts[i + 1]);
 			tr069_set_cfg_version(atoi(atts[i + 1]));
 		}
-		else if (strcasecmp("auto", atts[i]) == 0) {
-			xml_debug("%s: auto: %s\n", name, atts[i + 1]);
-			if (strcasecmp(atts[i+1], "hostname") == 0)
-				autoid = AG_HNAME;
-			else if (strcasecmp(atts[i+1], "ssid") == 0)
-				autoid = AG_SSID;
-			else if (strcasecmp(atts[i+1], "tunnelname") == 0)
-				autoid = AG_TNLNM;
-			else if (strcasecmp(atts[i+1], "cwmpusername") == 0)
-				autoid = AG_CWMPUN;
-			else autoid = AG_ERROR;
-		}
 	}
 
 	if (xid != 0)
@@ -118,13 +103,6 @@ startElement(void *userData, const char *name, const char **atts)
 		if (id != TR069_ERR) {
 			kw = &(table->table[id - 1]);
 			val = tr069_get_value_ref_by_id(DM_TABLE(*value), id);
-
-			if (default_deserialized && (autoid != AG_NULL)) {
-				xml_debug("Found an element to be autotogenerated. Its type is %d. Will generate type %d\n", val->type, autoid);
-				if (!add_auto_default_entry(DM_TABLE(*value), id, autoid))
-					xml_debug("Failed to add entry.");
-			}
-
 			(*state)->flags |= XML_VALID;
 		} else {
 			printf("Element '%s' not found in table '%s'\n", name, element->key);
@@ -139,10 +117,10 @@ startElement(void *userData, const char *name, const char **atts)
 
 	if (flags & DS_VERSIONCHECK &&
 	    kw->flags & F_VERSION &&
-	    tr069_get_cfg_version() != SVN_NUMVER) {
+	    tr069_get_cfg_version() != CFG_VERSION) {
 		(*state)->flags |= XML_UPGRADE;
 
-		lua_pushinteger(lua_environment, SVN_NUMVER);
+		lua_pushinteger(lua_environment, CFG_VERSION);
 		lua_pushinteger(lua_environment, tr069_get_cfg_version());
 		if (fp_Lua_function("fncPreVersionCheck", 2))
 			debug("(): Error during Lua function execution");
@@ -281,7 +259,7 @@ endElement(void *userData, const char *name __attribute__ ((unused)))
 	}
 
 	if (((*state)->flags & XML_UPGRADE) == XML_UPGRADE) {
-		lua_pushinteger(lua_environment, SVN_NUMVER);
+		lua_pushinteger(lua_environment, CFG_VERSION);
 		lua_pushinteger(lua_environment, tr069_get_cfg_version());
 		if (fp_Lua_function("fncPostVersionCheck", 2))
 			debug("(): Error during Lua function execution");

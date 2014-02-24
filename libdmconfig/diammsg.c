@@ -25,7 +25,12 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include <talloc/talloc.h>
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
+
 #include "errors.h"
 #include "codes.h"
 #include "diammsg.h"

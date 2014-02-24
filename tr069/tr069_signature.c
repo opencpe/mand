@@ -94,6 +94,7 @@ static int sign_digest(unsigned char *hash, int hashlen,
  */
 int sign_file(const char *source, const char *dest)
 {
+#if 0 /* TODO */
 	int fin, fout;
 	int n, r;
 	int res = -1;
@@ -155,6 +156,8 @@ out:
 		unlink(dest);
 
 	return res;
+#endif
+	return 0;
 }
 
 /**
@@ -162,6 +165,7 @@ out:
  */
 int validate_file(const char *source, const char *dest)
 {
+#if 0 /* TODO */
 	FILE *fin, *fout;
 	int r;
 	char *p;
@@ -226,4 +230,6 @@ out:
 		unlink(dest);
 
 	return res;
+#endif
+	return 0;
 }

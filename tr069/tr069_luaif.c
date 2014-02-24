@@ -102,8 +102,6 @@ LUA_SIG(add);
 LUA_SIG(delete);
 LUA_SIG(find);
 
-LUA_SIG(bootstrap);
-
 LUA_SIG(crypt);
 
 LUA_SIG(deserialize_file);
@@ -1245,22 +1243,6 @@ LUA_SIG(find)
 	return 2;
 }
 
-		/* misc. commands */
-
-LUA_SIG(bootstrap)
-{
-	int top = lua_gettop(L);
-
-	luaL_argcheck(L, !top, top, L_NUMBER);
-
-	debug(": LUAIF: bootstrap\n");
-
-	doBootstrap();
-
-	lua_pushinteger(L, DM_OK);
-	return 1;
-}
-
 		/* misc. commands (aux) */
 
 LUA_SIG(crypt)
@@ -1402,7 +1384,6 @@ init_Lua_environment(void)
 		NAMETOFUNC(add),
 		NAMETOFUNC(delete),
 		NAMETOFUNC(find),
-		NAMETOFUNC(bootstrap),
 
 		NAMETOFUNC(crypt),
 		NAMETOFUNC(deserialize_file),
