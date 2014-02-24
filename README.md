@@ -1,4 +1,4 @@
-# mand - a Device Managenent Deamon
+# mand - a Device Management Daemon
 
 # Building and Install
 
