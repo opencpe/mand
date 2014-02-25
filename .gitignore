@@ -1,4 +1,44 @@
-.deps
-*.in
+\.deps
+\.libs
+*\.in
 *~
+*\.o
+*\.lo
+*\.la
+
+# mand build files
+mand/dmctrl
+mand/mand
+mand/p_table.c
+mand/p_table.h
+mand/p_table_stubs.c
+
+# libdmconfig build files
+libdmconfig/codes.h
+libdmconfig/extensivedump.out
+
+# lua build files
+lua/fncAdminPasswd.out
+lua/fncPostVersionCheck.out
+lua/fncPreVersionCheck.out
+lua/fncStartup.out
+
+# automake / autoconf files
+autom4te.cache/
+config/
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
+shtool
+libtool
+aclocal.m4
+INSTALL
+configure
 Makefile
+config.h
+config.log
+config.status
+stamp-h1
+
