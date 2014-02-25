@@ -102,10 +102,6 @@ typedef struct dmContext	DMCONTEXT;
 #define CMD_FLAG_READWRITE		0x0
 #define CMD_FLAG_CONFIGURE		(1 << 0)
 
-		/* fwupdate flags */
-
-#define CMD_FLAG_FWUPDATE_FORCE		(1 << 0)
-
 		/* callback function types */
 
 typedef void (*DMCONFIG_CALLBACK)
@@ -117,32 +113,6 @@ typedef void (*DMCONFIG_CONNECT_CALLBACK)
 typedef void (*DMCONFIG_ACTIVE_NOTIFY)
 		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
 		 DIAM_AVPGRP *answer);
-
-typedef void (*DMCONFIG_FWUPDATE_FINISH)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
-		 int32_t code, char *msg);
-typedef void (*DMCONFIG_FWUPDATE_PROGRESS)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
-		 char *msg, uint32_t state, int32_t current, int32_t total,
-		 char *unit);
-
-typedef void (*DMCONFIG_PING)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
-		 uint32_t bytes, struct in_addr *ip, uint16_t seq, uint32_t triptime);
-typedef void (*DMCONFIG_PING_COMPLETED)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
-		 uint32_t succ_cnt, uint32_t fail_cnt, uint32_t tavg,
-		 uint32_t tmin, uint32_t tmax);
-
-typedef void (*DMCONFIG_TRACEROUTE)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
-		 int32_t code, uint8_t hop, const char *hostname, struct in_addr *ip,
-		 int32_t triptime);
-typedef void (*DMCONFIG_TRACEROUTE_COMPLETED)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata, int32_t res);
-
-typedef void (*DMCONFIG_PCAP_ABORTED)
-		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata, uint32_t res);
 
 struct requestInfo {
 	DMCONFIG_CALLBACK	callback;
