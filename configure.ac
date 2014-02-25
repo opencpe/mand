@@ -1,8 +1,8 @@
-dnl ##
-dnl ##  PROLOG
-dnl ##
+dnl # This Source Code Form is subject to the terms of the Mozilla Public
+dnl # License, v. 2.0. If a copy of the MPL was not distributed with this
+dnl # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-dnl #   standard Autoconf prolog
+dnl ## standard Autoconf prolog
 
 AC_PREREQ(2.59)
 
@@ -14,8 +14,7 @@ AM_INIT_AUTOMAKE([])
 
 AC_SRCDIR_PREFIX(srcdir_prefix)
 AC_HEADLINE(dnl
-TPLINO Device Config Agent, dnl
-[Copyright (c) Travelping GmbH <info@travelping.com>])
+TPLINO Device Config Agent)
 AC_CONFIG_PARAM(config.param)
 AM_CONFIG_HEADER(config.h)
 AC_PREFIX_DEFAULT(/usr)

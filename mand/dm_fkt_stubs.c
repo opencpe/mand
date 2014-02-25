@@ -1,14 +1,6 @@
-/*
- *    __                        __      _
- *   / /__________ __   _____  / /___  (_)___  ____ _
- *  / __/ ___/ __ `/ | / / _ \/ / __ \/ / __ \/ __ `/
- * / /_/ /  / /_/ /| |/ /  __/ / /_/ / / / / / /_/ /
- * \__/_/   \__,_/ |___/\___/_/ .___/_/_/ /_/\__, /
- *                           /_/            /____/
- *
- * (c) 2007 Travelping GmbH <info@travelping.com>
- *
- */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

@@ -1,3 +1,7 @@
+-- This Source Code Form is subject to the terms of the Mozilla Public
+-- License, v. 2.0. If a copy of the MPL was not distributed with this
+-- file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 -- libdmconfig client lib sample: uses the nonblocking libevent-based API
 -- only to be used on device manager test builds (where writing the firmware is disabled)
 
