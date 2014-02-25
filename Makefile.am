@@ -2,6 +2,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 AM_CFLAGS = -DWITH_SOAPDEFS_H
 
+EXTRA_DIST = doxygen.cfg
+
 SUBDIRS = utils libdmconfig libdmconfig/tests mand lua
 
 LIBTOOL_DEPS = @LIBTOOL_DEPS@
@@ -13,3 +15,8 @@ upgrade-tools:
 	libtoolize -f -c
 	shtoolize -q all
 
+if DX_COND_doc
+mostlyclean-local: doxygen-clean
+endif
+
+include m4/amdoxygen.m4

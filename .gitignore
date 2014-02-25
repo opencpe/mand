@@ -23,6 +23,9 @@ lua/fncPostVersionCheck.out
 lua/fncPreVersionCheck.out
 lua/fncStartup.out
 
+# doxygen
+doxygen-doc/
+
 # automake / autoconf files
 autom4te.cache/
 config/

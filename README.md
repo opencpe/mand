@@ -43,3 +43,7 @@
 
 	make 
 	make install
+	
+* build the doxygen documentation
+
+	make doxygen-doc
