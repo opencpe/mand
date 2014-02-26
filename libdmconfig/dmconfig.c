@@ -52,6 +52,10 @@
 
 int dmconfig_debug_level = 1;
 
+/** @defgroup API API
+ *  This is the user visible API
+ */
+
 #define debug(format, ...)						\
 	do {								\
 		struct timeval tv;					\
@@ -116,6 +120,7 @@ postprocessRequest(COMMCONTEXT *ctx)
 							sizeof(DIAM_REQUEST_INFO);
 }
 
+/** @private libev write event callback */
 uint32_t
 event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 		   uint8_t *alreadyRead, COMMSTATUS *status)
@@ -208,6 +213,7 @@ event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 	aux_RET(COMPLETE, RC_OK);
 }
 
+/** @private libev read event callback */
 uint32_t
 event_aux_diamWrite(int fd, short event, COMMCONTEXT *writeCtx,
 		    COMMSTATUS *status)
@@ -256,6 +262,7 @@ event_aux_diamWrite(int fd, short event, COMMCONTEXT *writeCtx,
 	aux_RET_SIG((writeCtx->bytes ? INCOMPLETE : COMPLETE), RC_OK);
 }
 
+/** @private free all requests in a DMCONTEXT */
 void
 dm_free_requests(DMCONTEXT *dmCtx)
 {
@@ -277,6 +284,22 @@ dm_free_requests(DMCONTEXT *dmCtx)
 
 		/* callback register functions */
 
+/** start an asynchonous connect
+ *
+ * Start an asynchonous connect and invoke a callback when the operation
+ * completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] type        Type of socket (AF_INET or AF_UNIX)
+ * @param [in] callback    Callback function to invoke
+ * @param [in] userdata    Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_CONNECTION    Underlying socket was closed or blocking
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_register_connect_callback(DMCONTEXT *dmCtx, int type,
 			     DMCONFIG_CONNECT_CALLBACK callback, void *userdata)
@@ -346,6 +369,22 @@ dm_register_connect_callback(DMCONTEXT *dmCtx, int type,
 	return RC_OK;
 }
 
+/** send an asynchonous request with a list of arguments
+ *
+ * Start an asynchonous request and invoke a callback when the operation
+ * completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] grp         Pointer to request arguments
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 			    DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -426,6 +465,23 @@ dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 	return RC_OK;
 }
 
+/** send an compound asynchonous request, first argument is a boolean
+ *
+ * Start an asynchonous request where the first argument is a boolean,
+ * invoke a callback when the operation completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] bool        First request argument, must be a boolean
+ * @param [in] grp         Pointer to more request arguments
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code,
 				     uint8_t bool, DIAM_AVPGRP *grp,
@@ -450,6 +506,24 @@ dm_generic_register_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** send an compound asynchonous request, consisting of an uint32 and two timeouts
+ *
+ * Start an asynchonous request where the first argument an uint32 followed by two timeouts,
+ * invoke a callback when the operation completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] val         First request argument, must be UInt32
+ * @param [in] timeval1    Second request argument, must be a struct timeval
+ * @param [in] timeval2    Third request argument, must be a struct timeval
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request_uint32_timeouts(DMCONTEXT *dmCtx, uint32_t code,
 					    uint32_t val, struct timeval *timeval1,
@@ -479,6 +553,22 @@ dm_generic_register_request_uint32_timeouts(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** send an compound asynchonous request, only argument is a string
+ *
+ * Start an asynchonous request where the only argument is a string,
+ * invoke a callback when the operation completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] str         Request argument, must be a string
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request_string(DMCONTEXT *dmCtx, uint32_t code,
 				   const char *str, DMCONFIG_CALLBACK callback,
@@ -500,6 +590,22 @@ dm_generic_register_request_string(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** send an compound asynchonous request, only argument is a data-model path
+ *
+ * Start an asynchonous request where the only argument is a data-model path,
+ * invoke a callback when the operation completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] path        Request argument, must be a valid data-model path
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request_path(DMCONTEXT *dmCtx, uint32_t code,
 				 const char *path, DMCONFIG_CALLBACK callback,
@@ -521,6 +627,23 @@ dm_generic_register_request_path(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** send an compound asynchonous request, only argument is a IP(v4) address
+ *
+ * Start an asynchonous request where the only argument is a IP(v4) address
+ * invoke a callback when the operation completes (either with success or error)
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] addr        Request argument, must be a IP(v4) address
+ * @param [in] callback    Callback function to invoke
+ * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @TODO: extend to IPv6
+ * @ingroup API
+ */
 uint32_t
 dm_generic_register_request_char_address(DMCONTEXT *dmCtx, uint32_t code,
 					 const char *str, struct in_addr addr,
@@ -547,6 +670,19 @@ dm_generic_register_request_char_address(DMCONTEXT *dmCtx, uint32_t code,
 
 		/* generic connection / send request functions (blocking API) */
 
+/** create a new DM socket in a given context
+ *
+ * Create a new blocking socket in a context with default settings
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] type        Type of socket (AF_INET or AF_UNIX)
+ *
+ * @retval RC_OK                Socket created
+ * @retval RC_ERR_MISC          Something unexpected happened
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_init_socket(DMCONTEXT *dmCtx, int type)
 {
@@ -568,7 +704,10 @@ dm_init_socket(DMCONTEXT *dmCtx, int type)
 	return rc;
 }
 
-		/* merely to return a code */
+/** @private default, blocking connect handler
+ *
+ * return only a code
+ */
 static void
 generic_connectHandler(DMCONFIG_EVENT event,
 		       DMCONTEXT *dmCtx __attribute__((unused)), void *userdata)
@@ -579,6 +718,18 @@ generic_connectHandler(DMCONFIG_EVENT event,
 }
 
 
+/** Synchonous request with a list of arguments
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] grp         Pointer to request arguments
+ * @param [inout] ret      Pointer to pointer to put the result into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 			DIAM_AVPGRP **ret)
@@ -605,6 +756,19 @@ dm_generic_send_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 							RC_ERR_MISC : result.rc;
 }
 
+
+/** Synchonous compound request, first argument is a boolean
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] bool        First request argument, must be a boolean
+ * @param [in] grp         Pointer to more request arguments
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code, uint8_t bool,
 				 DIAM_AVPGRP *grp)
@@ -625,6 +789,20 @@ dm_generic_send_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code, uint8_t bool,
 	return rc;
 }
 
+/** Synchonous compound request, consisting of an uint32 and two timeouts
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] val         First request argument, must be UInt32
+ * @param [in] timeval1    Second request argument, must be a struct timeval
+ * @param [in] timeval2    Third request argument, must be a struct timeval
+ * @param [inout] ret      Pointer to pointer to put the result into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_uint32_timeouts_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 						uint32_t val,
@@ -659,6 +837,17 @@ dm_generic_send_request_uint32_timeouts_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 	return RC_OK;
 }
 
+/** Synchonous compound request, only argument is a string
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] str         Request argument, must be a string
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_string(DMCONTEXT *dmCtx, uint32_t code, const char *str)
 {
@@ -677,6 +866,18 @@ dm_generic_send_request_string(DMCONTEXT *dmCtx, uint32_t code, const char *str)
 	return rc;
 }
 
+/** Synchonous compound request, only argument is a data-model path
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] path        Request argument, must be a valid data-model path
+ * @param [inout] answer   Pointer to pointer to put the result into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_path_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 				     const char *path, DIAM_AVPGRP **answer)
@@ -701,6 +902,18 @@ dm_generic_send_request_path_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 	return RC_OK;
 }
 
+/** Synchonous compound request, only argument is a data-model path, return value is a single string
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] path        Request argument, must be a valid data-model path
+ * @param [inout] data     Pointer to char pointer to put the result string into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_path_get_char(DMCONTEXT *dmCtx, uint32_t code,
 				      const char *path, char **data)
@@ -715,6 +928,20 @@ dm_generic_send_request_path_get_char(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** Synchonous compound request, arguments are a string and an IP(v4) address
+ *
+ * @param [in] dmCtx       Pointer to socket context to work on
+ * @param [in] code        Request code
+ * @param [in] str         First request argument, must be a string
+ * @param [in] addr        Second request argument, must be an IP(v4) address
+ * @param [inout] data     Pointer to char pointer to put the result string into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @TODO: extend to IPv6
+ * @ingroup API
+ */
 uint32_t
 dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 					      const char *str,
@@ -740,6 +967,8 @@ dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
+/** @private default, blocking answer handler
+ */
 static void
 generic_answerHandler(DMCONFIG_EVENT event __attribute__((unused)),
 		      DMCONTEXT *dmCtx __attribute__((unused)), void *user_data,
@@ -763,6 +992,9 @@ generic_answerHandler(DMCONFIG_EVENT event __attribute__((unused)),
 
 		/* auxiliary event handler */
 
+/** @private default connect event handler,
+ *           translate from libev to connect callback
+ */
 static void
 connectEvent(int fd, short event, void *arg)
 {
@@ -782,6 +1014,8 @@ connectEvent(int fd, short event, void *arg)
 	talloc_free(ctx);
 }
 
+/** @private libev write event handler,
+ */
 static void
 writeEvent(int fd, short event, void *arg)
 {
@@ -874,6 +1108,8 @@ writeEvent(int fd, short event, void *arg)
 		event_del(&dmCtx->readCtx.event);
 }
 
+/** @private libev read event handler,
+ */
 static void
 readEvent(int fd, short event, void *arg)
 {
@@ -1035,6 +1271,9 @@ abort:
 	memset(&dmCtx->callbacks, 0, sizeof(struct _dmContext_callbacks));
 }
 
+/** @private process notification events,
+ *           invoke notify callback
+ */
 static inline int
 process_active_notification(DMCONTEXT *dmCtx)
 {
@@ -1064,8 +1303,19 @@ process_active_notification(DMCONTEXT *dmCtx)
 
 		/* enduser API (both blocking and nonblocking) */
 
-		/* build AVP group for SET packet */
-
+/** build AVP group for SET packet
+ *
+ * @param [inout] grp     Pointer to a DM_AVPGRP pointer to put the result into
+ * @param [in] name       Name (path) of config parameter to set
+ * @param [in] type       Type of config parameter to set
+ * @param [in] value      Pointer to value to set
+ * @param [in] size       Length of value
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_grp_set(DIAM_AVPGRP **grp, const char *name, int type,
 	   void *value, size_t size)
@@ -1085,8 +1335,20 @@ dm_grp_set(DIAM_AVPGRP **grp, const char *name, int type,
 	return RC_OK;
 }
 
-		/* send and evaluate packet */
-
+/** Synchonous add instance request
+ *
+ * Add a new instance of the given object, the path argument must refer to a valid
+ * multi instance object
+ *
+ * @param [in] dmCtx            Pointer to socket context to work on
+ * @param [in] path             Path of the object to instanciate, must be a valid data-model path
+ * @param [inout] instance      Pointer to an UInt16 to put the create instance Id into
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_send_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t *instance)
 {
@@ -1110,6 +1372,21 @@ dm_send_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t *instance)
 	return rc;
 }
 
+/** Synchonous list request
+ *
+ * List a values under a give path up to a given depth
+ *
+ * @param [in] dmCtx            Pointer to socket context to work on
+ * @param [in] name             Path to start the list at, must be a valid data-model path
+ * @param [in] level            Number of level to recurse into
+ * @param [inout] answer        Pointer to an pointer to put the resuling DM_AVPGRP pointer into,
+ *                              caller has to free the answer afterwards
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_send_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 	     DIAM_AVPGRP **answer)
@@ -1132,6 +1409,23 @@ dm_send_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 
 		/* register requests (nonblocking API) */
 
+/** Initialize a subscription to active notification
+ * 
+ * Initialize a subscribtion to active notification and install a notify callback for them.
+ * This is an asynchronous operation, on completion a callback will be invoked
+ *
+ * @param [in] dmCtx               Pointer to socket context to work on
+ * @param [in] notify_callback     Notification callback to install
+ * @param [in] notify_callback_ud  Pointer to userdata that will be passed to the notification callback funtion
+ * @param [in] callback            Callback function to invoke on completion
+ * @param [in] callback_ud         Pointer to userdata that will be passed to the callback funtions
+
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_register_subscribe_notify(DMCONTEXT *dmCtx,
 			     DMCONFIG_ACTIVE_NOTIFY notify_callback,
@@ -1151,6 +1445,22 @@ dm_register_subscribe_notify(DMCONTEXT *dmCtx,
 	return RC_OK;
 }
 
+/** Asynchonous add an object instance
+ * 
+ * Add a new instance of the given object, the path argument must refer to a valid
+ * multi instance object, invoke callback on completion
+ *
+ * @param [in] dmCtx            Pointer to socket context to work on
+ * @param [in] path             Path of the object to instanciate, must be a valid data-model path
+ * @param [inout] instance      Pointer to an UInt16 to put the create instance Id into
+ * @param [in] callback         Callback function to invoke on completion
+ * @param [in] callback_ud      Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_register_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t instance,
 			 DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1170,6 +1480,23 @@ dm_register_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t instance,
 	return rc;
 }
 
+/** Asynchonous list request
+ *
+ * List a values under a give path up to a given depth,
+ * invoke callback on completion
+ *
+ * @param [in] dmCtx            Pointer to socket context to work on
+ * @param [in] name             Path to start the list at, must be a valid data-model path
+ * @param [in] level            Number of level to recurse into
+ * @param [in] callback         Callback function to invoke on completion
+ * @param [in] callback_ud      Pointer to userdata that will be passed to the callback funtions
+ *                              caller has to free the answer afterwards
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 		 DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1189,9 +1516,18 @@ dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 	return rc;
 }
 
-		/* process AVP group returned by dm_send|register_get_passive_notifications or
-		   received as an active notification callback parameter */
-
+/** process AVP group returned by dm_send|register_get_passive_notifications or
+ *  received as an active notification callback parameter
+ *
+ * @param [in] grp              DM_AVPGRP to decode
+ * @param [inout] type          Pointer to store type of notification
+ * @param [inout] notify        Pointer to an pointer to put the resuling DM_AVPGRP pointer into,
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type, DIAM_AVPGRP **notify)
 {
@@ -1231,7 +1567,18 @@ dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type, DIAM_AVPGRP **notify)
 	return RC_OK;
 }
 
-		/* converts an arbitrary typed AVP data to an ASCII string */
+/** converts an arbitrary typed AVP data to an ASCII string
+ *
+ * @param [in] type       Type of AVP to decode
+ * @param [in] data       Pointer to date to decode
+ * @param [in] len        Length of value
+ * @param [inout] val     Pointer to pointer to store the result in
+ *
+ * @retval RC_OK                Request was successfull
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
 uint32_t
 dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 {

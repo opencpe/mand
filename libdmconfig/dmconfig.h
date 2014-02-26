@@ -55,6 +55,9 @@ extern int dmconfig_debug_level;
 
 		/* enums */
 
+/**
+ * communication status enums
+ */
 typedef enum commStatus {
 	COMPLETE,
 	INCOMPLETE,
@@ -63,14 +66,18 @@ typedef enum commStatus {
 	ERROR
 } COMMSTATUS;
 
+/**
+ * request status enums
+ */
 typedef enum requestStatus {
 	REQUEST_SHALL_WRITE,
 	REQUEST_WRITING,
 	REQUEST_SHALL_READ
 } REQUESTSTATUS;
 
-		/* callback state enums */
-
+/**
+ * callback state enums
+ */
 typedef enum dmconfig_event {
 	DMCONFIG_ERROR_CONNECTING,
 	DMCONFIG_ERROR_WRITING,
@@ -96,12 +103,25 @@ typedef struct dmContext	DMCONTEXT;
 
 		/* callback function types */
 
+/**
+ * dmconfig callback.
+ */
 typedef void (*DMCONFIG_CALLBACK)
 		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data,
 		 uint32_t answer_rc, DIAM_AVPGRP *answer_grp);
+
+/**
+ * dmconfig connect callback.
+ */
 typedef void (*DMCONFIG_CONNECT_CALLBACK)
 		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata);
 
+/**
+ * dmconfig active notify callback.
+ *
+ * Callbacks of this types are invoked to deliver active notification to
+ * the application
+ */
 typedef void (*DMCONFIG_ACTIVE_NOTIFY)
 		(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata,
 		 DIAM_AVPGRP *answer);
@@ -511,22 +531,41 @@ static inline uint32_t dm_decode_parameter_changed(DIAM_AVPGRP *notify,
 static inline uint32_t dm_decode_instance_deleted(DIAM_AVPGRP *, char **);
 static inline uint32_t dm_decode_instance_created(DIAM_AVPGRP *, char **);
 
-		/* allocate new AVP group / talloc wrapper */
 
+/** allocate new AVP group
+ *
+ * @retval                     pointer to newly allocate DM_AVPGRP
+ *
+ * @ingroup API
+ */
 static inline DIAM_AVPGRP *
 dm_grp_new(void)
 {
 	return new_diam_avpgrp(NULL);
 }
 
+/** free  AVP group
+ *
+ * @param [in] grp             pointer to DM_AVPGRP to free
+ *
+ * @ingroup API
+ */
 static inline void
 dm_grp_free(DIAM_AVPGRP *grp)
 {
 	talloc_free(grp);
 }
 
-		/* build AVP group for GET packet (inline functions) */
-
+/** build AVP group for GET boolean packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name to the boolean value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_bool(DIAM_AVPGRP **grp, const char *name)
 {
@@ -535,6 +574,16 @@ dm_grp_get_bool(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET Int32 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the Int32 value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_int32(DIAM_AVPGRP **grp, const char *name)
 {
@@ -543,6 +592,16 @@ dm_grp_get_int32(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET UInt32 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the UInt32 value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_uint32(DIAM_AVPGRP **grp, const char *name)
 {
@@ -551,6 +610,16 @@ dm_grp_get_uint32(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET Int64 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the Int64 value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_int64(DIAM_AVPGRP **grp, const char *name)
 {
@@ -559,6 +628,16 @@ dm_grp_get_int64(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET UInt64 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the Int64 value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_uint64(DIAM_AVPGRP **grp, const char *name)
 {
@@ -567,6 +646,16 @@ dm_grp_get_uint64(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET counter packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the counter value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_counter(DIAM_AVPGRP **grp, const char *name)
 {
@@ -576,6 +665,16 @@ dm_grp_get_counter(DIAM_AVPGRP **grp, const char *name)
 }
 
 
+/** build AVP group for GET emun id packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the enum id value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_enumid(DIAM_AVPGRP **grp, const char *name)
 {
@@ -584,6 +683,16 @@ dm_grp_get_enumid(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET enum packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the enum value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_enum(DIAM_AVPGRP **grp, const char *name)
 {
@@ -592,6 +701,16 @@ dm_grp_get_enum(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET string packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the string value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_string(DIAM_AVPGRP **grp, const char *name)
 {
@@ -600,6 +719,16 @@ dm_grp_get_string(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET IP(v4)address packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the IP(v4)address value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_addr(DIAM_AVPGRP **grp, const char *name)
 {
@@ -608,6 +737,16 @@ dm_grp_get_addr(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET date packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the date value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_date(DIAM_AVPGRP **grp, const char *name)
 {
@@ -616,6 +755,16 @@ dm_grp_get_date(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET absticks packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the absticks value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_absticks(DIAM_AVPGRP **grp, const char *name)
 {
@@ -624,6 +773,16 @@ dm_grp_get_absticks(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET relticks packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the relticks value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_relticks(DIAM_AVPGRP **grp, const char *name)
 {
@@ -632,6 +791,16 @@ dm_grp_get_relticks(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET path packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the path value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_path(DIAM_AVPGRP **grp, const char *name)
 {
@@ -640,6 +809,16 @@ dm_grp_get_path(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET binary packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the binary value to get
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_binary(DIAM_AVPGRP **grp, const char *name)
 {
@@ -648,6 +827,16 @@ dm_grp_get_binary(DIAM_AVPGRP **grp, const char *name)
 					     name) ? RC_ERR_ALLOC : RC_OK;
 }
 
+/** build AVP group for GET any packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the value to get, can be of any type
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_get_unknown(DIAM_AVPGRP **grp, const char *name)
 {
@@ -658,12 +847,34 @@ dm_grp_get_unknown(DIAM_AVPGRP **grp, const char *name)
 
 		/* build AVP group for SET packet (inline functions) */
 
+/** build AVP group for SET boolean packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the boolean value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_bool(DIAM_AVPGRP **grp, const char *name, uint8_t value)
 {
 	return dm_grp_set(grp, name, AVP_BOOL, &value, sizeof(value));
 }
 
+/** build AVP group for SET Int32 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the Int32 value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_int32(DIAM_AVPGRP **grp, const char *name, int32_t value)
 {
@@ -671,6 +882,17 @@ dm_grp_set_int32(DIAM_AVPGRP **grp, const char *name, int32_t value)
 	return dm_grp_set(grp, name, AVP_INT32, &data, sizeof(data));
 }
 
+/** build AVP group for SET UInt32 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the UInt32 value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_uint32(DIAM_AVPGRP **grp, const char *name, uint32_t value)
 {
@@ -678,6 +900,17 @@ dm_grp_set_uint32(DIAM_AVPGRP **grp, const char *name, uint32_t value)
 	return dm_grp_set(grp, name, AVP_UINT32, &data, sizeof(data));
 }
 
+/** build AVP group for SET Int64 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the Int64 value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_int64(DIAM_AVPGRP **grp, const char *name, int64_t value)
 {
@@ -685,6 +918,17 @@ dm_grp_set_int64(DIAM_AVPGRP **grp, const char *name, int64_t value)
 	return dm_grp_set(grp, name, AVP_INT64, &data, sizeof(data));
 }
 
+/** build AVP group for SET UInt64 packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the UInt64 value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_uint64(DIAM_AVPGRP **grp, const char *name, uint64_t value)
 {
@@ -692,6 +936,17 @@ dm_grp_set_uint64(DIAM_AVPGRP **grp, const char *name, uint64_t value)
 	return dm_grp_set(grp, name, AVP_UINT64, &data, sizeof(data));
 }
 
+/** build AVP group for SET enum id packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the enum id value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_enumid(DIAM_AVPGRP **grp, const char *name, int32_t value)
 {
@@ -699,18 +954,51 @@ dm_grp_set_enumid(DIAM_AVPGRP **grp, const char *name, int32_t value)
 	return dm_grp_set(grp, name, AVP_ENUMID, &data, sizeof(data));
 }
 
+/** build AVP group for SET enum packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the enum value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_enum(DIAM_AVPGRP **grp, const char *name, const char *value)
 {
 	return dm_grp_set(grp, name, AVP_ENUM, (void*)value, strlen(value));
 }
 
+/** build AVP group for SET string packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the string value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_string(DIAM_AVPGRP **grp, const char *name, const char *value)
 {
 	return dm_grp_set(grp, name, AVP_STRING, (void*)value, strlen(value));
 }
 
+/** build AVP group for SET IP(v4) address packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the IP(v4) address value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_addr(DIAM_AVPGRP **grp, const char *name, struct in_addr addr)
 {
@@ -729,6 +1017,17 @@ dm_grp_set_addr(DIAM_AVPGRP **grp, const char *name, struct in_addr addr)
 	return rc;
 }
 
+/** build AVP group for SET date packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the date value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_date(DIAM_AVPGRP **grp, const char *name, time_t value)
 {
@@ -736,6 +1035,17 @@ dm_grp_set_date(DIAM_AVPGRP **grp, const char *name, time_t value)
 	return dm_grp_set(grp, name, AVP_DATE, &date, sizeof(date));
 }
 
+/** build AVP group for SET absticks packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the absticks value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_absticks(DIAM_AVPGRP **grp, const char *name, int64_t value)
 {
@@ -743,6 +1053,17 @@ dm_grp_set_absticks(DIAM_AVPGRP **grp, const char *name, int64_t value)
 	return dm_grp_set(grp, name, AVP_ABSTICKS, &data, sizeof(data));
 }
 
+/** build AVP group for SET relticks packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the relticks value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_relticks(DIAM_AVPGRP **grp, const char *name, int64_t value)
 {
@@ -750,18 +1071,51 @@ dm_grp_set_relticks(DIAM_AVPGRP **grp, const char *name, int64_t value)
 	return dm_grp_set(grp, name, AVP_RELTICKS, &data, sizeof(data));
 }
 
+/** build AVP group for SET path packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the path value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_path(DIAM_AVPGRP **grp, const char *name, const char *path)
 {
 	return dm_grp_set(grp, name, AVP_PATH, (void*)path, strlen(path));
 }
 
+/** build AVP group for SET binary packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the binary value to set
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_binary(DIAM_AVPGRP **grp, const char *name, void *data, size_t len)
 {
 	return dm_grp_set(grp, name, AVP_BINARY, data, len);
 }
 
+/** build AVP group for SET any packet
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the value to set, can be of any tpye
+ * @param [in] value          Set named variable to this value
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_set_unknown(DIAM_AVPGRP **grp, const char *name, const char *value)
 {
