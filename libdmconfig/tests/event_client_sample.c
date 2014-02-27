@@ -24,31 +24,31 @@
 void registerEndSession(DMCONTEXT *dmCtx);
 void sessionTerminated(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)),
 		       void *user_data __attribute__((unused)), uint32_t answer_rc,
-		       DIAM_AVPGRP *answer_grp __attribute__((unused)));
+		       DM_AVPGRP *answer_grp __attribute__((unused)));
 void listReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		  void *user_data __attribute__((unused)), uint32_t answer_rc,
-		  DIAM_AVPGRP *answer_grp);
+		  DM_AVPGRP *answer_grp);
 void dumpReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		  void *user_data __attribute__((unused)), uint32_t answer_rc,
-		  DIAM_AVPGRP *answer_grp);
+		  DM_AVPGRP *answer_grp);
 void instanceDeleted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		     void *user_data __attribute__((unused)), uint32_t answer_rc,
-		     DIAM_AVPGRP *answer_grp __attribute__((unused)));
+		     DM_AVPGRP *answer_grp __attribute__((unused)));
 void instanceAdded(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		   void *user_data __attribute__((unused)), uint32_t answer_rc,
-		   DIAM_AVPGRP *answer_grp);
+		   DM_AVPGRP *answer_grp);
 void parametersReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 			void *user_data __attribute__((unused)), uint32_t answer_rc,
-			DIAM_AVPGRP *answer_grp);
+			DM_AVPGRP *answer_grp);
 void committedChanges(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		      void *user_data __attribute__((unused)), uint32_t answer_rc,
-		      DIAM_AVPGRP *answer_grp __attribute__((unused)));
+		      DM_AVPGRP *answer_grp __attribute__((unused)));
 void parametersSet(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		   void *user_data __attribute__((unused)), uint32_t answer_rc,
-		   DIAM_AVPGRP *answer_grp __attribute__((unused)));
+		   DM_AVPGRP *answer_grp __attribute__((unused)));
 void sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		    void *user_data __attribute__((unused)),
-		    uint32_t answer_rc, DIAM_AVPGRP *answer_grp);
+		    uint32_t answer_rc, DM_AVPGRP *answer_grp);
 void socketConnected(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 		     void *userdata __attribute__((unused)));
 int main(int argc __attribute__((unused)), char **argv __attribute__((unused)));
@@ -69,7 +69,7 @@ registerEndSession(DMCONTEXT *dmCtx)
 void
 sessionTerminated(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)),
 		  void *user_data __attribute__((unused)), uint32_t answer_rc,
-		  DIAM_AVPGRP *answer_grp __attribute__((unused)))
+		  DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't terminate session.\n");
@@ -79,7 +79,7 @@ sessionTerminated(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused))
 }
 
 void
-listReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+listReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	uint32_t	uintval, uintval2, uintval3;
 	char		*charval;
@@ -113,7 +113,7 @@ listReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute
 }
 
 void
-dumpReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+dumpReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	char *data;
 
@@ -132,7 +132,7 @@ dumpReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute
 }
 
 void
-instanceDeleted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+instanceDeleted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't delete instance.\n");
@@ -143,7 +143,7 @@ instanceDeleted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attrib
 }
 
 void
-instanceAdded(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+instanceAdded(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	uint16_t	instance;
 	char		*charval;
@@ -170,7 +170,7 @@ instanceAdded(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribut
 }
 
 void
-parametersReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+parametersReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	int32_t		intval;
 	char		*charval;
@@ -190,7 +190,7 @@ parametersReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 
 	if (dm_decode_int32(answer_grp, &intval) ||
 	    dm_decode_string(answer_grp, &charval) ||
-	    diam_avpgrp_get_avp(answer_grp, &unknown_type, &flags, &vendor_id, &data, &len) ||
+	    dm_avpgrp_get_avp(answer_grp, &unknown_type, &flags, &vendor_id, &data, &len) ||
 	    dm_decode_unknown_as_string(unknown_type, data, len, &address) ||
 	    dm_decode_unknown(answer_grp, &unknown_type, &unknown_data, &unknown_size))
 		CB_ERR("Allocation error.\n");
@@ -208,7 +208,7 @@ parametersReceived(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 }
 
 void
-committedChanges(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+committedChanges(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't commit changes.\n");
@@ -218,7 +218,7 @@ committedChanges(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attri
 }
 
 void
-parametersSet(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+parametersSet(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't set parameters.\n");
@@ -232,9 +232,9 @@ parametersSet(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribut
 }
 
 void
-sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
-	DIAM_AVPGRP *grp;
+	DM_AVPGRP *grp;
 
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't start session.\n");

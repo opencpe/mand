@@ -7,7 +7,7 @@
 
 AM_CFLAGS = -g -std=gnu99
 
-check_PROGRAMS = client_sample polling_sample diam_sample \
+check_PROGRAMS = client_sample polling_sample dm_sample \
 		 event_client_sample event_notify_sample
 
 LDADD = ../libdmconfig.la

@@ -23,8 +23,8 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 
 	struct event_base	*base;
 
-	DIAM_AVPGRP		*grp;
-	DIAM_AVPGRP		*ret_grp;
+	DM_AVPGRP		*grp;
+	DM_AVPGRP		*ret_grp;
 
 	uint16_t		uint16val;
 	int32_t			intval;
@@ -121,7 +121,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 	    dm_send_packet_get(&ctx, grp, &ret_grp) ||
 	    dm_decode_int32(ret_grp, &intval) ||
 	    dm_decode_string(ret_grp, &charval) ||
-	    diam_avpgrp_get_avp(ret_grp, &unknown_type, &flags, &vendor_id, &data, &len) ||
+	    dm_avpgrp_get_avp(ret_grp, &unknown_type, &flags, &vendor_id, &data, &len) ||
 	    dm_decode_unknown_as_string(unknown_type, data, len, &address) ||
 	    dm_decode_unknown(ret_grp, &unknown_type, &unknown_data, &unknown_size)) {
 		fprintf(stderr, "An error occurred: Couldn't create, send or decode GET packet\n");

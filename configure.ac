@@ -120,9 +120,9 @@ dnl libdmconfig related options
 
 AC_ARG_ENABLE(libdmconfig-debug,
 	[AC_HELP_STRING([--enable-libdmconfig-debug],
-			[libdmconfig server and clients dump diameter packets to stderr before sending them [default=no]])])
+			[libdmconfig server and clients dump dmconfig packets to stderr before sending them [default=no]])])
 if test x$enable_libdmconfig_debug = xyes; then
-	AC_DEFINE(LIBDMCONFIG_DEBUG, , [Dump diameter packets to stderr before sending them])
+	AC_DEFINE(LIBDMCONFIG_DEBUG, , [Dump dmconfig packets to stderr before sending them])
 fi
 AM_CONDITIONAL(LIBDMCONFIG_DEBUG, test x$enable_libdmconfig_debug = xyes)
 

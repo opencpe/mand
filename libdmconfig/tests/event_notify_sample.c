@@ -17,13 +17,13 @@
 	return;				\
 }
 
-void activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), DIAM_AVPGRP *grp);
+void activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), DM_AVPGRP *grp);
 
-void terminatedSession(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)));
-void unsubscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)));
-void registeredNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)));
-void subscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)));
-void sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp);
+void terminatedSession(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)));
+void unsubscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)));
+void registeredNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)));
+void subscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)));
+void sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp);
 void socketConnected(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *userdata __attribute__((unused)));
 int main(int argc __attribute__((unused)), char **argv __attribute__((unused)));
 
@@ -31,7 +31,7 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused)));
 #define SHUTDOWN_PARAMETER "InternetGatewayDevice.DeviceInfo.ModelName"
 
 void
-terminatedSession(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+terminatedSession(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't terminate session.\n");
@@ -41,7 +41,7 @@ terminatedSession(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused))
 }
 
 void
-unsubscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+unsubscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't unsubscribe notifications.\n");
@@ -53,7 +53,7 @@ unsubscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 }
 
 void
-activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), DIAM_AVPGRP *grp)
+activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), DM_AVPGRP *grp)
 {
 	uint32_t type;
 
@@ -61,7 +61,7 @@ activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 		CB_ERR("Error while retrieving an active notification.\n");
 
 	do {
-		DIAM_AVPGRP *notify;
+		DM_AVPGRP *notify;
 
 		if (dm_decode_notifications(grp, &type, &notify))
 			CB_ERR("Couldn't decode active notifications\n")
@@ -77,7 +77,7 @@ activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 			if (dm_decode_parameter_changed(notify, &path, &data_type))
 				CB_ERR("Couldn't decode active notifications\n");
 
-			if (diam_avpgrp_get_avp(notify, &data_type, &flags, &vendor_id, &data, &len) ||
+			if (dm_avpgrp_get_avp(notify, &data_type, &flags, &vendor_id, &data, &len) ||
 			    dm_decode_unknown_as_string(data_type, data, len, &str)) {
 				free(path);
 				CB_ERR("Couldn't decode active notifications\n");
@@ -101,7 +101,7 @@ activeNotification(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __att
 }
 
 void
-registeredNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+registeredNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)), void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't register parameter notifications.\n");
@@ -112,7 +112,7 @@ registeredNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx __attribute__((unused)),
 }
 
 void
-subscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp __attribute__((unused)))
+subscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp __attribute__((unused)))
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't subscribe notifications.\n");
@@ -124,7 +124,7 @@ subscribedNotify(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attri
 }
 
 void
-sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+sessionStarted(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data __attribute__((unused)), uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	if (event != DMCONFIG_ANSWER_READY || answer_rc)
 		CB_ERR("Couldn't start session.\n");

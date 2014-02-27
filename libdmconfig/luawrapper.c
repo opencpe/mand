@@ -32,7 +32,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 
-#include "diammsg.h"
+#include "dmmsg.h"
 #include "codes.h"
 #include "dmconfig.h"
 
@@ -59,25 +59,25 @@ typedef struct _Lua_callback {
 	LSTD_FUNC(FNAME, CODE)		\
 	LSTD_FUNC_REGISTER(FNAME, CODE)
 
-static uint32_t Lua_decode_get_session_info(lua_State *L, DIAM_AVPGRP *answer);
+static uint32_t Lua_decode_get_session_info(lua_State *L, DM_AVPGRP *answer);
 static uint32_t Lua_decode_get_cfg_session_info(lua_State *L, uint32_t sessionid,
 						uint32_t flags, struct timeval timeout);
 static uint32_t Lua_decode_unknown(lua_State *L, uint32_t type,
 				   void *data, size_t len);
-static uint32_t Lua_decode_get(lua_State *L, DIAM_AVPGRP *answer);
-static uint32_t Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes);
-static uint32_t Lua_decode_retrieve_enums(lua_State *L, DIAM_AVPGRP *answer);
-static uint32_t Lua_decode_notifications(lua_State *L, DIAM_AVPGRP *answer);
+static uint32_t Lua_decode_get(lua_State *L, DM_AVPGRP *answer);
+static uint32_t Lua_decode_list(lua_State *L, DM_AVPGRP *grp, int *nodes);
+static uint32_t Lua_decode_retrieve_enums(lua_State *L, DM_AVPGRP *answer);
+static uint32_t Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer);
 
 static void generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 				 void *user_data, uint32_t answer_rc,
-				 DIAM_AVPGRP *answer_grp);
+				 DM_AVPGRP *answer_grp);
 static void generic_Lua_connect_callback(DMCONFIG_EVENT event,
 					 DMCONTEXT *dmCtx __attribute__((unused)),
 					 void *userdata);
 static void generic_Lua_active_notify_callback(DMCONFIG_EVENT event,
 					       DMCONTEXT *dmCtx __attribute__((unused)),
-					       void *userdata, DIAM_AVPGRP *grp);
+					       void *userdata, DM_AVPGRP *grp);
 
 static void Lua_init_eval(lua_State *L, char *udata, DMCONTEXT **dmCtx,
 			  int *type);
@@ -89,12 +89,12 @@ static int Lua_generic_shutdown(lua_State *L, const char *udata);
 static int Lua_generic_set_sessionid(lua_State *L, const char *udata);
 static int Lua_generic_get_sessionid(lua_State *L, const char *udata);
 
-static DIAM_AVPGRP* Lua_build_param_notify_grp(lua_State *L,
+static DM_AVPGRP* Lua_build_param_notify_grp(lua_State *L,
 					       uint8_t *isActiveNotify);
 static void Lua_encode_value(lua_State *L, uint32_t type, const char *path,
-			     DIAM_AVPGRP **grp);
-static DIAM_AVPGRP *Lua_build_set_grp(lua_State *L);
-static DIAM_AVPGRP *Lua_build_get_grp(lua_State *L);
+			     DM_AVPGRP **grp);
+static DM_AVPGRP *Lua_build_set_grp(lua_State *L);
+static DM_AVPGRP *Lua_build_get_grp(lua_State *L);
 
 static int Lua_generic_request(lua_State *L, uint32_t code);
 static int Lua_generic_register(lua_State *L, uint32_t code);
@@ -155,7 +155,7 @@ static int callback_gc(lua_State *L);
 #define DMCONFIG_CALLBACK_MT			"DMCONFIG.CALLBACK.MT"
 
 static uint32_t
-Lua_decode_get_session_info(lua_State *L, DIAM_AVPGRP *answer)
+Lua_decode_get_session_info(lua_State *L, DM_AVPGRP *answer)
 {
 	uint32_t	rc;
 	uint32_t	flags;
@@ -206,7 +206,7 @@ Lua_decode_unknown(lua_State *L, uint32_t type, void *data, size_t len)
 }
 
 static uint32_t
-Lua_decode_get(lua_State *L, DIAM_AVPGRP *answer)
+Lua_decode_get(lua_State *L, DM_AVPGRP *answer)
 {
 	uint32_t	type, vendor_id;
 	uint8_t		flags;
@@ -218,7 +218,7 @@ Lua_decode_get(lua_State *L, DIAM_AVPGRP *answer)
 	lua_newtable(L);
 
 	for (int i = 1;
-	     !diam_avpgrp_get_avp(answer, &type, &flags, &vendor_id,
+	     !dm_avpgrp_get_avp(answer, &type, &flags, &vendor_id,
 	     			  &data, &len); i++) {
 		lua_pushinteger(L, i);
 
@@ -237,7 +237,7 @@ Lua_decode_get(lua_State *L, DIAM_AVPGRP *answer)
 }
 
 static uint32_t
-Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
+Lua_decode_list(lua_State *L, DM_AVPGRP *grp, int *nodes)
 {
 	uint32_t	code;
 	uint8_t		flags;
@@ -251,20 +251,20 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 	lua_newtable(L);
 
 	for (i = 1;
-	     !diam_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len);
+	     !dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len);
 	     i++) {
-		DIAM_AVPGRP	*node_container;
+		DM_AVPGRP	*node_container;
 		uint32_t	type;
 
 		if (code != AVP_CONTAINER || !len)
 			return RC_ERR_MISC;
 		lua_pushinteger(L, i);
 
-		if (!(node_container = diam_decode_avpgrp(NULL, data, len)))
+		if (!(node_container = dm_decode_avpgrp(NULL, data, len)))
 			return RC_ERR_ALLOC;
 		lua_newtable(L);
 
-		if (diam_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
+		if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
 					&data, &len) ||
 		    code != AVP_NODE_NAME || !len) {
 			dm_grp_free(node_container);
@@ -273,19 +273,19 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 		lua_pushlstring(L, data, len);
 		lua_setfield(L, -2, "name");
 
-		if (diam_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
+		if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
 					&data, &len) ||
 		    code != AVP_NODE_TYPE || len != sizeof(uint32_t)) {
 			dm_grp_free(node_container);
 			return RC_ERR_MISC;
 		}
-		type = diam_get_uint32_avp(data);
+		type = dm_get_uint32_avp(data);
 		lua_pushinteger(L, type);
 		lua_setfield(L, -2, "type");
 
 		switch (type) {
 		case NODE_PARAMETER:
-			if (diam_avpgrp_get_avp(node_container, &code, &flags,
+			if (dm_avpgrp_get_avp(node_container, &code, &flags,
 						&vendor_id, &data, &len)) {
 				dm_grp_free(node_container);
 				return RC_ERR_MISC;
@@ -297,7 +297,7 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 					return RC_ERR_MISC;
 				}
 
-				lua_pushinteger(L, diam_get_uint32_avp(data));
+				lua_pushinteger(L, dm_get_uint32_avp(data));
 				lua_setfield(L, -2, "datatype");
 			} else {
 				lua_pushinteger(L, code);
@@ -314,15 +314,15 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 
 		case NODE_TABLE:
 		case NODE_OBJECT: {
-			DIAM_AVPGRP	*child_grp;
+			DM_AVPGRP	*child_grp;
 			int		child_nodes;
 
 			if (type == NODE_TABLE) {
-				if (diam_avpgrp_get_avp(node_container, &code, &flags,
+				if (dm_avpgrp_get_avp(node_container, &code, &flags,
 							&vendor_id, &data, &len))
 					break;
 			} else {
-				if (diam_avpgrp_get_avp(node_container, &code, &flags,
+				if (dm_avpgrp_get_avp(node_container, &code, &flags,
 							&vendor_id, &data, &len)) {
 					dm_grp_free(node_container);
 					return RC_ERR_MISC;
@@ -334,7 +334,7 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 						return RC_ERR_MISC;
 					}
 
-					lua_pushinteger(L, diam_get_uint32_avp(data));
+					lua_pushinteger(L, dm_get_uint32_avp(data));
 					lua_setfield(L, -2, "size");
 
 					break;
@@ -346,7 +346,7 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 				return RC_ERR_MISC;
 			}
 
-			if (!(child_grp = diam_decode_avpgrp(node_container, data, len))) {
+			if (!(child_grp = dm_decode_avpgrp(node_container, data, len))) {
 				dm_grp_free(node_container);
 				return RC_ERR_ALLOC;
 			}
@@ -373,7 +373,7 @@ Lua_decode_list(lua_State *L, DIAM_AVPGRP *grp, int *nodes)
 }
 
 static uint32_t
-Lua_decode_retrieve_enums(lua_State *L, DIAM_AVPGRP *answer)
+Lua_decode_retrieve_enums(lua_State *L, DM_AVPGRP *answer)
 {
 	char		*val;
 	uint32_t	rc;
@@ -391,10 +391,10 @@ Lua_decode_retrieve_enums(lua_State *L, DIAM_AVPGRP *answer)
 }
 
 static uint32_t
-Lua_decode_notifications(lua_State *L, DIAM_AVPGRP *answer)
+Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 {
 	uint32_t	type;
-	DIAM_AVPGRP	*event;
+	DM_AVPGRP	*event;
 
 	uint32_t	rc;
 
@@ -428,7 +428,7 @@ Lua_decode_notifications(lua_State *L, DIAM_AVPGRP *answer)
 			lua_setfield(L, -2, "path");
 			free(path);
 
-			if (diam_avpgrp_get_avp(event, &type, &flags,
+			if (dm_avpgrp_get_avp(event, &type, &flags,
 						&vendor_id, &data, &len))
 				return RC_ERR_MISC;
 			if ((rc = Lua_decode_unknown(L, type, data, len)))
@@ -467,7 +467,7 @@ Lua_decode_notifications(lua_State *L, DIAM_AVPGRP *answer)
 
 static void
 generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data,
-		     uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+		     uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	LUA_CALLBACK	*cb = user_data;
 	lua_State	*L = cb->L;
@@ -575,7 +575,7 @@ generic_Lua_connect_callback(DMCONFIG_EVENT event,
 static void
 generic_Lua_active_notify_callback(DMCONFIG_EVENT event,
 				   DMCONTEXT *dmCtx __attribute__((unused)),
-				   void *userdata, DIAM_AVPGRP *grp)
+				   void *userdata, DM_AVPGRP *grp)
 {
 	LUA_CALLBACK	*cb = userdata;
 	lua_State	*L = cb->L;
@@ -998,7 +998,7 @@ LUA_SIG(terminate)
 LUA_SIG(get_session_info)
 {
 	DMCONTEXT	*ctx;
-	DIAM_AVPGRP	*answer_grp;
+	DM_AVPGRP	*answer_grp;
 	uint32_t	rc;
 
 	int		top;
@@ -1049,7 +1049,7 @@ LUA_SIG(list)
 	uint16_t	level;
 
 	uint32_t	rc;
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*answer;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1104,7 +1104,7 @@ LUA_SIG(retrieve_enums)
 	DMCONTEXT	*ctx;
 	const char	*path;
 
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*answer;
 
 	uint32_t	rc;
 	int		top;
@@ -1157,10 +1157,10 @@ LUA_SIG_REGISTER(retrieve_enums)
 	luaL_argerror(L, 3, L_TABLE);	\
 }
 
-static DIAM_AVPGRP*
+static DM_AVPGRP*
 Lua_build_param_notify_grp(lua_State *L, uint8_t *isActiveNotify)
 {
-	DIAM_AVPGRP *grp;
+	DM_AVPGRP *grp;
 
 	luaL_argcheck(L, lua_isboolean(L, 2), 2, L_TYPE);
 	luaL_argcheck(L, lua_istable(L, 3), 3, L_TYPE);
@@ -1198,7 +1198,7 @@ LUA_SIG(param_notify)
 {
 	DMCONTEXT	*ctx;
 	uint8_t		isActiveNotify;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1224,7 +1224,7 @@ LUA_SIG_REGISTER(param_notify)
 	uint32_t	rc;
 
 	uint8_t		isActiveNotify;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1295,7 +1295,7 @@ LUA_SIG_REGISTER(recursive_param_notify)
 LUA_SIG(get_passive_notifications)
 {
 	DMCONTEXT	*ctx;
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*answer;
 	uint32_t	rc;
 	int		top;
 
@@ -1396,7 +1396,7 @@ LUA_SIG_REGISTER(unsubscribe)
 }
 
 static void
-Lua_encode_value(lua_State *L, uint32_t type, const char *path, DIAM_AVPGRP **grp)
+Lua_encode_value(lua_State *L, uint32_t type, const char *path, DM_AVPGRP **grp)
 {
 	switch (type) {	/* eval the group and build the AVP group */
 	case AVP_BOOL:
@@ -1538,10 +1538,10 @@ Lua_encode_value(lua_State *L, uint32_t type, const char *path, DIAM_AVPGRP **gr
 	luaL_argerror(L, 2, L_TABLE);	\
 }
 
-static DIAM_AVPGRP*
+static DM_AVPGRP*
 Lua_build_set_grp(lua_State *L)
 {
-	DIAM_AVPGRP *grp;
+	DM_AVPGRP *grp;
 
 	luaL_argcheck(L, lua_istable(L, 2), 2, L_TYPE);
 
@@ -1583,7 +1583,7 @@ Lua_build_set_grp(lua_State *L)
 LUA_SIG(set)
 {
 	DMCONTEXT	*ctx;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1603,7 +1603,7 @@ LUA_SIG_REGISTER(set)
 	LUA_CALLBACK 	*cb;
 	uint32_t	rc;
 
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1622,10 +1622,10 @@ LUA_SIG_REGISTER(set)
 	return 2;
 }
 
-static DIAM_AVPGRP*
+static DM_AVPGRP*
 Lua_build_get_grp(lua_State *L)
 {
-	DIAM_AVPGRP *grp;
+	DM_AVPGRP *grp;
 
 	luaL_argcheck(L, lua_istable(L, 2), 2, L_TYPE);
 
@@ -1673,7 +1673,7 @@ Lua_build_get_grp(lua_State *L)
 		}
 
 						/* build the GET group */
-		if (diam_avpgrp_add_uint32_string(NULL, &grp, AVP_TYPE_PATH, 0,
+		if (dm_avpgrp_add_uint32_string(NULL, &grp, AVP_TYPE_PATH, 0,
 						  VP_TRAVELPING,
 						  lua_tointeger(L, -2),
 						  lua_tostring(L, -1)))
@@ -1693,8 +1693,8 @@ LUA_SIG(get)
 {
 	DMCONTEXT	*ctx;
 
-	DIAM_AVPGRP	*grp;
-	DIAM_AVPGRP	*ret_grp;
+	DM_AVPGRP	*grp;
+	DM_AVPGRP	*ret_grp;
 
 	uint32_t	rc;
 	int		top;
@@ -1721,7 +1721,7 @@ LUA_SIG_REGISTER(get)
 	LUA_CALLBACK 	*cb;
 	uint32_t	rc;
 
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	int		top;
 
 	top = lua_gettop(L);
@@ -1933,7 +1933,7 @@ LUA_SIG(find)
 
 	uint32_t	rc;
 	int		top;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint16_t	instance;
 
 	top = lua_gettop(L);
@@ -1968,7 +1968,7 @@ LUA_SIG_REGISTER(find)
 
 	uint32_t	rc;
 	int		top;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	top = lua_gettop(L);
 	luaL_argcheck(L, top >= 5 && top <= 7, top, L_NUMBER);

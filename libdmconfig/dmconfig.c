@@ -4,7 +4,7 @@
 
 /*
  * dmconfig library
- * based on diammsg - diameter protocol subset to encode/decode diameter packets
+ * based on dmmsg - dmconfig protocol subset to encode/decode dmconfig packets
  */
 
 #ifdef HAVE_CONFIG_H
@@ -43,7 +43,7 @@
 # include <talloc.h>
 #endif
 
-#include "diammsg.h"
+#include "dmmsg.h"
 #include "codes.h"
 #include "dmconfig.h"
 
@@ -82,7 +82,7 @@ static void generic_connectHandler(DMCONFIG_EVENT event,
 static void generic_answerHandler(DMCONFIG_EVENT event __attribute__((unused)),
 				  DMCONTEXT *dmCtx __attribute__((unused)),
 				  void *user_data, uint32_t answer_rc,
-				  DIAM_AVPGRP *answer_grp);
+				  DM_AVPGRP *answer_grp);
 
 		/* global variables */
 
@@ -110,19 +110,19 @@ static uint32_t endid = 0;
 
 		/* communication auxiliary functions */
 
-		/* our buffer is already a DIAM_REQUEST structure (ctx->buffer starts at the PACKET part)
+		/* our buffer is already a DM_REQUEST structure (ctx->buffer starts at the PACKET part)
 		   we only have to set the INFO structure */
 static inline void
 postprocessRequest(COMMCONTEXT *ctx)
 {
-	ctx->req->info.avpptr = (DIAM_AVP *)(ctx->buffer + sizeof(DIAM_PACKET));
-	ctx->req->info.size = diam_packet_length(&ctx->req->packet) +
-							sizeof(DIAM_REQUEST_INFO);
+	ctx->req->info.avpptr = (DM_AVP *)(ctx->buffer + sizeof(DM_PACKET));
+	ctx->req->info.size = dm_packet_length(&ctx->req->packet) +
+							sizeof(DM_REQUEST_INFO);
 }
 
 /** @private libev write event callback */
 uint32_t
-event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
+event_aux_dmRead(int fd, short event, COMMCONTEXT *readCtx,
 		   uint8_t *alreadyRead, COMMSTATUS *status)
 {
 	ssize_t		length;
@@ -147,13 +147,13 @@ event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 				readCtx->cAlloc++;
 				bufsize += BUFFER_CHUNK_SIZE;
 
-					/* allocate a DIAM_REQUEST structure (we're reading into the REQUEST structure) */
+					/* allocate a DM_REQUEST structure (we're reading into the REQUEST structure) */
 				if (!(readCtx->req = talloc_realloc_size(NULL, readCtx->req,
-									 sizeof(DIAM_REQUEST_INFO) + bufsize)))
+									 sizeof(DM_REQUEST_INFO) + bufsize)))
 					aux_RET(ERROR, RC_ERR_ALLOC);
 
 				readCtx->buffer = (uint8_t*)readCtx->req +
-							sizeof(DIAM_REQUEST_INFO);
+							sizeof(DM_REQUEST_INFO);
 			}
 
 			do {
@@ -184,7 +184,7 @@ event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 		} while (length && readCtx->bytes == bufsize);
 	} else if (readCtx->bytes >= 4 &&
 		   readCtx->bytes >=
-		   	(len = diam_packet_length(&readCtx->req->packet))) {
+		   	(len = dm_packet_length(&readCtx->req->packet))) {
 
 		debug(": read continue, got total: %d, req: %d", readCtx->bytes, len);
 
@@ -206,7 +206,7 @@ event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 
 						/* less than a part of one request's header to process */
 	if (readCtx->bytes < 4 ||
-	    readCtx->bytes < diam_packet_length(&readCtx->req->packet))
+	    readCtx->bytes < dm_packet_length(&readCtx->req->packet))
 		aux_RET(INCOMPLETE, RC_OK);
 
 	postprocessRequest(readCtx);		/* one or more requests to process */
@@ -215,7 +215,7 @@ event_aux_diamRead(int fd, short event, COMMCONTEXT *readCtx,
 
 /** @private libev read event callback */
 uint32_t
-event_aux_diamWrite(int fd, short event, COMMCONTEXT *writeCtx,
+event_aux_dmWrite(int fd, short event, COMMCONTEXT *writeCtx,
 		    COMMSTATUS *status)
 {
 	ssize_t			length;
@@ -231,7 +231,7 @@ event_aux_diamWrite(int fd, short event, COMMCONTEXT *writeCtx,
 	if (!writeCtx->buffer) {
 		writeCtx->buffer = (uint8_t *)&writeCtx->req->packet;
 		writeCtx->bytes = writeCtx->req->info.size -
-						sizeof(DIAM_REQUEST_INFO);
+						sizeof(DM_REQUEST_INFO);
 	}
 
 	memset(&action, 0, sizeof(struct sigaction));
@@ -386,10 +386,10 @@ dm_register_connect_callback(DMCONTEXT *dmCtx, int type,
  * @ingroup API
  */
 uint32_t
-dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
+dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DM_AVPGRP *grp,
 			    DMCONFIG_CALLBACK callback, void *callback_ud)
 {
-	DIAM_AVPGRP	*completegrp;
+	DM_AVPGRP	*completegrp;
 
 	REQUESTINFO	*new, *cur;
 
@@ -412,19 +412,19 @@ dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 		return RC_ERR_ALLOC;
 	}
 
-	if (!(new->request = new_diam_request(new, code, CMD_FLAG_REQUEST,
+	if (!(new->request = new_dm_request(new, code, CMD_FLAG_REQUEST,
 					      APP_ID, hopid, endid))) {
 		talloc_free(dmCtx->requestlist_head);
 		return RC_ERR_ALLOC;
 	}
 
-	if (!(completegrp = new_diam_avpgrp(new->request)) ||
-	    diam_avpgrp_add_uint32(new->request, &completegrp, AVP_SESSIONID, 0,
+	if (!(completegrp = new_dm_avpgrp(new->request)) ||
+	    dm_avpgrp_add_uint32(new->request, &completegrp, AVP_SESSIONID, 0,
 				   VP_TRAVELPING, dmCtx->sessionid) ||
-	    (grp && diam_avpgrp_add_avpgrp(new->request, &completegrp,
+	    (grp && dm_avpgrp_add_avpgrp(new->request, &completegrp,
 	    				   AVP_CONTAINER, 0, VP_TRAVELPING,
 					   grp)) ||
-	    build_diam_request(new, &new->request, completegrp)) {
+	    build_dm_request(new, &new->request, completegrp)) {
 		talloc_free(dmCtx->requestlist_head);
 		return RC_ERR_ALLOC;
 	}
@@ -433,7 +433,7 @@ dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
 #ifdef LIBDMCONFIG_DEBUG
 	if (dmconfig_debug_level) {
 		fprintf(stderr, "Send request:\n");
-		dump_diam_packet(new->request);
+		dump_dm_packet(new->request);
 	}
 #endif
 
@@ -484,16 +484,16 @@ dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
  */
 uint32_t
 dm_generic_register_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code,
-				     uint8_t bool, DIAM_AVPGRP *grp,
+				     uint8_t bool, DM_AVPGRP *grp,
 				     DMCONFIG_CALLBACK callback,
 				     void *callback_ud)
 {
-	DIAM_AVPGRP	*new;
+	DM_AVPGRP	*new;
 	uint32_t	rc;
 
 	if (!(new = dm_grp_new()) ||
-	    diam_avpgrp_add_uint8(NULL, &new, AVP_BOOL, 0, VP_TRAVELPING, bool) ||
-	    diam_avpgrp_add_avpgrp(NULL, &new, AVP_CONTAINER, 0,
+	    dm_avpgrp_add_uint8(NULL, &new, AVP_BOOL, 0, VP_TRAVELPING, bool) ||
+	    dm_avpgrp_add_avpgrp(NULL, &new, AVP_CONTAINER, 0,
 	    			   VP_TRAVELPING, grp)) {
 		dm_grp_free(new);
 		return RC_ERR_ALLOC;
@@ -531,16 +531,16 @@ dm_generic_register_request_uint32_timeouts(DMCONTEXT *dmCtx, uint32_t code,
 					    DMCONFIG_CALLBACK callback,
 					    void *callback_ud)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_uint32(NULL, &grp, AVP_UINT32, 0, VP_TRAVELPING, val) ||
+	    dm_avpgrp_add_uint32(NULL, &grp, AVP_UINT32, 0, VP_TRAVELPING, val) ||
 	    (timeval1 &&
-	     diam_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_SESSION, 0,
+	     dm_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_SESSION, 0,
 	     			     VP_TRAVELPING, *timeval1)) ||
 	    (timeval2 &&
-	     diam_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_REQUEST, 0,
+	     dm_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_REQUEST, 0,
 	     			     VP_TRAVELPING, *timeval2))) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -574,11 +574,11 @@ dm_generic_register_request_string(DMCONTEXT *dmCtx, uint32_t code,
 				   const char *str, DMCONFIG_CALLBACK callback,
 				   void *callback_ud)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_STRING, 0,
+	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0,
 				   VP_TRAVELPING, str)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -611,11 +611,11 @@ dm_generic_register_request_path(DMCONTEXT *dmCtx, uint32_t code,
 				 const char *path, DMCONFIG_CALLBACK callback,
 				 void *callback_ud)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0,
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0,
 				   VP_TRAVELPING, path)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -650,13 +650,13 @@ dm_generic_register_request_char_address(DMCONTEXT *dmCtx, uint32_t code,
 					 DMCONFIG_CALLBACK callback,
 					 void *callback_ud)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_STRING, 0,
+	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0,
 				   VP_TRAVELPING, str) ||
-	    diam_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
+	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
 	    			    AF_INET, &addr)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -731,13 +731,13 @@ generic_connectHandler(DMCONFIG_EVENT event,
  * @ingroup API
  */
 uint32_t
-dm_generic_send_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
-			DIAM_AVPGRP **ret)
+dm_generic_send_request(DMCONTEXT *dmCtx, uint32_t code, DM_AVPGRP *grp,
+			DM_AVPGRP **ret)
 {
 	struct _result {
 		uint32_t	rc;
-		DIAM_AVPGRP	*grp;
-		DIAM_AVPGRP	**ret;
+		DM_AVPGRP	*grp;
+		DM_AVPGRP	**ret;
 	} result;
 	uint32_t rc;
 
@@ -771,14 +771,14 @@ dm_generic_send_request(DMCONTEXT *dmCtx, uint32_t code, DIAM_AVPGRP *grp,
  */
 uint32_t
 dm_generic_send_request_bool_grp(DMCONTEXT *dmCtx, uint32_t code, uint8_t bool,
-				 DIAM_AVPGRP *grp)
+				 DM_AVPGRP *grp)
 {
-	DIAM_AVPGRP	*new;
+	DM_AVPGRP	*new;
 	uint32_t	rc;
 
 	if (!(new = dm_grp_new()) ||
-	    diam_avpgrp_add_uint8(NULL, &new, AVP_BOOL, 0, VP_TRAVELPING, bool) ||
-	    diam_avpgrp_add_avpgrp(NULL, &new, AVP_CONTAINER, 0,
+	    dm_avpgrp_add_uint8(NULL, &new, AVP_BOOL, 0, VP_TRAVELPING, bool) ||
+	    dm_avpgrp_add_avpgrp(NULL, &new, AVP_CONTAINER, 0,
 	    			   VP_TRAVELPING, grp)) {
 		dm_grp_free(new);
 		return RC_ERR_ALLOC;
@@ -808,18 +808,18 @@ dm_generic_send_request_uint32_timeouts_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 						uint32_t val,
 						struct timeval *timeval1,
 						struct timeval *timeval2,
-						DIAM_AVPGRP **ret)
+						DM_AVPGRP **ret)
 {
 	uint32_t	rc;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_uint32(NULL, &grp, AVP_UINT32, 0, VP_TRAVELPING, val) ||
+	    dm_avpgrp_add_uint32(NULL, &grp, AVP_UINT32, 0, VP_TRAVELPING, val) ||
 	    (timeval1 &&
-	     diam_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_SESSION, 0,
+	     dm_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_SESSION, 0,
 	     			     VP_TRAVELPING, *timeval1)) ||
 	    (timeval2 &&
-	     diam_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_REQUEST, 0,
+	     dm_avpgrp_add_timeval(NULL, &grp, AVP_TIMEOUT_REQUEST, 0,
 	     			     VP_TRAVELPING, *timeval2))) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -851,11 +851,11 @@ dm_generic_send_request_uint32_timeouts_get_grp(DMCONTEXT *dmCtx, uint32_t code,
 uint32_t
 dm_generic_send_request_string(DMCONTEXT *dmCtx, uint32_t code, const char *str)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str)) {
+	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -880,13 +880,13 @@ dm_generic_send_request_string(DMCONTEXT *dmCtx, uint32_t code, const char *str)
  */
 uint32_t
 dm_generic_send_request_path_get_grp(DMCONTEXT *dmCtx, uint32_t code,
-				     const char *path, DIAM_AVPGRP **answer)
+				     const char *path, DM_AVPGRP **answer)
 {
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path)) {
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -918,7 +918,7 @@ uint32_t
 dm_generic_send_request_path_get_char(DMCONTEXT *dmCtx, uint32_t code,
 				      const char *path, char **data)
 {
-	DIAM_AVPGRP	*ret;
+	DM_AVPGRP	*ret;
 	uint32_t	rc;
 
 	if ((rc = dm_generic_send_request_path_get_grp(dmCtx, code, path, &ret)))
@@ -947,13 +947,13 @@ dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 					      const char *str,
 					      struct in_addr addr, char **data)
 {
-	DIAM_AVPGRP	*grp;
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*grp;
+	DM_AVPGRP	*answer;
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str) ||
-	    diam_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
+	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str) ||
+	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
 	    			    AF_INET, &addr)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
@@ -972,12 +972,12 @@ dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 static void
 generic_answerHandler(DMCONFIG_EVENT event __attribute__((unused)),
 		      DMCONTEXT *dmCtx __attribute__((unused)), void *user_data,
-		      uint32_t answer_rc, DIAM_AVPGRP *answer_grp)
+		      uint32_t answer_rc, DM_AVPGRP *answer_grp)
 {
 	struct _result {
 		uint32_t	rc;
-		DIAM_AVPGRP	*grp;
-		DIAM_AVPGRP	**ret;
+		DM_AVPGRP	*grp;
+		DM_AVPGRP	**ret;
 	} *result = user_data;
 
 	if ((result->rc = answer_rc))
@@ -1041,7 +1041,7 @@ writeEvent(int fd, short event, void *arg)
 			ctx->req = ctx->cur_request->request;
 		}
 
-		rc = event_aux_diamWrite(fd, event, ctx, &status);
+		rc = event_aux_dmWrite(fd, event, ctx, &status);
 		switch (status) {
 		case COMPLETE:
 			talloc_free(ctx->cur_request->request);
@@ -1133,7 +1133,7 @@ readEvent(int fd, short event, void *arg)
 		COMMSTATUS	status;
 		uint32_t	rc;
 
-		rc = event_aux_diamRead(fd, event, ctx, &alreadyRead, &status);
+		rc = event_aux_dmRead(fd, event, ctx, &alreadyRead, &status);
 		switch (status) {
 		case INCOMPLETE:
 			timeout.tv_sec = TIMEOUT_CHUNKS;
@@ -1152,16 +1152,16 @@ readEvent(int fd, short event, void *arg)
 #ifdef LIBDMCONFIG_DEBUG
 		if (dmconfig_debug_level) {
 			fprintf(stderr, "Recieved %s:\n",
-				diam_packet_flags(&ctx->req->packet) &
+				dm_packet_flags(&ctx->req->packet) &
 					CMD_FLAG_REQUEST ? "request" : "answer");
-			dump_diam_packet(ctx->req);
-			diam_request_reset_avp(ctx->req);
+			dump_dm_packet(ctx->req);
+			dm_request_reset_avp(ctx->req);
 		}
 #endif
 
 					/* server request */
-		if (diam_packet_flags(&ctx->req->packet) & CMD_FLAG_REQUEST) {
-			switch (diam_packet_code(&ctx->req->packet)) {
+		if (dm_packet_flags(&ctx->req->packet) & CMD_FLAG_REQUEST) {
+			switch (dm_packet_code(&ctx->req->packet)) {
 
 			default:
 				goto abort;
@@ -1170,7 +1170,7 @@ readEvent(int fd, short event, void *arg)
 			if (!dmCtx->requestlist_head || !dmCtx->requestlist_head->next)
 				goto abort;
 
-			hopid = diam_hop2hop_id(&ctx->req->packet);
+			hopid = dm_hop2hop_id(&ctx->req->packet);
 
 			for (cur = dmCtx->requestlist_head;
 			     cur->next && cur->next->hopid != hopid;
@@ -1180,14 +1180,14 @@ readEvent(int fd, short event, void *arg)
 			reqEl = cur->next;
 			cur->next = reqEl->next;
 
-			if (diam_request_get_avp(ctx->req, &avpcode, &flags,
+			if (dm_request_get_avp(ctx->req, &avpcode, &flags,
 						 &vendor_id, &data, &len) ||
 			    avpcode != AVP_RC || len != sizeof(uint32_t)) {
 				CALLBACK(reqEl, DMCONFIG_ERROR_READING, reqEl->dmCtx, reqEl->user_data, RC_ERR_MISC, NULL);
 				goto cleanup;
 			}
 
-			if ((rc = diam_get_uint32_avp(data))) {
+			if ((rc = dm_get_uint32_avp(data))) {
 				CALLBACK(reqEl, DMCONFIG_ANSWER_READY, reqEl->dmCtx, reqEl->user_data, rc, NULL);
 
 						/* clean up callback structures if necessary, so the read event is deleted */
@@ -1216,12 +1216,12 @@ readEvent(int fd, short event, void *arg)
 				}
 			}
 
-			if (diam_request_get_avp(ctx->req, &avpcode, &flags, &vendor_id, &data, &len)) {
+			if (dm_request_get_avp(ctx->req, &avpcode, &flags, &vendor_id, &data, &len)) {
 				CALLBACK(reqEl, DMCONFIG_ANSWER_READY, reqEl->dmCtx, reqEl->user_data, RC_OK, NULL);
 			} else if (avpcode == AVP_CONTAINER) {
-				DIAM_AVPGRP *answer;
+				DM_AVPGRP *answer;
 
-				if ((answer = diam_decode_avpgrp(ctx->req, data, len))) {
+				if ((answer = dm_decode_avpgrp(ctx->req, data, len))) {
 					CALLBACK(reqEl, DMCONFIG_ANSWER_READY, reqEl->dmCtx, reqEl->user_data, RC_OK, answer);
 				} else {
 					CALLBACK(reqEl, DMCONFIG_ERROR_READING, reqEl->dmCtx, reqEl->user_data, RC_ERR_ALLOC, NULL);
@@ -1247,7 +1247,7 @@ cleanup:
 		    !dmCtx->callbacks.active_notification.callback) {	/* FIXME: a reference counter would be cleaner */
 			event_del(&ctx->event);
 				/* if there's nothing more to read, the fields are reset and NOTHING is returned */
-			event_aux_diamRead(fd, EV_READ, ctx,
+			event_aux_dmRead(fd, EV_READ, ctx,
 					   &alreadyRead, &status);
 			if (status != NOTHING)
 				goto abort;
@@ -1285,14 +1285,14 @@ process_active_notification(DMCONTEXT *dmCtx)
 	void		*data;
 	size_t		len;
 
-	DIAM_AVPGRP	*notify;
+	DM_AVPGRP	*notify;
 
 	if (!dmCtx->callbacks.active_notification.callback)
 		return -1;
 
-	if (diam_request_get_avp(ctx->req, &avpcode, &flags, &vendor_id, &data, &len) ||
+	if (dm_request_get_avp(ctx->req, &avpcode, &flags, &vendor_id, &data, &len) ||
 	    avpcode != AVP_CONTAINER || !len ||
-	    !(notify = diam_decode_avpgrp(ctx->req, data, len))) {
+	    !(notify = dm_decode_avpgrp(ctx->req, data, len))) {
 		NOTIFY_CALLBACK(DMCONFIG_ERROR_READING, NULL);
 	} else {
 		NOTIFY_CALLBACK(DMCONFIG_ANSWER_READY, notify);
@@ -1317,15 +1317,15 @@ process_active_notification(DMCONTEXT *dmCtx)
  * @ingroup API
  */
 uint32_t
-dm_grp_set(DIAM_AVPGRP **grp, const char *name, int type,
+dm_grp_set(DM_AVPGRP **grp, const char *name, int type,
 	   void *value, size_t size)
 {
-	DIAM_AVPGRP *pair;
+	DM_AVPGRP *pair;
 
-	if (!(pair = new_diam_avpgrp(*grp)) ||
-	    diam_avpgrp_add_string(*grp, &pair, AVP_PATH, 0, VP_TRAVELPING, name) ||
-	    diam_avpgrp_add_raw(*grp, &pair, type, 0, VP_TRAVELPING, value, size) ||
-	    diam_avpgrp_add_avpgrp(NULL, grp, AVP_CONTAINER, 0,
+	if (!(pair = new_dm_avpgrp(*grp)) ||
+	    dm_avpgrp_add_string(*grp, &pair, AVP_PATH, 0, VP_TRAVELPING, name) ||
+	    dm_avpgrp_add_raw(*grp, &pair, type, 0, VP_TRAVELPING, value, size) ||
+	    dm_avpgrp_add_avpgrp(NULL, grp, AVP_CONTAINER, 0,
 	    			   VP_TRAVELPING, pair)) {
 		dm_grp_free(pair);
 		return RC_ERR_ALLOC;
@@ -1353,12 +1353,12 @@ uint32_t
 dm_send_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t *instance)
 {
 	uint32_t	rc;
-	DIAM_AVPGRP	*grp;
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*grp;
+	DM_AVPGRP	*answer;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path) ||
-	    diam_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, *instance)) {
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path) ||
+	    dm_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, *instance)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -1389,14 +1389,14 @@ dm_send_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t *instance)
  */
 uint32_t
 dm_send_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
-	     DIAM_AVPGRP **answer)
+	     DM_AVPGRP **answer)
 {
 	uint32_t	rc;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, level) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, name)) {
+	    dm_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, level) ||
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, name)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -1466,11 +1466,11 @@ dm_register_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t instance,
 			 DMCONFIG_CALLBACK callback, void *callback_ud)
 {
 	uint32_t	rc;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path) ||
-	    diam_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, instance)) {
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, path) ||
+	    dm_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, instance)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -1502,11 +1502,11 @@ dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 		 DMCONFIG_CALLBACK callback, void *callback_ud)
 {
 	uint32_t	rc;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	if (!(grp = dm_grp_new()) ||
-	    diam_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, level) ||
-	    diam_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, name)) {
+	    dm_avpgrp_add_uint16(NULL, &grp, AVP_UINT16, 0, VP_TRAVELPING, level) ||
+	    dm_avpgrp_add_string(NULL, &grp, AVP_PATH, 0, VP_TRAVELPING, name)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -1529,9 +1529,9 @@ dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
  * @ingroup API
  */
 uint32_t
-dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type, DIAM_AVPGRP **notify)
+dm_decode_notifications(DM_AVPGRP *grp, uint32_t *type, DM_AVPGRP **notify)
 {
-	DIAM_AVPGRP	*ev_container;
+	DM_AVPGRP	*ev_container;
 
 	uint32_t	code;
 	uint8_t		flags;
@@ -1539,7 +1539,7 @@ dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type, DIAM_AVPGRP **notify)
 	void		*data;
 	size_t		len;
 
-	if (diam_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len)) {
+	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len)) {
 		*type = NOTIFY_NOTHING;	/* special notify type - queue was empty */
 		if (notify)
 			*notify = NULL;
@@ -1548,16 +1548,16 @@ dm_decode_notifications(DIAM_AVPGRP *grp, uint32_t *type, DIAM_AVPGRP **notify)
 	if (code != AVP_CONTAINER || !len)
 		return RC_ERR_MISC;
 
-	if (!(ev_container = diam_decode_avpgrp(grp, data, len)))
+	if (!(ev_container = dm_decode_avpgrp(grp, data, len)))
 		return RC_ERR_ALLOC;
 
-	if (diam_avpgrp_get_avp(ev_container, &code, &flags, &vendor_id,
+	if (dm_avpgrp_get_avp(ev_container, &code, &flags, &vendor_id,
 				&data, &len) ||
 	    code != AVP_NOTIFY_TYPE || len != sizeof(uint32_t)) {
 		dm_grp_free(ev_container);
 		return RC_ERR_MISC;
 	}
-	*type = diam_get_uint32_avp(data);
+	*type = dm_get_uint32_avp(data);
 
 	if (notify)
 		*notify = ev_container;
@@ -1591,23 +1591,23 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 
 	switch (type) {
 	case AVP_BOOL:
-		return (*val = strdup(diam_get_uint8_avp(data) ? "1" : "0"))
+		return (*val = strdup(dm_get_uint8_avp(data) ? "1" : "0"))
 							? RC_OK : RC_ERR_ALLOC;
 	case AVP_ENUMID:
 	case AVP_INT32:
-		return asprintf(val, "%d", diam_get_int32_avp(data)) == -1
+		return asprintf(val, "%d", dm_get_int32_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
 	case AVP_COUNTER:
 	case AVP_UINT32:
-		return asprintf(val, "%u", diam_get_uint32_avp(data)) == -1
+		return asprintf(val, "%u", dm_get_uint32_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
 	case AVP_ABSTICKS:
 	case AVP_RELTICKS:
 	case AVP_INT64:
-		return asprintf(val, "%" PRIi64, diam_get_int64_avp(data)) == -1
+		return asprintf(val, "%" PRIi64, dm_get_int64_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
 	case AVP_UINT64:
-		return asprintf(val, "%" PRIu64, diam_get_uint64_avp(data)) == -1
+		return asprintf(val, "%" PRIu64, dm_get_uint64_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
 	case AVP_ENUM:
 	case AVP_PATH:
@@ -1622,12 +1622,12 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 		return RC_OK;
 	}
 	case AVP_ADDRESS:
-		if (!diam_get_address_avp(&af, &addr, data) ||
+		if (!dm_get_address_avp(&af, &addr, data) ||
 		    af != AF_INET || !(dum = inet_ntoa(addr.in)))
 			return RC_ERR_MISC;
 		return (*val = strdup(dum)) ? RC_OK : RC_ERR_ALLOC;
 	case AVP_DATE:
-		return asprintf(val, "%u", (uint32_t)diam_get_time_avp(data)) == -1
+		return asprintf(val, "%u", (uint32_t)dm_get_time_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
 	default:
 		return RC_ERR_MISC;
@@ -1641,7 +1641,7 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 		/* it aborts if there's a node containing children, so it should only be used for "level 1" lists */
 
 uint32_t
-dm_decode_node_list(DIAM_AVPGRP *grp, char **name, uint32_t *type,
+dm_decode_node_list(DM_AVPGRP *grp, char **name, uint32_t *type,
 		    uint32_t *size, uint32_t *datatype)
 {
 	uint32_t	code;
@@ -1650,16 +1650,16 @@ dm_decode_node_list(DIAM_AVPGRP *grp, char **name, uint32_t *type,
 	void		*data;
 	size_t		len;
 
-	DIAM_AVPGRP	*node_container;
+	DM_AVPGRP	*node_container;
 
-	if (diam_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
+	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
 	    code != AVP_CONTAINER || !len)
 		return RC_ERR_MISC;
 
-	if (!(node_container = diam_decode_avpgrp(NULL, data, len)))
+	if (!(node_container = dm_decode_avpgrp(NULL, data, len)))
 		return RC_ERR_ALLOC;
 
-	if (diam_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
+	if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
 				&data, &len) ||
 	    code != AVP_NODE_NAME || !len) {
 		dm_grp_free(node_container);
@@ -1670,33 +1670,33 @@ dm_decode_node_list(DIAM_AVPGRP *grp, char **name, uint32_t *type,
 		return RC_ERR_ALLOC;
 	}
 
-	if (diam_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
+	if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
 				&data, &len) ||
 	    code != AVP_NODE_TYPE || len != sizeof(uint32_t)) {
 		dm_grp_free(node_container);
 		return RC_ERR_MISC;
 	}
-	*type = diam_get_uint32_avp(data);
+	*type = dm_get_uint32_avp(data);
 
 	if (*type == NODE_PARAMETER) {
 		if (datatype) {
-			if (diam_avpgrp_get_avp(node_container, &code, &flags,
+			if (dm_avpgrp_get_avp(node_container, &code, &flags,
 						&vendor_id, &data, &len) ||
 			    (code == AVP_NODE_DATATYPE && len != sizeof(uint32_t))) {
 				dm_grp_free(node_container);
 				return RC_ERR_MISC;
 			}
-			*datatype = code == AVP_NODE_DATATYPE ? diam_get_uint32_avp(data)
+			*datatype = code == AVP_NODE_DATATYPE ? dm_get_uint32_avp(data)
 							      : code;
 		}
 	} else if (*type == NODE_OBJECT && size) {
-		if (diam_avpgrp_get_avp(node_container, &code, &flags,
+		if (dm_avpgrp_get_avp(node_container, &code, &flags,
 					&vendor_id, &data, &len) ||
 		    code != AVP_NODE_SIZE || len != sizeof(uint32_t)) {
 			dm_grp_free(node_container);
 			return RC_ERR_MISC;
 		}
-		*size = diam_get_uint32_avp(data);
+		*size = dm_get_uint32_avp(data);
 	}
 
 	dm_grp_free(node_container);

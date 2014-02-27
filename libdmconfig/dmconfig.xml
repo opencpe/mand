@@ -79,7 +79,7 @@
 		</command>
 
 		<!-- a number of possible actions can be achieved by sending empty
-			 diameter headers
+			 dmconfig headers
 			 there's no need in complicating the protocol (except if someday, you want to
 			 send a list of commands)... -->
 

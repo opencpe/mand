@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
-	functions for debugging purposes (dumping diameter packets and their AVPs)
+	functions for debugging purposes (dumping dmconfig packets and their AVPs)
 */
 
 #ifdef HAVE_CONFIG_H
@@ -24,7 +24,7 @@
 #endif
 
 #include "errors.h"
-#include "diammsg.h"
+#include "dmmsg.h"
 #include "codes.h"
 
 #include "debug.h"
@@ -225,7 +225,7 @@ static const char *indent(int level)
 	return space;
 }
 
-static void dump_avpgrp(int level, DIAM_AVPGRP *avpgrp)
+static void dump_avpgrp(int level, DM_AVPGRP *avpgrp)
 {
 	uint32_t	code;
 	uint8_t		flags;
@@ -233,10 +233,10 @@ static void dump_avpgrp(int level, DIAM_AVPGRP *avpgrp)
 	void		*data;
 	size_t		len;
 
-	while(!diam_avpgrp_get_avp(avpgrp, &code, &flags, &vendor_id, &data, &len)) {
+	while(!dm_avpgrp_get_avp(avpgrp, &code, &flags, &vendor_id, &data, &len)) {
 		fprintf(stderr, "%sC: %8d %-20s, F: %02x, V: %8d, L: %6d, %p\n", indent(level), code, _get_avp(code), flags, vendor_id, len, data);
 		if (code == AVP_CONTAINER) {
-			DIAM_AVPGRP *avpgrp1 = diam_decode_avpgrp(NULL, data, len);
+			DM_AVPGRP *avpgrp1 = dm_decode_avpgrp(NULL, data, len);
 
 			dump_avpgrp(level + 1, avpgrp1);
 			talloc_free(avpgrp1);
@@ -246,29 +246,29 @@ static void dump_avpgrp(int level, DIAM_AVPGRP *avpgrp)
 }
 
 void
-dump_diam_packet(DIAM_REQUEST *req) {
+dump_dm_packet(DM_REQUEST *req) {
 	uint32_t	code;
 	uint8_t		flags;
 	uint32_t	vendor_id;
 	void		*data;
 	size_t		len;
-	DIAM_PACKET	*packet = &req->packet;
+	DM_PACKET	*packet = &req->packet;
 
-	hexdump(packet, diam_packet_length(packet));
+	hexdump(packet, dm_packet_length(packet));
 
 	fprintf(stderr, "Version: %d\n", packet->version);
-	fprintf(stderr, " Length: %d\n", diam_packet_length(packet));
+	fprintf(stderr, " Length: %d\n", dm_packet_length(packet));
 	fprintf(stderr, "  Flags: %02x\n", packet->flags);
-	fprintf(stderr, "Command: %s (%d)\n", _get_cmd(diam_packet_code(packet)), diam_packet_code(packet));
+	fprintf(stderr, "Command: %s (%d)\n", _get_cmd(dm_packet_code(packet)), dm_packet_code(packet));
 	fprintf(stderr, " App-Id: %08x\n", ntohl(packet->app_id));
 	fprintf(stderr, " Hop-Id: %08x\n", ntohl(packet->hop2hop_id));
 	fprintf(stderr, " End-Id: %08x\n", ntohl(packet->end2end_id));
 
-	diam_request_reset_avp(req);
-	while(!diam_request_get_avp(req, &code, &flags, &vendor_id, &data, &len)) {
+	dm_request_reset_avp(req);
+	while(!dm_request_get_avp(req, &code, &flags, &vendor_id, &data, &len)) {
 		fprintf(stderr, "C:   %8d %-20s, F: %02x, V: %8d, L: %6d, %p\n", code, _get_avp(code), flags, vendor_id, len, data);
 		if(code == AVP_CONTAINER) {
-			DIAM_AVPGRP *avpgrp = diam_decode_avpgrp(req, data, len);
+			DM_AVPGRP *avpgrp = dm_decode_avpgrp(req, data, len);
 
 			dump_avpgrp(1, avpgrp);
 			talloc_free(avpgrp);

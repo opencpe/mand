@@ -7,7 +7,7 @@ BUILT_SOURCES = codes.h
 CLEANFILES = codes.h
 
 libdmconfigincdir = $(includedir)/libdmconfig
-libdmconfiginc_HEADERS = diammsg.h dmconfig.h codes.h
+libdmconfiginc_HEADERS = dmmsg.h dmconfig.h codes.h
 
 dmconfigdatadir = $(datadir)/dmd
 dmconfigdata_DATA = dmconfig.xml
@@ -26,7 +26,7 @@ CLEANFILES += extensivedump.out
 
 endif
 
-libdmconfig_la_SOURCES = diammsg.c dmconfig.c
+libdmconfig_la_SOURCES = dmmsg.c dmconfig.c
 if LIBDMCONFIG_DEBUG
 libdmconfig_la_SOURCES += debug.c
 endif

@@ -139,8 +139,8 @@ int dmctrl(int argc, char **argv)
 {
 	uint32_t		rc;
 	DMCONTEXT		ctx;
-	DIAM_AVPGRP		*grp;
-	DIAM_AVPGRP		*ret_grp;
+	DM_AVPGRP		*grp;
+	DM_AVPGRP		*ret_grp;
 
 	struct event_base	*base;
 
@@ -180,7 +180,7 @@ int dmctrl(int argc, char **argv)
 				goto abort;
 			if (dm_grp_get_unknown(&grp, what) ||
 			    dm_send_packet_get(&ctx, grp, &ret_grp) ||
-			    diam_avpgrp_get_avp(ret_grp, &type, &flags, &vendor_id,
+			    dm_avpgrp_get_avp(ret_grp, &type, &flags, &vendor_id,
 	     			  		&data, &len) ||
 			    dm_decode_unknown_as_string(type, data, len, &result)) {
 				dm_grp_free(grp);

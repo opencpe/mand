@@ -68,7 +68,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 	fflush(stdout);
 
 	do {
-		DIAM_AVPGRP	*events;
+		DM_AVPGRP	*events;
 		uint32_t	type;
 
 		switch (dm_send_get_passive_notifications(&ctx, &events)) {
@@ -83,7 +83,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 		}
 
 		do {
-			DIAM_AVPGRP *notify;
+			DM_AVPGRP *notify;
 
 			if (dm_decode_notifications(events, &type, &notify)) {
 				dm_grp_free(events);
@@ -104,7 +104,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 					return 1;
 				}
 
-				if (diam_avpgrp_get_avp(notify, &data_type, &flags, &vendor_id, &data, &len) ||
+				if (dm_avpgrp_get_avp(notify, &data_type, &flags, &vendor_id, &data, &len) ||
 				    dm_decode_unknown_as_string(data_type, data, len, &str)) {
 					free(path);
  					dm_grp_free(events);

@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef __DIAM_DEBUG_H
-#define __DIAM_DEBUG_H
+#ifndef __DM_DEBUG_H
+#define __DM_DEBUG_H
 
-#include "diammsg.h"
+#include "dmmsg.h"
 
-void dump_diam_packet(DIAM_REQUEST *req);
+void dump_dm_packet(DM_REQUEST *req);
 
 #endif

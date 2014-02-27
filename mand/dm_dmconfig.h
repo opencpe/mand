@@ -43,10 +43,10 @@ typedef struct notify_info		NOTIFY_INFO;
 
 typedef struct obj_group {
 	uint32_t	type;
-	DIAM_REQUEST	*req;
-	DIAM_AVPGRP	*reqgrp;
-	DIAM_AVPGRP	*avpgrp;
-	DIAM_AVPGRP	*answer_grp;
+	DM_REQUEST	*req;
+	DM_AVPGRP	*reqgrp;
+	DM_AVPGRP	*avpgrp;
+	DM_AVPGRP	*answer_grp;
 
 	uint32_t	sessionid;
 } OBJ_GROUP;
@@ -62,7 +62,7 @@ struct obj_avpinfo {
 typedef struct get_grp_container {
 	uint32_t	type;
 	void		*ctx;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 } GET_GRP_CONTAINER;
 
 typedef struct set_grp_container {
@@ -72,7 +72,7 @@ typedef struct set_grp_container {
 
 typedef struct list_ctx {
 	void		*ctx;
-	DIAM_AVPGRP	*grp;
+	DM_AVPGRP	*grp;
 
 	int		level;
 	int		max_level;
@@ -84,8 +84,8 @@ typedef struct list_ctx {
 #define ANSWER_INC 16
 
 struct answerInfo {
-	DIAM_REQUEST *head;
-	DIAM_REQUEST *tail;
+	DM_REQUEST *head;
+	DM_REQUEST *tail;
 };
 
 struct sockContext {

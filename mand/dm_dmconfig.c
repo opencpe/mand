@@ -49,7 +49,7 @@
 #endif
 
 #include "libdmconfig/dmconfig.h"
-#include "libdmconfig/diammsg.h"
+#include "libdmconfig/dmmsg.h"
 #include "libdmconfig/codes.h"
 
 #include "dm.h"
@@ -92,7 +92,7 @@ static inline void threadDerefSockCtx(SOCKCONTEXT *sockCtx);
 
 static inline void unsubscribeNotify(SESSION *le);
 
-static DM_RESULT build_client_info(void *ctx, DIAM_AVPGRP **grp,
+static DM_RESULT build_client_info(void *ctx, DM_AVPGRP **grp,
 				   struct dm_value_table *clnt);
 
 static void acceptEvent(int sfd __attribute__((unused)),
@@ -103,15 +103,15 @@ static inline int processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status);
 static void writeEvent(int fd, short event, void *arg);
 
 static int register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
-			   uint32_t rc, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
-static int register_request(uint32_t code, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
-static int register_packet(DIAM_REQUEST *packet, SOCKCONTEXT *sockCtx);
+			   uint32_t rc, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
+static int register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
+static int register_packet(DM_REQUEST *packet, SOCKCONTEXT *sockCtx);
 
 static int reset_writeEvent(SOCKCONTEXT *sockCtx);
 static void async_reset_writeEvent(EV_P __attribute__((unused)),
 				   ev_async *w, int revents __attribute__((unused)));
 
-static DIAM_AVPGRP *build_notify_events(struct notify_queue *queue, int level);
+static DM_AVPGRP *build_notify_events(struct notify_queue *queue, int level);
 static void dmconfig_notify_cb(void *data, struct notify_queue *queue);
 
 static DM_RESULT dmconfig_avp2value(OBJ_AVPINFO *header,
@@ -140,9 +140,9 @@ static DM_RESULT dmconfig_retrieve_enums_cb(void *data,
 
 static inline uint32_t process_request_session(struct event_base *base,
 					       SOCKCONTEXT *sockCtx,
-					       uint32_t diam_code, uint32_t hopid,
+					       uint32_t dm_code, uint32_t hopid,
 					       uint32_t sessionid,
-					       DIAM_AVPGRP *grp);
+					       DM_AVPGRP *grp);
 static uint32_t process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags,
 				      uint32_t hopid, struct timeval timeout);
 static uint32_t process_switch_session(SOCKCONTEXT *sockCtx, uint32_t flags,
@@ -502,7 +502,7 @@ readEvent(int fd, short event, void *arg)
 				 * the read request is a root talloc context
 				 */
 		pthread_mutex_lock(&sockCtx->lock);
-		event_aux_diamRead(fd, event, &sockCtx->readCtx, &alreadyRead, &status);
+		event_aux_dmRead(fd, event, &sockCtx->readCtx, &alreadyRead, &status);
 		pthread_mutex_unlock(&sockCtx->lock);
 
 		debug(": alreadyRead: %d, status: %d", alreadyRead, status);
@@ -531,7 +531,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 	uint32_t		end2end;
 
 	OBJ_AVPINFO		header;
-	uint32_t		diam_code;
+	uint32_t		dm_code;
 
 	uint32_t		code = RC_OK;
 
@@ -574,24 +574,24 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 
 		/* request read successfully */
 
-	hop2hop = diam_hop2hop_id(&obj.req->packet);
-	end2end = diam_end2end_id(&obj.req->packet);
+	hop2hop = dm_hop2hop_id(&obj.req->packet);
+	end2end = dm_end2end_id(&obj.req->packet);
 
 #ifdef LIBDMCONFIG_DEBUG
 	fprintf(stderr, "Received %s:\n",
-		diam_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST ?
+		dm_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST ?
 							"request" : "answer");
-	dump_diam_packet(obj.req);
-	diam_request_reset_avp(obj.req);
+	dump_dm_packet(obj.req);
+	dm_request_reset_avp(obj.req);
 #endif
 
 				/* don't accept client answers currently */
-	if (!(diam_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST)) {
+	if (!(dm_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST)) {
 		debug("(): error, not a request");
 		goto reaccept;
 	}
 
-	if (diam_request_get_avp(obj.req, &header.code, &header.flags,
+	if (dm_request_get_avp(obj.req, &header.code, &header.flags,
 				 &header.vendor_id, &header.data, &header.len)) {
 		debug("(): error, could not decode avp's");
 		goto server_err;
@@ -601,36 +601,36 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 		goto reaccept;
 	}
 
-	obj.sessionid = diam_get_uint32_avp(header.data);
+	obj.sessionid = dm_get_uint32_avp(header.data);
 	dm_debug(obj.sessionid, "session");
 
-	if (!diam_request_get_avp(obj.req, &header.code, &header.flags,
+	if (!dm_request_get_avp(obj.req, &header.code, &header.flags,
 				  &header.vendor_id, &header.data,
 				  &header.len)) {
 		if (header.code != AVP_CONTAINER) {
 			debug("(): error, avp is not a container");
 			goto reaccept;
 		}
-		if (!(obj.reqgrp = diam_decode_avpgrp(obj.req, header.data,
+		if (!(obj.reqgrp = dm_decode_avpgrp(obj.req, header.data,
 						      header.len))) {
 			debug("(): error, could no decode avp container");
 			goto server_err;
 		}
 	}
 
-	diam_code = diam_packet_code(&obj.req->packet);
+	dm_code = dm_packet_code(&obj.req->packet);
 
-	if (diam_code != CMD_GET_PASSIVE_NOTIFICATIONS && obj.sessionid &&	/* reset_timeout_obj validates the sessionId, too */
+	if (dm_code != CMD_GET_PASSIVE_NOTIFICATIONS && obj.sessionid &&	/* reset_timeout_obj validates the sessionId, too */
 	    reset_timeout_obj(obj.sessionid)) {					/* except for POLLs because they don't reset the timeout */
 		code = RC_ERR_INVALID_SESSIONID;
 		debug("(): error, invalid session id");
 	} else {	/* must... not... use... a... GO... TO... */
-		switch (diam_code) {
+		switch (dm_code) {
 		case CMD_STARTSESSION:
 		case CMD_SWITCHSESSION: {
 			uint32_t rc;
 
-			if (!(rc = process_request_session(evbase, sockCtx, diam_code, hop2hop, obj.sessionid, obj.reqgrp)))
+			if (!(rc = process_request_session(evbase, sockCtx, dm_code, hop2hop, obj.sessionid, obj.reqgrp)))
 				goto increase_timeout;
 			if (rc == RC_ERR_ALLOC)
 				goto server_err;
@@ -655,8 +655,8 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)) ||
-			    diam_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)) ||
+			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags))
 				goto server_err;
 
 			break;
@@ -677,10 +677,10 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)) ||
-			    diam_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_SESSIONID, 0, VP_TRAVELPING, cfg_sessionid) ||
-			    diam_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags) ||
-			    diam_avpgrp_add_timeval(obj.req, &obj.answer_grp, AVP_TIMEVAL, 0, VP_TRAVELPING, le->timeout_session))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)) ||
+			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_SESSIONID, 0, VP_TRAVELPING, cfg_sessionid) ||
+			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags) ||
+			    dm_avpgrp_add_timeval(obj.req, &obj.answer_grp, AVP_TIMEVAL, 0, VP_TRAVELPING, le->timeout_session))
 				goto server_err;
 
 			break;
@@ -748,26 +748,26 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
 			if (header.code != AVP_BOOL || header.len != sizeof(uint8_t))
 				goto reaccept;
 
-			notify = diam_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
+			notify = dm_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
 			if (header.code != AVP_CONTAINER || !header.len)
 				goto reaccept;
 
-			if (!(obj.avpgrp = diam_decode_avpgrp(obj.req, header.data, header.len)))
+			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
 				goto server_err;
 
-			while (!diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+			while (!dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 						    &header.vendor_id, &header.data, &header.len)) {
 				dm_selector sb, *sel;
 
@@ -818,26 +818,26 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
 			if (header.code != AVP_BOOL || header.len != sizeof(uint8_t))
 				goto reaccept;
 
-			notify = diam_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
+			notify = dm_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
 			if (header.code != AVP_CONTAINER || !header.len)
 				goto reaccept;
 
-			if (!(obj.avpgrp = diam_decode_avpgrp(obj.req, header.data, header.len)))
+			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
 				goto server_err;
 
-			if (diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
@@ -886,7 +886,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				 * NOTE: we cannot discern real errors from empty queues
 				 * simply assume it was an empty queue (empty answer grp expected)
 				 */
-				if (!(obj.answer_grp = new_diam_avpgrp(obj.req)))
+				if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
 					goto server_err;
 				break;
 			}
@@ -907,7 +907,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -930,13 +930,13 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_UINT16 || header.len != sizeof(uint16_t))
 				goto reaccept;
 
-			id = diam_get_uint16_avp(header.data);
+			id = dm_get_uint16_avp(header.data);
 
 			dm_debug(obj.sessionid, "CMD: %s id = 0x%hX", "DB ADD INSTANCE", id);
 
@@ -945,9 +945,9 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
 				goto server_err;
-			if (diam_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
+			if (dm_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
 						   VP_TRAVELPING, id))
 				goto server_err;
 
@@ -964,7 +964,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1008,7 +1008,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			while (!diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			while (!dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						    &header.vendor_id, &header.data, &header.len)) {
 				dm_selector	sb, *sel;
 				DM_RESULT	rc;
@@ -1016,8 +1016,8 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				if (header.code != AVP_CONTAINER)
 					goto reaccept;
 
-				if (!(obj.avpgrp = diam_decode_avpgrp(obj.req, header.data, header.len)) ||
-				    diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+				if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)) ||
+				    dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 							&header.vendor_id, &header.data, &header.len))
 					goto server_err;
 				if (header.code != AVP_PATH)
@@ -1040,7 +1040,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 					break;
 				}
 
-				if (diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+				if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 							&header.vendor_id, &header.data, &header.len))
 					goto server_err;
 
@@ -1063,10 +1063,10 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			dm_debug(obj.sessionid, "CMD: %s", "DB GET");
 
 			container.ctx = obj.req;
-			if (!(container.grp = new_diam_avpgrp(container.ctx)))
+			if (!(container.grp = new_dm_avpgrp(container.ctx)))
 				goto server_err;
 
-			while (!diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			while (!dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						    &header.vendor_id, &header.data, &header.len)) {
 				dm_selector	sb, *sel;
 				DM_RESULT	rc;
@@ -1074,7 +1074,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				if (header.code != AVP_TYPE_PATH  && header.len <= sizeof(uint32_t))
 					goto reaccept;
 
-				container.type = diam_get_uint32_avp(header.data);
+				container.type = dm_get_uint32_avp(header.data);
 
 				if (!(path = strndup((char*)header.data + sizeof(uint32_t), header.len - sizeof(uint32_t))))
 					goto server_err;
@@ -1115,20 +1115,20 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 
 			memset(&list_ctx, 0, sizeof(LIST_CTX));
 			list_ctx.ctx = obj.req;
-			if (!(list_ctx.grp = new_diam_avpgrp(list_ctx.ctx)))
+			if (!(list_ctx.grp = new_dm_avpgrp(list_ctx.ctx)))
 				goto server_err;
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_UINT16 || header.len != sizeof(uint16_t))
 				goto reaccept;
-			level = diam_get_uint16_avp(header.data);
+			level = dm_get_uint16_avp(header.data);
 			list_ctx.max_level = level ? : DM_SELECTOR_LEN;
 
 			dm_debug(obj.sessionid, "CMD: %s %u", "DB LIST", level);
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1181,7 +1181,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1204,7 +1204,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
 				goto server_err;
 
 			if ((rc = dm_get_value_by_selector_cb(sb, T_ENUM, &obj, dmconfig_retrieve_enums_cb)) == DM_OOM)
@@ -1230,7 +1230,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1269,9 +1269,9 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			if (r != 1)
 				goto server_err;
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
 				goto server_err;
-			if (diam_avpgrp_add_raw(obj.req, &obj.answer_grp, AVP_STRING, 0,
+			if (dm_avpgrp_add_raw(obj.req, &obj.answer_grp, AVP_STRING, 0,
 						VP_TRAVELPING, buf, tsize))
 				goto server_err;
 			free(buf);
@@ -1352,16 +1352,16 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			}
 
 					/* parameter/value container */
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_CONTAINER)
 				goto reaccept;
-			if (!(obj.avpgrp = diam_decode_avpgrp(obj.req, header.data, header.len)))
+			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
 				goto server_err;
 
 					/* path of table */
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1391,7 +1391,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			}
 
 					/* name of paramter to check (last part of path) */
-			if (diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_PATH)
@@ -1409,7 +1409,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			dm_debug(obj.sessionid, "CMD: %s: parameter id: %u", "DB FINDINSTANCE", param);
 
 					/* value to look for (type is AVP code) */
-			if (diam_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 
@@ -1429,9 +1429,9 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			}
 			dm_debug(obj.sessionid, "CMD: %s: answer: %u", "DB FINDINSTANCE", inst->instance);
 
-			if (!(obj.answer_grp = new_diam_avpgrp(obj.req)))
+			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
 				goto server_err;
-			if (diam_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
+			if (dm_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
 						   VP_TRAVELPING, inst->instance))
 				goto server_err;
 
@@ -1446,7 +1446,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_STRING)
@@ -1475,7 +1475,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				break;
 			}
 
-			if (diam_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
+			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
 						&header.vendor_id, &header.data, &header.len))
 				goto server_err;
 			if (header.code != AVP_STRING)
@@ -1497,7 +1497,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 			break;
 
 		default:
-			dm_debug(obj.sessionid, "CMD: unknown/invalid: %d", diam_code);
+			dm_debug(obj.sessionid, "CMD: unknown/invalid: %d", dm_code);
 			goto reaccept;
 		}
 	}
@@ -1507,7 +1507,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 
 			/* the command evaluation has to set "code" and "answer_grp"
 			   (or leave it preinitialized to RC_OK, NULL) */
-	if (register_answer(diam_code, hop2hop, end2end, code, obj.answer_grp, sockCtx))
+	if (register_answer(dm_code, hop2hop, end2end, code, obj.answer_grp, sockCtx))
 		goto server_err;
 
 increase_timeout:
@@ -1573,8 +1573,8 @@ server_err:		/* critical error: deallocate everything properly */
 
 static inline uint32_t
 process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
-			uint32_t diam_code, uint32_t hopid, uint32_t sessionid,
-			DIAM_AVPGRP *grp)
+			uint32_t dm_code, uint32_t hopid, uint32_t sessionid,
+			DM_AVPGRP *grp)
 {
 	uint32_t	code;
 	uint8_t		header_flags;
@@ -1589,7 +1589,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 
 	dm_ENTER(sessionid);
 
-	switch (diam_code) {
+	switch (dm_code) {
 	case CMD_SWITCHSESSION:
 		if (!(le = lookup_session(sessionid))) {
 			dm_EXIT(sessionid);
@@ -1609,7 +1609,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 		le = NULL;
 	}
 
-	if (diam_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
+	if (dm_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
 				&data, &len)) {
 		dm_EXIT(sessionid);
 		return RC_ERR_ALLOC;
@@ -1620,21 +1620,21 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 		return RC_ERR_MISC;
 	}
 
-	flags = diam_get_uint32_avp(data);
+	flags = dm_get_uint32_avp(data);
 
 	timeout_session.tv_sec = SESSIONCTX_DEFAULT_TIMEOUT;
 	timeout_session.tv_usec = 0;
 
-	while (!diam_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
+	while (!dm_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
 				    &data, &len)) {
-		if (len != sizeof(DIAM_TIMEVAL)) {
+		if (len != sizeof(DM_TIMEVAL)) {
 			dm_EXIT(sessionid);
 			return RC_ERR_MISC;
 		}
 
 		switch (code) {
 		case AVP_TIMEOUT_SESSION:
-			timeout_session = diam_get_timeval_avp(data);
+			timeout_session = dm_get_timeval_avp(data);
 
 			if ((!timeout_session.tv_sec && !timeout_session.tv_usec) ||
 			    timeout_session.tv_sec > SESSIONCTX_MAX_TIMEOUT) {
@@ -1652,7 +1652,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 			    getCfgSessionStatus() == CFGSESSION_INACTIVE)
 				break;
 
-			timeout_delay = diam_get_timeval_avp(data);
+			timeout_delay = dm_get_timeval_avp(data);
 
 					/* maximum timeout, don't allow an indefinite delay */
 			if ((!timeout_delay.tv_sec && !timeout_delay.tv_usec) ||
@@ -1671,7 +1671,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 
 			session->flags = flags;
 			session->hopid = hopid;
-			session->code = diam_code;
+			session->code = dm_code;
 			session->sockCtx = sockCtx;
 			session->session = le;
 
@@ -1699,7 +1699,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 	if (flags & CMD_FLAG_CONFIGURE &&
 	    getCfgSessionStatus() != CFGSESSION_INACTIVE) {	/* a config session is already open */
 		dm_EXIT(sessionid);
-		return register_answer(diam_code, hopid, hopid,
+		return register_answer(dm_code, hopid, hopid,
 				       RC_ERR_CANNOT_OPEN_CFGSESSION, NULL,
 				       sockCtx) ? RC_ERR_ALLOC : RC_OK;
 	}
@@ -1732,7 +1732,7 @@ process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags, uint32_t hopid,
 		      struct timeval timeout)
 {
 	SESSION		*le;
-	DIAM_AVPGRP	*answer;
+	DM_AVPGRP	*answer;
 
 	uint32_t	rc;
 
@@ -1755,8 +1755,8 @@ process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags, uint32_t hopid,
 	memcpy(&le->timeout_session, &timeout, sizeof(struct timeval));
 	evtimer_add(&le->timeout, &le->timeout_session);
 
-	if (!(answer = new_diam_avpgrp(NULL)) ||
-	    diam_avpgrp_add_uint32(NULL, &answer, AVP_SESSIONID, 0,
+	if (!(answer = new_dm_avpgrp(NULL)) ||
+	    dm_avpgrp_add_uint32(NULL, &answer, AVP_SESSIONID, 0,
 				   VP_TRAVELPING, session_counter)) {
 		talloc_free(answer);
 		dm_EXIT(session_counter);
@@ -1898,10 +1898,10 @@ process_end_session(uint32_t sessionid) {
 
 static int
 register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
-		uint32_t rc, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
+		uint32_t rc, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 {
-	DIAM_AVPGRP	*completegrp;
-	DIAM_REQUEST	*answer;
+	DM_AVPGRP	*completegrp;
+	DM_REQUEST	*answer;
 	int		r;
 
 	ENTER();
@@ -1910,13 +1910,13 @@ register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
 
 	debug(": [%d]: %d, rc = %u", sockCtx->fd, code, rc);
 
-	if (!(answer = new_diam_request(sockCtx, code, 0, APP_ID, hopid, endid)) ||
-	    !(completegrp = new_diam_avpgrp(answer)) ||
-	    diam_avpgrp_add_uint32(answer, &completegrp, AVP_RC, 0,
+	if (!(answer = new_dm_request(sockCtx, code, 0, APP_ID, hopid, endid)) ||
+	    !(completegrp = new_dm_avpgrp(answer)) ||
+	    dm_avpgrp_add_uint32(answer, &completegrp, AVP_RC, 0,
 	    			   VP_TRAVELPING, rc) ||
-	    (avps && diam_avpgrp_add_avpgrp(answer, &completegrp, AVP_CONTAINER,
+	    (avps && dm_avpgrp_add_avpgrp(answer, &completegrp, AVP_CONTAINER,
 	    				    0, VP_TRAVELPING, avps)) ||
-	    build_diam_request(sockCtx, &answer, completegrp)) {
+	    build_dm_request(sockCtx, &answer, completegrp)) {
 		talloc_free(answer);
 		pthread_mutex_unlock(&sockCtx->lock);
 		EXIT();
@@ -1927,8 +1927,8 @@ register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
 
 #ifdef LIBDMCONFIG_DEBUG
 	fprintf(stderr, "Send answer:\n");
-	dump_diam_packet(answer);
-	diam_request_reset_avp(answer);
+	dump_dm_packet(answer);
+	dm_request_reset_avp(answer);
 #endif
 
 	if ((r = register_packet(answer, sockCtx)))
@@ -1941,9 +1941,9 @@ register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
 }
 
 static int
-register_request(uint32_t code, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
+register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 {
-	DIAM_REQUEST	*request;
+	DM_REQUEST	*request;
 	int		r;
 
 	ENTER();
@@ -1956,9 +1956,9 @@ register_request(uint32_t code, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 	else
 		req_hopid = ++req_endid;
 
-	r = !(request = new_diam_request(sockCtx, code, CMD_FLAG_REQUEST,
+	r = !(request = new_dm_request(sockCtx, code, CMD_FLAG_REQUEST,
 					 APP_ID, req_hopid, req_endid)) ||
-	    build_diam_request(sockCtx, &request, avps);
+	    build_dm_request(sockCtx, &request, avps);
 	pthread_mutex_unlock(&dmconfig_mutex);
 	if (r) {
 		talloc_free(request);
@@ -1969,8 +1969,8 @@ register_request(uint32_t code, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 
 #ifdef LIBDMCONFIG_DEBUG
 	fprintf(stderr, "Send request:\n");
-	dump_diam_packet(request);
-	diam_request_reset_avp(request);
+	dump_dm_packet(request);
+	dm_request_reset_avp(request);
 #endif
 
 	if ((r = register_packet(request, sockCtx)))
@@ -1984,7 +1984,7 @@ register_request(uint32_t code, DIAM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 
 		/* sockCtx->lock always locked when register_packet is called */
 static int
-register_packet(DIAM_REQUEST *packet, SOCKCONTEXT *sockCtx)
+register_packet(DM_REQUEST *packet, SOCKCONTEXT *sockCtx)
 {
 	int r = 0;
 
@@ -2079,7 +2079,7 @@ writeEvent(int fd, short event, void *arg)
 		}
 
 		debug(": [%d]: %p", fd, ctx->req);
-		event_aux_diamWrite(fd, event, ctx, &status);
+		event_aux_dmWrite(fd, event, ctx, &status);
 		debug(": [%d]: status: %d", fd, status);
 
 		switch (status) {
@@ -2199,17 +2199,17 @@ reset_timeout_obj(uint32_t sessionid)
 	return 0;
 }
 
-static DIAM_AVPGRP *
+static DM_AVPGRP *
 build_notify_events(struct notify_queue *queue, int level)
 {
 	struct notify_item	*next;
 
-	DIAM_AVPGRP		*grp;
+	DM_AVPGRP		*grp;
 	int			haveEvent = 0;
 
 	ENTER(": level=%d", level);
 
-	if (!(grp = new_diam_avpgrp(NULL))) {
+	if (!(grp = new_dm_avpgrp(NULL))) {
 		EXIT();
 		return NULL;
 	}
@@ -2220,7 +2220,7 @@ build_notify_events(struct notify_queue *queue, int level)
 		char			buffer[MAX_PARAM_NAME_LEN];
 		char			*path;
 
-		DIAM_AVPGRP		*event;
+		DM_AVPGRP		*event;
 
 		next = RB_NEXT(notify_queue, queue, item);
 
@@ -2232,7 +2232,7 @@ build_notify_events(struct notify_queue *queue, int level)
 		haveEvent = 1;
 
 		if (!(path = dm_sel2name(item->sb, buffer, sizeof(buffer))) ||
-		    !(event = new_diam_avpgrp(grp))) {
+		    !(event = new_dm_avpgrp(grp))) {
 			talloc_free(grp);
 			EXIT();
 			return NULL;
@@ -2242,10 +2242,10 @@ build_notify_events(struct notify_queue *queue, int level)
 		case NOTIFY_ADD:
 			debug(": instance added: %s", path);
 
-			if (diam_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
+			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
 						   VP_TRAVELPING,
 						   NOTIFY_INSTANCE_CREATED) ||
-			    diam_avpgrp_add_string(grp, &event, AVP_PATH, 0,
+			    dm_avpgrp_add_string(grp, &event, AVP_PATH, 0,
 			    	    		   VP_TRAVELPING, path)) {
 				talloc_free(grp);
 				EXIT();
@@ -2256,10 +2256,10 @@ build_notify_events(struct notify_queue *queue, int level)
 		case NOTIFY_DEL:
 			debug(": instance removed: %s", path);
 
-			if (diam_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
+			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
 						   VP_TRAVELPING,
 						   NOTIFY_INSTANCE_DELETED) ||
-			    diam_avpgrp_add_string(grp, &event, AVP_PATH, 0,
+			    dm_avpgrp_add_string(grp, &event, AVP_PATH, 0,
 			    	    		   VP_TRAVELPING, path)) {
 				talloc_free(grp);
 				EXIT();
@@ -2276,7 +2276,7 @@ build_notify_events(struct notify_queue *queue, int level)
 
 			debug(": parameter changed: %s", path);
 
-			if (diam_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
+			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
 						   VP_TRAVELPING,
 						   NOTIFY_PARAMETER_CHANGED)) {
 				talloc_free(grp);
@@ -2284,7 +2284,7 @@ build_notify_events(struct notify_queue *queue, int level)
 				return NULL;
 			}
 
-			if (!(container.grp = new_diam_avpgrp(container.ctx)) ||
+			if (!(container.grp = new_dm_avpgrp(container.ctx)) ||
 			    dm_get_element_by_selector(item->sb, &elem) == T_NONE ||
 			    dmconfig_value2avp(&container, elem, item->value) != DM_OK) {
 				talloc_free(grp);
@@ -2292,10 +2292,10 @@ build_notify_events(struct notify_queue *queue, int level)
 				return NULL;
 			}
 
-			if (diam_avpgrp_add_uint32_string(grp, &event, AVP_TYPE_PATH, 0,
+			if (dm_avpgrp_add_uint32_string(grp, &event, AVP_TYPE_PATH, 0,
 							  VP_TRAVELPING,
 							  container.type, path) ||
-			    diam_avpgrp_insert_avpgrp(grp, &event, container.grp)) {
+			    dm_avpgrp_insert_avpgrp(grp, &event, container.grp)) {
 				talloc_free(grp);
 				EXIT();
 				return NULL;
@@ -2304,7 +2304,7 @@ build_notify_events(struct notify_queue *queue, int level)
 		}
 		}
 
-		if (diam_avpgrp_add_avpgrp(NULL, &grp, AVP_CONTAINER, 0,
+		if (dm_avpgrp_add_avpgrp(NULL, &grp, AVP_CONTAINER, 0,
 					   VP_TRAVELPING, event)) {
 			talloc_free(grp);
 			EXIT();
@@ -2332,7 +2332,7 @@ dmconfig_notify_cb(void *data, struct notify_queue *queue)
 	SESSION			*session = data;
 	NOTIFY_INFO		*notify = &session->notify;
 
-	DIAM_AVPGRP		*grp, *dummy;
+	DM_AVPGRP		*grp, *dummy;
 	int			r;
 
 	dm_ENTER(session->sessionid);
@@ -2342,13 +2342,13 @@ dmconfig_notify_cb(void *data, struct notify_queue *queue)
 		dm_EXIT(session->sessionid);
 		return;
 	}
-	if (!(dummy = new_diam_avpgrp(NULL))) {
+	if (!(dummy = new_dm_avpgrp(NULL))) {
 		talloc_free(grp);
 		dm_EXIT(session->sessionid);
 		return;
 	}
 
-	r = diam_avpgrp_add_avpgrp(NULL, &dummy, AVP_CONTAINER, 0,
+	r = dm_avpgrp_add_avpgrp(NULL, &dummy, AVP_CONTAINER, 0,
 				   VP_TRAVELPING, grp);
 	talloc_free(grp);
 	if (r) {
@@ -2467,7 +2467,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 
 			if (header->code != AVP_ADDRESS)
 				r = DM_INVALID_TYPE;
-			else if (!diam_get_address_avp(&af, &addr, header->data) ||
+			else if (!dm_get_address_avp(&af, &addr, header->data) ||
 				af != AF_INET)
 				r = DM_INVALID_VALUE;
 			else {
@@ -2496,7 +2496,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 
 				break;
 			case AVP_ENUMID:
-				enumid = diam_get_int32_avp(header->data);
+				enumid = dm_get_int32_avp(header->data);
 				if (enumid < 0 || enumid >= elem->u.e.cnt) {
 					r = DM_INVALID_VALUE;
 				} else {
@@ -2519,7 +2519,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_INT(*value,
-					   diam_get_int32_avp(header->data));
+					   dm_get_int32_avp(header->data));
 				debug(": = %d\n", DM_INT(*value));
 			}
 
@@ -2530,7 +2530,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_UINT(*value,
-					    diam_get_uint32_avp(header->data));
+					    dm_get_uint32_avp(header->data));
 				debug(": = %u\n", DM_UINT(*value));
 			}
 
@@ -2541,7 +2541,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_INT64(*value,
-					     diam_get_int64_avp(header->data));
+					     dm_get_int64_avp(header->data));
 				debug(": = %" PRIi64 "\n", DM_INT64(*value));
 			}
 
@@ -2552,7 +2552,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_UINT64(*value,
-					      diam_get_uint64_avp(header->data));
+					      dm_get_uint64_avp(header->data));
 				debug(": = %" PRIu64 "\n", DM_UINT64(*value));
 			}
 
@@ -2563,7 +2563,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_BOOL(*value,
-					    diam_get_uint8_avp(header->data));
+					    dm_get_uint8_avp(header->data));
 				debug(": = %d\n", DM_BOOL(*value));
 			}
 
@@ -2574,7 +2574,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 				r = DM_INVALID_TYPE;
 			else {
 				set_DM_TIME(*value,
-					    diam_get_time_avp(header->data));
+					    dm_get_time_avp(header->data));
 				debug(": = (%d) %s", (int)DM_TIME(*value),
 				      ctime(DM_TIME_REF(*value)));
 			}
@@ -2586,7 +2586,7 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 			case AVP_ABSTICKS: /* FIXME: has to be converted? */
 			case AVP_RELTICKS:
 				set_DM_TICKS(*value,
-					     diam_get_int64_avp(header->data));
+					     dm_get_int64_avp(header->data));
 				debug(": = %" PRItick "\n", DM_TICKS(*value));
 				break;
 			default:
@@ -2618,7 +2618,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_ENUM;
 		case AVP_ENUM:
-			if (diam_avpgrp_add_string(container->ctx,
+			if (dm_avpgrp_add_string(container->ctx,
 						   &container->grp, AVP_ENUM, 0,
 						   VP_TRAVELPING,
 						   dm_int2enum(&elem->u.e,
@@ -2634,7 +2634,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 			EXIT();
 			return DM_OK;
 		case AVP_ENUMID:
-			if (diam_avpgrp_add_int32(container->ctx, &container->grp,
+			if (dm_avpgrp_add_int32(container->ctx, &container->grp,
 						  AVP_ENUMID, 0, VP_TRAVELPING,
 						  DM_ENUM(val))) {
 				EXIT();
@@ -2656,7 +2656,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_COUNTER;
 		case AVP_COUNTER:
-			if (diam_avpgrp_add_uint32(container->ctx, &container->grp,
+			if (dm_avpgrp_add_uint32(container->ctx, &container->grp,
 						   AVP_COUNTER, 0, VP_TRAVELPING,
 						   DM_UINT(val))) {
 				EXIT();
@@ -2676,7 +2676,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_INT32;
 		case AVP_INT32:
-			if (diam_avpgrp_add_int32(container->ctx, &container->grp,
+			if (dm_avpgrp_add_int32(container->ctx, &container->grp,
 						  AVP_INT32, 0, VP_TRAVELPING,
 						  DM_INT(val))) {
 				EXIT();
@@ -2696,7 +2696,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_UINT32;
 		case AVP_UINT32:
-			if (diam_avpgrp_add_uint32(container->ctx,
+			if (dm_avpgrp_add_uint32(container->ctx,
 						   &container->grp, AVP_UINT32, 0,
 						   VP_TRAVELPING, DM_UINT(val))) {
 				EXIT();
@@ -2716,7 +2716,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_INT64;
 		case AVP_INT64:
-			if (diam_avpgrp_add_int64(container->ctx, &container->grp,
+			if (dm_avpgrp_add_int64(container->ctx, &container->grp,
 						  AVP_INT64, 0, VP_TRAVELPING,
 						  DM_INT64(val))) {
 				EXIT();
@@ -2736,7 +2736,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_UINT64;
 		case AVP_UINT64:
-			if (diam_avpgrp_add_uint64(container->ctx, &container->grp,
+			if (dm_avpgrp_add_uint64(container->ctx, &container->grp,
 						   AVP_UINT64, 0, VP_TRAVELPING,
 						   DM_UINT64(val))) {
 				EXIT();
@@ -2756,7 +2756,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_STRING;
 		case AVP_STRING:
-			if (diam_avpgrp_add_string(container->ctx, &container->grp,
+			if (dm_avpgrp_add_string(container->ctx, &container->grp,
 						   AVP_STRING, 0, VP_TRAVELPING,
 						   DM_STRING(val) ? : "")) {
 				EXIT();
@@ -2777,7 +2777,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_BINARY;
 		case AVP_BINARY:
-			if (diam_avpgrp_add_raw(container->ctx, &container->grp,
+			if (dm_avpgrp_add_raw(container->ctx, &container->grp,
 						AVP_BINARY, 0, VP_TRAVELPING,
 						DM_BINARY(val) ? DM_BINARY(val)->data : "",
 						DM_BINARY(val) ? DM_BINARY(val)->len : 0)) {
@@ -2798,7 +2798,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_ADDRESS;
 		case AVP_ADDRESS:
-			if (diam_avpgrp_add_address(container->ctx,
+			if (dm_avpgrp_add_address(container->ctx,
 						    &container->grp, AVP_ADDRESS,
 						    0, VP_TRAVELPING, AF_INET,
 						    DM_IP4_REF(val))) {
@@ -2819,7 +2819,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_BOOL;
 		case AVP_BOOL:
-			if (diam_avpgrp_add_uint8(container->ctx, &container->grp,
+			if (dm_avpgrp_add_uint8(container->ctx, &container->grp,
 						  AVP_BOOL, 0, VP_TRAVELPING,
 						  (uint8_t) DM_BOOL(val))) {
 				EXIT();
@@ -2840,7 +2840,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 		case AVP_UNKNOWN:
 			container->type = AVP_DATE;
 		case AVP_DATE:
-			if (diam_avpgrp_add_time(container->ctx, &container->grp,
+			if (dm_avpgrp_add_time(container->ctx, &container->grp,
 						 AVP_DATE, 0, VP_TRAVELPING,
 						 DM_TIME(val))) {
 				EXIT();
@@ -2871,7 +2871,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 				EXIT();
 				return DM_INVALID_VALUE;
 			}
-			if (diam_avpgrp_add_string(container->ctx, &container->grp,
+			if (dm_avpgrp_add_string(container->ctx, &container->grp,
 						   AVP_PATH, 0,
 						   VP_TRAVELPING, name)) {
 				EXIT();
@@ -2898,7 +2898,7 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 			ticks_t t = container->type == AVP_ABSTICKS ? ticks2realtime(DM_TICKS(val))
 								    : DM_TICKS(val);
 
-			if (diam_avpgrp_add_int64(container->ctx, &container->grp,
+			if (dm_avpgrp_add_int64(container->ctx, &container->grp,
 						  container->type, 0, VP_TRAVELPING, t)) {
 				EXIT();
 				return DM_OOM;
@@ -3000,7 +3000,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 			get_container.grp = ctx->ctx;
 			get_container.ctx = talloc_parent(get_container.grp);
 
-			if (diam_avpgrp_add_avpgrp(get_container.ctx, &get_container.grp,
+			if (dm_avpgrp_add_avpgrp(get_container.ctx, &get_container.grp,
 						   AVP_CONTAINER, 0, VP_TRAVELPING, ctx->grp)) {
 				EXIT();
 				return 0;
@@ -3010,7 +3010,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 			ctx->grp = get_container.ctx;
 			ctx->ctx = talloc_parent(ctx->grp);
 
-			if (diam_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
+			if (dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
 					   	   0, VP_TRAVELPING, get_container.grp)) {
 				EXIT();
 				return 0;
@@ -3041,17 +3041,17 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 	}
 
 	get_container.ctx = ctx->grp;
-	if (!(get_container.grp = new_diam_avpgrp(get_container.ctx))) {
+	if (!(get_container.grp = new_dm_avpgrp(get_container.ctx))) {
 		EXIT();
 		return 0;
 	}
 
-	if (diam_avpgrp_add_string(get_container.ctx, &get_container.grp,
+	if (dm_avpgrp_add_string(get_container.ctx, &get_container.grp,
 				   AVP_NODE_NAME, 0, VP_TRAVELPING, node_name)) {
 		EXIT();
 		return 0;
 	}
-	if (diam_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
+	if (dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
 				   AVP_NODE_TYPE, 0, VP_TRAVELPING, node_type)) {
 		EXIT();
 		return 0;
@@ -3060,7 +3060,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 	switch (node_type) {
 	case NODE_PARAMETER:
 		if (elem->type == T_POINTER) {
-			if (diam_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
+			if (dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
 						   AVP_NODE_DATATYPE, 0, VP_TRAVELPING,
 						   AVP_POINTER)) {
 				EXIT();
@@ -3071,7 +3071,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 			return 0;
 		}
 
-		if (diam_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
+		if (dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
 					   0, VP_TRAVELPING, get_container.grp)) {
 			EXIT();
 			return 0;
@@ -3084,16 +3084,16 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id,
 	case NODE_OBJECT:
 		if (ctx->level < ctx->max_level) {
 			ctx->ctx = get_container.grp;
-			if (!(ctx->grp = new_diam_avpgrp(ctx->ctx))) {
+			if (!(ctx->grp = new_dm_avpgrp(ctx->ctx))) {
 				EXIT();
 				return 0;
 			}
 		} else {
 			if ((node_type == NODE_OBJECT &&
-			     diam_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
+			     dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
 						    AVP_NODE_SIZE, 0, VP_TRAVELPING,
 						    elem->u.t.table->size)) ||
-			    diam_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
+			    dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
 					   	   0, VP_TRAVELPING, get_container.grp)) {
 				EXIT();
 				return 0;
@@ -3128,7 +3128,7 @@ dmconfig_retrieve_enums_cb(void *data,
 
 	enumer = &elem->u.e;
 	for (ptr = enumer->data, i = enumer->cnt; i; i--, ptr += strlen(ptr) + 1)
-		if (diam_avpgrp_add_string(obj->req, &obj->answer_grp,
+		if (dm_avpgrp_add_string(obj->req, &obj->answer_grp,
 					   AVP_STRING, 0, VP_TRAVELPING, ptr)) {
 			EXIT();
 			return DM_OOM;
