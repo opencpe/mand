@@ -1122,8 +1122,16 @@ dm_grp_set_unknown(DIAM_AVPGRP **grp, const char *name, const char *value)
 	return dm_grp_set(grp, name, AVP_UNKNOWN, (void*)value, strlen(value));
 }
 
-		/* build AVP group for param notify packets */
-
+/** build AVP group for param notify packets
+ *
+ * @param [inout] grp         pointer to DM_AVPGRP to modify
+ * @param [in] name           Name of the paramter
+ *
+ * @retval RC_OK              Request was successfull
+ * @retval RC_ERR_ALLOC       Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_grp_param_notify(DIAM_AVPGRP **grp, const char *name)
 {
@@ -1133,6 +1141,13 @@ dm_grp_param_notify(DIAM_AVPGRP **grp, const char *name)
 
 		/* context manipulation */
 
+/** initialize a new socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] base           libev event_base to use for this context
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_init(DMCONTEXT *dmCtx, struct event_base *base)
 {
@@ -1140,6 +1155,13 @@ dm_context_init(DMCONTEXT *dmCtx, struct event_base *base)
 	dm_context_set_event_base(dmCtx, base);
 }
 
+/** allocate and initialize a new socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] base           libev event_base to use for this context
+ *
+ * @ingroup API
+ */
 static inline DMCONTEXT*
 dm_context_new(void *ctx, struct event_base *base)
 {
@@ -1152,60 +1174,138 @@ dm_context_new(void *ctx, struct event_base *base)
 	return ret;
 }
 
+/** free a  socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_free(DMCONTEXT *dmCtx)
 {
 	talloc_free(dmCtx);
 }
 
+/** set the socket in a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] socket         New socket
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_set_socket(DMCONTEXT *dmCtx, int socket)
 {
 	dmCtx->socket = socket;
 }
 
+/** get the socket from a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @retval                    Socket
+ *
+ * @ingroup API
+ */
 static inline int
 dm_context_get_socket(DMCONTEXT *dmCtx)
 {
 	return dmCtx->socket;
 }
 
+/** set the session id in a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] sessionid      New session id
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_set_sessionid(DMCONTEXT *dmCtx, uint32_t sessionid)
 {
 	dmCtx->sessionid = sessionid;
 }
 
+/** get the session id from a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @retval                    Current session id
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_context_get_sessionid(DMCONTEXT *dmCtx)
 {
 	return dmCtx->sessionid;
 }
 
+/** set libev's libevent compatiblity event_base in a socket context
+ *
+ * set libev's libevent compatiblity event_base in a socket context,
+ * this function is only for source code compatiblity with libevent
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] base           libev's event_base to use for this context
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_set_event_base(DMCONTEXT *dmCtx, struct event_base *base)
 {
 	dmCtx->evloop = (struct ev_loop *)base;
 }
 
+/** get libev's libevent compatiblity event_base from a socket context
+ *
+ * get libev's libevent compatiblity event_base from a socket context,
+ * this function is only for source code compatiblity with libevent
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @retval                    libev's event_base from this context
+ *
+ * @ingroup API
+ */
 static inline struct event_base*
 dm_context_get_event_base(DMCONTEXT *dmCtx)
 {
 	return (struct event_base *)dmCtx->evloop;
 }
 
+/** set libev's ev_loop in a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] loop           libev's ev_loop to use for this context
+ *
+ * @ingroup API
+ */
 static inline void
 dm_context_set_ev_loop(DMCONTEXT *dmCtx, struct ev_loop *loop)
 {
 	dmCtx->evloop = loop;
 }
 
+/** get libev's ev_loop from a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @retval                    libev's ev_loop from this context
+ *
+ * @ingroup API
+ */
 static inline struct ev_loop*
 dm_context_get_ev_loop(DMCONTEXT *dmCtx)
 {
 	return dmCtx->evloop;
 }
 
+/** create a socket in a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] type        Type of socket (AF_INET or AF_UNIX)
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_CONNECTION    Underlying socket was closed or blocking
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_create_socket(DMCONTEXT *dmCtx, int type)
 {
@@ -1218,6 +1318,12 @@ dm_create_socket(DMCONTEXT *dmCtx, int type)
 	return RC_OK;
 }
 
+/** shut down the socket in a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ *
+ * @ingroup API
+ */
 static inline void
 dm_shutdown_socket(DMCONTEXT *dmCtx)
 {
@@ -1227,6 +1333,18 @@ dm_shutdown_socket(DMCONTEXT *dmCtx)
 
 		/* send requests (blocking API) */
 
+/** Synchonous start session request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] flags             Flags for the start session request
+ * @param [in] timeout_session   Idle timeout for this session
+ * @param [in] timeout_request   Request timeout for this session
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_start_session(DMCONTEXT *dmCtx, uint32_t flags,
 		      struct timeval *timeout_session,
@@ -1248,6 +1366,18 @@ dm_send_start_session(DMCONTEXT *dmCtx, uint32_t flags,
 	return rc;
 }
 
+/** Synchonous switch session request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] flags             Flags for the switch session request
+ * @param [in] timeout_session   Idle timeout for this session
+ * @param [in] timeout_request   Request timeout for this session
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_switch_session(DMCONTEXT *dmCtx, uint32_t flags,
 		       struct timeval *timeout_session,
@@ -1261,6 +1391,18 @@ dm_send_switch_session(DMCONTEXT *dmCtx, uint32_t flags,
 							       NULL);
 }
 
+/** Synchonous get session info request
+ *
+ * Retrieves the current flags for this session
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [inout] flags          Flags
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_get_session_info(DMCONTEXT *dmCtx, uint32_t *flags)
 {
@@ -1275,6 +1417,20 @@ dm_send_get_session_info(DMCONTEXT *dmCtx, uint32_t *flags)
 	return rc;
 }
 
+/** Synchonous get config session info request
+ *
+ * Retrieves session id, flags and timeout for this session
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [inout] sessionid      Session Id
+ * @param [inout] flags          Flags
+ * @param [inout] timeout        Session timeout
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_get_cfg_session_info(DMCONTEXT *dmCtx, uint32_t *sessionid, uint32_t *flags,
 			     struct timeval *timeout)
@@ -1289,6 +1445,16 @@ dm_send_get_cfg_session_info(DMCONTEXT *dmCtx, uint32_t *sessionid, uint32_t *fl
 	return rc;
 }
 
+/** Synchonous delete instance request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] path              Instance to delete, must be a valid data-model path
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_del_instance(DMCONTEXT *dmCtx, const char *path)
 {
@@ -1296,6 +1462,18 @@ dm_send_del_instance(DMCONTEXT *dmCtx, const char *path)
 						    path, NULL);
 }
 
+/** Synchonous find instance request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] path              Instance to search in, must be a valid data-model path
+ * @param [in] grp               DM_AVPGRP with the value specification to search
+ * @param [out] inst             Id of the found instance
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_find_instance(DMCONTEXT *dmCtx, const char *path, DIAM_AVPGRP *grp,
 		      uint16_t *inst)
@@ -1307,6 +1485,19 @@ dm_send_find_instance(DMCONTEXT *dmCtx, const char *path, DIAM_AVPGRP *grp,
 				       grp, &answer) ? : dm_decode_find_instance(answer, inst);
 }
 
+/** Synchonous retrieve enums request
+ *
+ * Fetch all possible enum values for a given parameter
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] name              Parameter to get enums for
+ * @param [inout] answer         DM_AVPGRP to return the enums
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_retrieve_enums(DMCONTEXT *dmCtx, const char *name, DIAM_AVPGRP **answer)
 {
@@ -1314,12 +1505,32 @@ dm_send_retrieve_enums(DMCONTEXT *dmCtx, const char *name, DIAM_AVPGRP **answer)
 						    name, answer);
 }
 
+/** Synchonous subscribe to notifications request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_subscribe_notify(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_SUBSCRIBE_NOTIFY, NULL, NULL);
 }
 
+/** Synchonous set notification on parameters and all child parameters
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] isActiveNotify    Unused, present only for backwards compatibility
+ * @param [in] path              parameter path to start on
+
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_recursive_param_notify(DMCONTEXT *dmCtx,
 			       uint8_t isActiveNotify __attribute__((unused)), /* FIXME: this is only for backwards compatibility */
@@ -1340,6 +1551,16 @@ dm_send_recursive_param_notify(DMCONTEXT *dmCtx,
 	return rc;
 }
 
+/** Synchonous set notification on a parameter
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] isActiveNotify    Unused, present only for backwards compatibility
+ * @param [in] grp               DM_AVPGRP list of parameters to set notify on
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_packet_param_notify(DMCONTEXT *dmCtx,
 			    uint8_t isActiveNotify __attribute__((unused)), /* FIXME: this is only for backwards compatibility */
@@ -1348,6 +1569,16 @@ dm_send_packet_param_notify(DMCONTEXT *dmCtx,
 	return dm_generic_send_request_bool_grp(dmCtx, CMD_PARAM_NOTIFY, 0, grp);
 }
 
+/** Synchonous retrieve all pending passive notifications
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [inout] answer         DM_AVPGRP to return the pending notifications
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_get_passive_notifications(DMCONTEXT *dmCtx, DIAM_AVPGRP **answer)
 {
@@ -1355,12 +1586,30 @@ dm_send_get_passive_notifications(DMCONTEXT *dmCtx, DIAM_AVPGRP **answer)
 				       NULL, answer);
 }
 
+/** Synchonous unsubscribe from all notifications request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_unsubscribe_notify(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_UNSUBSCRIBE_NOTIFY, NULL, NULL);
 }
 
+/** Synchonous send session end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_end_session(DMCONTEXT *dmCtx)
 {
@@ -1373,36 +1622,93 @@ dm_send_end_session(DMCONTEXT *dmCtx)
 	return RC_OK;
 }
 
+/** Synchonous send set end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] grp               Prepared SET request DM_AVPGRP
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_packet_set(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp)
 {
 	return dm_generic_send_request(dmCtx, CMD_DB_SET, grp, NULL);
 }
 
+/** Synchonous send get end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] grp               Prepared GET request DM_AVPGRP
+ * @param [inout] answer         DM_AVPGRP to return the paramters
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_packet_get(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp, DIAM_AVPGRP **answer)
 {
 	return dm_generic_send_request(dmCtx, CMD_DB_GET, grp, answer);
 }
 
+/** Synchonous send commit request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_commit(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_DB_COMMIT, NULL, NULL);
 }
 
+/** Synchonous send cancel request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_cancel(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_DB_CANCEL, NULL, NULL);
 }
 
+/** Synchonous send save request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_save(DMCONTEXT *dmCtx)
 {
 	return dm_generic_send_request(dmCtx, CMD_DB_SAVE, NULL, NULL);
 }
 
+/** Synchonous send dump request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_send_cmd_dump(DMCONTEXT *dmCtx, const char *path, char **data)
 {
@@ -1422,6 +1728,18 @@ dm_send_cmd_conf_restore(DMCONTEXT *dmCtx, const char *server)
 	return dm_generic_send_request_string(dmCtx, CMD_DEV_CONF_RESTORE, server);
 }
 
+/** Asynchonous start session request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] flags             Flags for the start session request
+ * @param [in] timeout_session   Idle timeout for this session
+ * @param [in] timeout_request   Request timeout for this session
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_start_session(DMCONTEXT *dmCtx, uint32_t flags,
 			  struct timeval *timeout_session,
@@ -1437,6 +1755,20 @@ dm_register_start_session(DMCONTEXT *dmCtx, uint32_t flags,
 							   callback_ud);
 }
 
+/** Asynchonous switch session request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] flags             Flags for the switch session request
+ * @param [in] timeout_session   Idle timeout for this session
+ * @param [in] timeout_request   Request timeout for this session
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_switch_session(DMCONTEXT *dmCtx, uint32_t flags,
 			   struct timeval *timeout_session,
@@ -1450,6 +1782,19 @@ dm_register_switch_session(DMCONTEXT *dmCtx, uint32_t flags,
 							   callback, callback_ud);
 }
 
+/** Asynchonous get session info request
+ *
+ * Retrieves the current flags for this session
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_get_session_info(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 			     void *callback_ud)
@@ -1458,6 +1803,19 @@ dm_register_get_session_info(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   callback, callback_ud);
 }
 
+/** Asynchonous get config session info request
+ *
+ * Retrieves session id, flags and timeout for this session
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_get_cfg_session_info(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 				 void *callback_ud)
@@ -1466,6 +1824,18 @@ dm_register_get_cfg_session_info(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   callback, callback_ud);
 }
 
+/** Asynchonous delete instance request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] path              Instance to delete, must be a valid data-model path
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_del_instance(DMCONTEXT *dmCtx, const char *path,
 			 DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1474,6 +1844,19 @@ dm_register_del_instance(DMCONTEXT *dmCtx, const char *path,
 						callback, callback_ud);
 }
 
+/** Asynchonous find instance request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] path              Instance to search in, must be a valid data-model path
+ * @param [in] grp               DM_AVPGRP with the value specification to search
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_find_instance(DMCONTEXT *dmCtx, const char *path, DIAM_AVPGRP *grp,
 			  DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1482,6 +1865,20 @@ dm_register_find_instance(DMCONTEXT *dmCtx, const char *path, DIAM_AVPGRP *grp,
 		RC_ERR_ALLOC : dm_generic_register_request(dmCtx, CMD_DB_FINDINSTANCE, grp, callback, callback_ud);
 }
 
+/** Asynchonous retrieve enums request
+ *
+ * Fetch all possible enum values for a given parameter
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] name              Parameter to get enums for
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_retrieve_enums(DMCONTEXT *dmCtx, const char *name,
 			   DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1490,6 +1887,17 @@ dm_register_retrieve_enums(DMCONTEXT *dmCtx, const char *name,
 						name, callback, callback_ud);
 }
 
+/** Asynchonous unsubscribe from all notifications request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_unsubscribe_notify(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 			       void *callback_ud)
@@ -1498,6 +1906,19 @@ dm_register_unsubscribe_notify(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   NULL, callback, callback_ud);
 }
 
+/** Asynchonous set notification on parameters and all child parameters
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] isActiveNotify    Unused, present only for backwards compatibility
+ * @param [in] path              parameter path to start on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_recursive_param_notify(DMCONTEXT *dmCtx, uint8_t isActiveNotify,
 				   const char *path, DMCONFIG_CALLBACK callback,
@@ -1520,6 +1941,19 @@ dm_register_recursive_param_notify(DMCONTEXT *dmCtx, uint8_t isActiveNotify,
 	return rc;
 }
 
+/** Asynchonous set notification on a parameter
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] isActiveNotify    Unused, present only for backwards compatibility
+ * @param [in] grp               DM_AVPGRP list of parameters to set notify on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_packet_param_notify(DMCONTEXT *dmCtx, uint8_t isActiveNotify,
 				DIAM_AVPGRP *grp, DMCONFIG_CALLBACK callback,
@@ -1530,6 +1964,17 @@ dm_register_packet_param_notify(DMCONTEXT *dmCtx, uint8_t isActiveNotify,
 						    callback, callback_ud);
 }
 
+/** Asynchonous retrieve all pending passive notifications
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_get_passive_notifications(DMCONTEXT *dmCtx,
 				      DMCONFIG_CALLBACK callback,
@@ -1539,6 +1984,17 @@ dm_register_get_passive_notifications(DMCONTEXT *dmCtx,
 					   NULL, callback, callback_ud);
 }
 
+/** Asynchonous send session end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_end_session(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 			void *callback_ud)
@@ -1547,6 +2003,18 @@ dm_register_end_session(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   callback, callback_ud);
 }
 
+/** Asynchonous send set end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] grp               Prepared SET request DM_AVPGRP
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_packet_set(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp,
 		       DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1555,6 +2023,18 @@ dm_register_packet_set(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp,
 					   callback_ud);
 }
 
+/** Asynchonous send get end request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] grp               Prepared GET request DM_AVPGRP
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_packet_get(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp,
 		       DMCONFIG_CALLBACK callback, void *callback_ud)
@@ -1563,6 +2043,17 @@ dm_register_packet_get(DMCONTEXT *dmCtx, DIAM_AVPGRP *grp,
 					   callback_ud);
 }
 
+/** Asynchonous send commit request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_commit(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 		   void *callback_ud)
@@ -1571,6 +2062,17 @@ dm_register_commit(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   callback_ud);
 }
 
+/** Asynchonous send cancel request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_cancel(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 		   void *callback_ud)
@@ -1579,6 +2081,17 @@ dm_register_cancel(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback,
 					   callback_ud);
 }
 
+/** Asynchonous send save request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_save(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback, void *callback_ud)
 {
@@ -1586,6 +2099,17 @@ dm_register_save(DMCONTEXT *dmCtx, DMCONFIG_CALLBACK callback, void *callback_ud
 					   callback_ud);
 }
 
+/** Asynchonous send dump request
+ *
+ * @param [in] dmCtx             Pointer to socket context to work on
+ * @param [in] callback          Callback function to invoke on completion
+ * @param [in] callback_ud       Pointer to userdata that will be passed to the callback funtions
+ *
+ * @retval RC_OK                 Request was successfull
+ * @retval RC_ERR_ALLOC          Out of memory
+ *
+ * @ingroup API
+ */
 static inline uint32_t
 dm_register_cmd_dump(DMCONTEXT *dmCtx, const char *path,
 		     DMCONFIG_CALLBACK callback, void *callback_ud)

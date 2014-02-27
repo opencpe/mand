@@ -43,7 +43,12 @@
 
 	make 
 	make install
-	
-* build the doxygen documentation
+
+# Documentation
+
+libdmconfig API documentation can be build with doxygen:
 
 	make doxygen-doc
+
+For how to use this API, refer to the C and Lua samples in libdmconfig/tests.
+
