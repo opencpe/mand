@@ -1161,6 +1161,10 @@ readEvent(int fd, short event, void *arg)
 					/* server request */
 		if (dm_packet_flags(&ctx->req->packet) & CMD_FLAG_REQUEST) {
 			switch (dm_packet_code(&ctx->req->packet)) {
+			case CMD_CLIENT_ACTIVE_NOTIFY:
+				if (process_active_notification(dmCtx))
+					goto abort;
+				break;
 
 			default:
 				goto abort;
