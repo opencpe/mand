@@ -338,7 +338,7 @@ static int walk_cb(void *userData, CB_type type, dm_id id,
 void dm_serialize_store(FILE *stream, int flags)
 {
 	struct walk_data w;
-	dm_selector sel = { cwmp__InternetGatewayDevice, 0 };
+	dm_selector sel = { cwmp__system, 0 };
 
 	w.stream = stream;
 	w.flags = flags;

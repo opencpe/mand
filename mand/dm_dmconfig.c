@@ -846,7 +846,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 
 			dm_debug(obj.sessionid, "CMD: %s \"%s\"... ", "RECURSIVE PARAM NOTIFY", path);
 
-			sel = dm_name2sel(*path ? path : "InternetGatewayDevice", &sb);
+			sel = dm_name2sel(*path ? path : "system", &sb);
 			free(path);
 			path = NULL;
 			if (!sel) {
@@ -1155,7 +1155,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				}
 			} else {
 				/** InternetGatewayDevice */
-				if (!dm_walk_by_selector_cb((dm_selector) {cwmp__InternetGatewayDevice, 0},
+				if (!dm_walk_by_selector_cb((dm_selector) {cwmp__system, 0},
 							       list_ctx.max_level, &list_ctx, dmconfig_list_cb)) {
 					code = RC_ERR_MISC;
 					break;
