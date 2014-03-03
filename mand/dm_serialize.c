@@ -310,7 +310,7 @@ static int walk_cb(void *userData, CB_type type, dm_id id,
 			    (w->flags & S_SYS) != 0) {
 				findent(w->stream, w->indent);
 				if (elem->flags & F_VERSION)
-					fprintf(w->stream, "<%s version=\"%s\">\n", elem->key, CFG_VERSION);
+					fprintf(w->stream, "<%s version=\"%d\">\n", elem->key, CFG_VERSION);
 				else
 					fprintf(w->stream, "<%s>\n", elem->key);
 				w->indent++;
