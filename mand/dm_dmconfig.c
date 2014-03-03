@@ -92,9 +92,6 @@ static inline void threadDerefSockCtx(SOCKCONTEXT *sockCtx);
 
 static inline void unsubscribeNotify(SESSION *le);
 
-static DM_RESULT build_client_info(void *ctx, DM_AVPGRP **grp,
-				   struct dm_value_table *clnt);
-
 static void acceptEvent(int sfd __attribute__((unused)),
 			short event __attribute__((unused)),
 			void *arg __attribute__((unused)));
