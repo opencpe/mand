@@ -10,4 +10,5 @@
 
 static const char *t_actions[] = {
 	type_map_init(DM_NONE),
+	type_map_init(DM_NTP),
 };

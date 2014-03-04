@@ -13,6 +13,7 @@
 
 enum dm_actions {
 	DM_NONE,
+	DM_NTP,
 };
 
 #endif

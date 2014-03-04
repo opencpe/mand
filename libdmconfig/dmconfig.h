@@ -160,15 +160,17 @@ struct dmContext {
 	COMMCONTEXT		readCtx;
 	struct ev_loop		*evloop;
 
-	struct _dmContext_callbacks {
-		struct _callback_active_notification {
+	struct {
+		struct {
 			DMCONFIG_ACTIVE_NOTIFY	callback;
 			void			*user_data;
 		} active_notification;
+		struct {
+			DMCONFIG_ACTIVE_NOTIFY	callback;
+			void			*user_data;
+		} event_broadcast;
 	} callbacks;
 };
-
-typedef struct _callback_active_notification ACTIVE_NOTIFY_INFO;
 
 typedef struct conneventCtx {
 	DMCONFIG_CONNECT_CALLBACK	callback;
@@ -217,6 +219,11 @@ uint32_t dm_register_connect_callback(DMCONTEXT *dmCtx, int type,
 				      DMCONFIG_CONNECT_CALLBACK callback,
 				      void *userdata);
 uint32_t dm_init_socket(DMCONTEXT *dmCtx, int type);
+
+uint32_t dm_register_event_handler(DMCONTEXT *dmCtx,
+				   DMCONFIG_ACTIVE_NOTIFY event_callback,
+				   void *event_callback_ud);
+uint32_t dm_clear_event_handler(DMCONTEXT *dmCtx);
 
 uint32_t dm_generic_register_request(DMCONTEXT *dmCtx, uint32_t code,
 				     DM_AVPGRP *grp,

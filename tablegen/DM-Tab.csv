@@ -4,5 +4,5 @@
 ".system.ntp.{i}.name",,,,"string","R","R",,,
 ".system.ntp.{i}.transport",,,,"enum(udp)","R","R",,,
 ".system.ntp.{i}.udp",,,,"object","R","R",,,
-".system.ntp.{i}.udp.address",,,,"string","R","R",,,
+".system.ntp.{i}.udp.address",,,,"string","R","R",,"ntp",
 ".system.ntp.{i}.udp.port",,,,"unsignedInt[1:65535]","R","R",,,

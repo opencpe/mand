@@ -24,6 +24,13 @@ our @EXPORT_OK;
 our %actions;
 
 %actions = (
+    "ntp"           => { include => undef,
+			 comment => undef,
+			 sel     => 2,
+			 pre     => undef,
+			 action  => undef,
+			 post    => undef,
+			 chain   => undef },
     );
 
 END { }       # module clean-up code here (global destructor)

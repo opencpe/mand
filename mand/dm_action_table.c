@@ -17,5 +17,16 @@
 #include "dm_action_table.h"
 
 
+static struct dm_action dm_ntp = {
+	.sel_len = 2,
+
+	.pre = NULL,
+	.action = NULL,
+	.post = NULL,
+
+	.chain_cnt = 0,
+};
+
 const struct dm_action *dm_actions[] = {
+	[DM_NTP] = &dm_ntp,
 };

@@ -14,6 +14,7 @@
 
 #include "dm_token.h"
 #include "dm_store.h"
+#include "dm_action.h"
 
 			/* this could be in a separate header file to avoid duplicate code (dmconfig.h) */
 
@@ -117,6 +118,7 @@ struct notify_info {
 struct session {
 	SESSION		*next;
 
+	SOCKCONTEXT	*sockCtx;
 	uint32_t	flags;
 	uint32_t	sessionid;
 
@@ -222,5 +224,6 @@ uint8_t init_libdmconfig_server(struct event_base *base);
 void processRequestedSessions(void);
 
 int reset_timeout_obj(uint32_t sessionid);
+void dm_event_broadcast(const dm_selector sel, enum dm_action_type type);
 
 #endif

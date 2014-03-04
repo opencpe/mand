@@ -94,6 +94,9 @@
 		<command name="Client-Active-Notify" code="1000">
 			<!-- TODO -->
 		</command>
+		<command name="Client-Event-Broadcast" code="1001">
+			<!-- TODO -->
+		</command>
 
 		<!-- PAYLOAD TYPES -->
 
@@ -232,6 +235,17 @@
 
 		<avp name="HotplugCmd" code="1020" vendor-id="18681">
 			<type type-name="ASCIIString"/>
+		</avp>
+
+		<!-- REQUEST SPECIFIC AVPS -->
+
+		<avp name="Event-Type" code="1021" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<enum name="Event-Nothing"           code="0"/>
+			<enum name="Event-Parameter-Changed" code="1"/>
+			<enum name="Event-Instance-Deleted"  code="2"/>
+			<enum name="Event-Instance-Created"  code="3"/>
 		</avp>
 
 		<!-- SPECIAL GENERAL PURPOSE GROUP AVP -->

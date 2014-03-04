@@ -72,6 +72,7 @@ static void writeEvent(int fd, short event, void *arg);
 static void readEvent(int fd, short event, void *arg);
 
 static inline int process_active_notification(DMCONTEXT *dmCtx);
+static inline int process_event_broadcast(DMCONTEXT *dmCtx);
 
 		/* callbacks used by the blocking API automatically */
 
@@ -105,6 +106,10 @@ static uint32_t endid = 0;
 #define NOTIFY_CALLBACK(EVENT, GRP) {					\
 	dmCtx->callbacks.active_notification.callback(EVENT, dmCtx, 	\
 		dmCtx->callbacks.active_notification.user_data, GRP);	\
+}
+#define EVENT_BROADCAST_CALLBACK(EVENT, GRP) {				\
+	dmCtx->callbacks.event_broadcast.callback(EVENT, dmCtx, 	\
+		dmCtx->callbacks.event_broadcast.user_data, GRP);	\
 }
 
 		/* communication auxiliary functions */
@@ -703,6 +708,46 @@ dm_init_socket(DMCONTEXT *dmCtx, int type)
 	return rc;
 }
 
+/** Register a event callback
+ * 
+ * Register a callback that will be invoked when mand broadcasts an event
+ *
+ * @param [in] dmCtx              Pointer to socket context to work on
+ * @param [in] event_callback     Notification callback to install
+ * @param [in] event_callback_ud  Pointer to userdata that will be passed to the notification callback funtion
+ *
+ * @retval RC_OK                Request was successfull
+ *
+ * @ingroup API
+ */
+uint32_t
+dm_register_event_handler(DMCONTEXT *dmCtx,
+			  DMCONFIG_ACTIVE_NOTIFY event_callback,
+			  void *event_callback_ud)
+{
+	dmCtx->callbacks.event_broadcast.callback = event_callback;
+	dmCtx->callbacks.event_broadcast.user_data = event_callback_ud;
+
+	return RC_OK;
+}
+
+/** Clear the event callback
+ * 
+ * @param [in] dmCtx              Pointer to socket context to work on
+ *
+ * @retval RC_OK                Request was successfull
+ *
+ * @ingroup API
+ */
+uint32_t
+dm_clear_event_handler(DMCONTEXT *dmCtx)
+{
+	memset(&dmCtx->callbacks.event_broadcast, 0, sizeof(dmCtx->callbacks.event_broadcast));
+
+	return RC_OK;
+}
+
+
 /** @private default, blocking connect handler
  *
  * return only a code
@@ -1166,7 +1211,13 @@ readEvent(int fd, short event, void *arg)
 					goto abort;
 				break;
 
+			case CMD_CLIENT_EVENT_BROADCAST:
+				if (process_event_broadcast(dmCtx))
+					goto abort;
+				break;
+
 			default:
+				printf("Default Code: %d\n", dm_packet_code(&ctx->req->packet));
 				goto abort;
 			}
 		} else {
@@ -1197,7 +1248,7 @@ readEvent(int fd, short event, void *arg)
 				switch (reqEl->code) {
 				case CMD_SUBSCRIBE_NOTIFY:
 					memset(&dmCtx->callbacks.active_notification, 0,
-					       sizeof(ACTIVE_NOTIFY_INFO));
+					       sizeof(dmCtx->callbacks.active_notification));
 					break;
 				}
 
@@ -1206,15 +1257,14 @@ readEvent(int fd, short event, void *arg)
 				switch (reqEl->code) {
 				case CMD_UNSUBSCRIBE_NOTIFY:
 					memset(&dmCtx->callbacks.active_notification, 0,
-					       sizeof(ACTIVE_NOTIFY_INFO));
+					       sizeof(dmCtx->callbacks.active_notification));
 					break;
 
 				case CMD_ENDSESSION:	/*
 							 * allows the implicit abortion (deletion of read event -> event loop returns) of
 							 * asynchronous processes (ping, active notify, etc)
 							 */
-					memset(&dmCtx->callbacks, 0,
-					       sizeof(struct _dmContext_callbacks));
+					memset(&dmCtx->callbacks, 0, sizeof(dmCtx->callbacks));
 					break;
 				}
 			}
@@ -1271,7 +1321,7 @@ abort:
 	talloc_free(ctx->req);
 	ctx->req = NULL;
 	ctx->cAlloc = ctx->bytes = 0;
-	memset(&dmCtx->callbacks, 0, sizeof(struct _dmContext_callbacks));
+	memset(&dmCtx->callbacks, 0, sizeof(dmCtx->callbacks));
 }
 
 /** @private process notification events,
@@ -1299,6 +1349,37 @@ process_active_notification(DMCONTEXT *dmCtx)
 		NOTIFY_CALLBACK(DMCONFIG_ERROR_READING, NULL);
 	} else {
 		NOTIFY_CALLBACK(DMCONFIG_ANSWER_READY, notify);
+	}
+
+	return 0;
+}
+
+
+/** @private process notification events,
+ *           invoke notify callback
+ */
+static inline int
+process_event_broadcast(DMCONTEXT *dmCtx)
+{
+	COMMCONTEXT	*ctx = &dmCtx->readCtx;
+
+	uint32_t	avpcode;
+	uint8_t		flags;
+	uint32_t	vendor_id;
+	void		*data;
+	size_t		len;
+
+	DM_AVPGRP	*notify;
+
+	if (!dmCtx->callbacks.event_broadcast.callback)
+		return -1;
+
+	if (dm_request_get_avp(ctx->req, &avpcode, &flags, &vendor_id, &data, &len) ||
+	    avpcode != AVP_CONTAINER || !len ||
+	    !(notify = dm_decode_avpgrp(ctx->req, data, len))) {
+		EVENT_BROADCAST_CALLBACK(DMCONFIG_ERROR_READING, NULL);
+	} else {
+		EVENT_BROADCAST_CALLBACK(DMCONFIG_ANSWER_READY, notify);
 	}
 
 	return 0;

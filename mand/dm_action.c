@@ -21,6 +21,7 @@
 
 #include "dm_token.h"
 #include "dm_action.h"
+#include "dm_dmconfig.h"
 
 #if defined(SDEBUG)
 
@@ -162,9 +163,11 @@ void exec_actions(void)
 
 	debug(": action");
 
-	RB_FOREACH(node, action_tree, exec_chain)
+	RB_FOREACH(node, action_tree, exec_chain) {
 		if (dm_actions[node->action]->action)
 			dm_actions[node->action]->action(node->sel, node->type);
+		dm_event_broadcast(node->sel, node->type);
+	}
 
 	debug(": post");
 

@@ -1743,6 +1743,7 @@ process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags, uint32_t hopid,
 
 	LS_INSERT(session_head, le);
 
+	le->sockCtx = sockCtx;
 	le->sessionid = session_counter;
 	le->flags = flags;
 
@@ -2358,6 +2359,60 @@ dmconfig_notify_cb(void *data, struct notify_queue *queue)
 
 	talloc_free(dummy);
 	dm_EXIT(session->sessionid);
+}
+
+void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
+{
+	static const uint32_t event_types[] = {
+		[DM_ADD]    = EVENT_INSTANCE_CREATED,
+		[DM_CHANGE] = EVENT_INSTANCE_DELETED,
+		[DM_DEL]    = EVENT_PARAMETER_CHANGED
+	};
+	DM_AVPGRP	*grp, *dummy;
+	char		*path;
+	char		buffer[MAX_PARAM_NAME_LEN];
+	SESSION		*sess;
+	int		r;
+
+	ENTER();
+
+	if (!(path = dm_sel2name(sel, buffer, sizeof(buffer))) ||
+	    !(grp = new_dm_avpgrp(NULL))) {
+		talloc_free(grp);
+		EXIT();
+		return;
+	}
+	debug("(): event broadcast: %s, type: %d\n", path, type);
+
+	if (dm_avpgrp_add_uint32(grp, &grp, AVP_EVENT_TYPE, 0, VP_TRAVELPING, event_types[type]) ||
+	    dm_avpgrp_add_string(grp, &grp, AVP_PATH, 0, VP_TRAVELPING, path)) {
+		talloc_free(grp);
+		EXIT();
+		return;
+	}
+
+	if (!(dummy = new_dm_avpgrp(NULL))) {
+		talloc_free(grp);
+		return;
+	}
+
+	r = dm_avpgrp_add_avpgrp(NULL, &dummy, AVP_CONTAINER, 0,
+				   VP_TRAVELPING, grp);
+	talloc_free(grp);
+	if (r) {
+		talloc_free(dummy);
+		return;
+	}
+
+	for (sess = session_head->next; sess; sess = sess->next) {
+		if (!sess->sockCtx)
+			continue;
+
+		register_request(CMD_CLIENT_EVENT_BROADCAST, dummy, sess->sockCtx);
+	}
+
+	talloc_free(dummy);
+	EXIT();
 }
 
 static DM_RESULT
