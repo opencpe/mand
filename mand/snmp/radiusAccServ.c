@@ -84,11 +84,11 @@ radiusAccServ_handler(netsnmp_mib_handler *handler,
 	ENTER();
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats */
-	globs = dm_get_table_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
-				cwmp__IGD_X_TPLINO_NET_SessionControl,
-				cwmp__IGD_SCG_RadiusServer,
-				cwmp__IGD_SCG_RS_Accounting,
-				cwmp__IGD_SCG_RS_Acct_Stats, 0});
+	globs = dm_get_table_by_selector((dm_selector){ dm__InternetGatewayDevice,
+				dm__IGD_X_TPLINO_NET_SessionControl,
+				dm__IGD_SCG_RadiusServer,
+				dm__IGD_SCG_RS_Accounting,
+				dm__IGD_SCG_RS_Acct_Stats, 0});
 	/*
 	 * 
 	 *
@@ -129,47 +129,47 @@ radiusAccServ_handler(netsnmp_mib_handler *handler,
 
 			case radiusAccServTotalRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.Requests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_Requests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_Requests);
 				break;
 
 			case radiusAccServTotalInvalidRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.InvalidRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_InvalidRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_InvalidRequests);
 				break;
 
 			case radiusAccServTotalDupRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.DupRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_DupRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_DupRequests);
 				break;
 				
 			case radiusAccServTotalResponses_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.Responses */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_Responses);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_Responses);
 				break;
 
 			case radiusAccServTotalMalformedRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.MalformedRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_MalformedRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_MalformedRequests);
 				break;
 
 			case radiusAccServTotalBadAuthenticators_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.BadAuthenticators */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_BadAuthenticators);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_BadAuthenticators);
 				break;
 
 			case radiusAccServTotalPacketsDropped_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.PacketsDropped */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_PacketsDropped);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_PacketsDropped);
 				break;
 
 			case radiusAccServTotalNoRecords_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.NoRecords */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_NoRecords);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_NoRecords);
 				break;
 
 			case radiusAccServTotalUnknownTypes_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats.UnknownTypes */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Acct_Stats_UnknownTypes);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Acct_Stats_UnknownTypes);
 				break;
 
 			case radiusAuthClientTable_oid:

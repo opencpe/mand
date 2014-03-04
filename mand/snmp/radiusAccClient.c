@@ -91,12 +91,12 @@ radiusAccClient_handler(netsnmp_mib_handler *handler,
 			switch (subid) {
 			case radiusAccClientInvalidServerAddresses_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Accounting.Stats */
-				ret_value = dm_get_uint_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
-							cwmp__IGD_X_TPLINO_NET_SessionControl,
-							cwmp__IGD_SCG_RadiusClient,
-							cwmp__IGD_SCG_RC_Accounting,
-							cwmp__IGD_SCG_RC_Acct_Stats,
-							cwmp__IGD_SCG_RC_Acct_Stats_InvalidServerAddresses, 0});
+				ret_value = dm_get_uint_by_selector((dm_selector){ dm__InternetGatewayDevice,
+							dm__IGD_X_TPLINO_NET_SessionControl,
+							dm__IGD_SCG_RadiusClient,
+							dm__IGD_SCG_RC_Accounting,
+							dm__IGD_SCG_RC_Acct_Stats,
+							dm__IGD_SCG_RC_Acct_Stats_InvalidServerAddresses, 0});
 				break;
 
 			case radiusAccClientIdentifier_oid:

@@ -85,11 +85,11 @@ radiusAuthServ_handler(netsnmp_mib_handler *handler,
 	ENTER();
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats */
-	globs = dm_get_table_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
-				cwmp__IGD_X_TPLINO_NET_SessionControl,
-				cwmp__IGD_SCG_RadiusServer,
-				cwmp__IGD_SCG_RS_Authentication,
-				cwmp__IGD_SCG_RS_Auth_Stats, 0});
+	globs = dm_get_table_by_selector((dm_selector){ dm__InternetGatewayDevice,
+				dm__IGD_X_TPLINO_NET_SessionControl,
+				dm__IGD_SCG_RadiusServer,
+				dm__IGD_SCG_RS_Authentication,
+				dm__IGD_SCG_RS_Auth_Stats, 0});
 	/*
 	 * 
 	 *
@@ -130,52 +130,52 @@ radiusAuthServ_handler(netsnmp_mib_handler *handler,
 
 			case radiusAuthServTotalAccessRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.AccessRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_AccessRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_AccessRequests);
 				break;
 
 			case radiusAuthServTotalInvalidRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.InvalidRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_InvalidRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_InvalidRequests);
 				break;
 
 			case radiusAuthServTotalDupAccessRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.DupAccessRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_DupAccessRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_DupAccessRequests);
 				break;
 				
 			case radiusAuthServTotalAccessAccepts_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.AccessAccepts */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_AccessAccepts);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_AccessAccepts);
 				break;
 
 			case radiusAuthServTotalAccessRejects_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.AccessRejects */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_AccessRejects);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_AccessRejects);
 				break;
 
 			case radiusAuthServTotalAccessChallenges_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.AccessChallenges */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_AccessChallenges);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_AccessChallenges);
 				break;
 
 			case radiusAuthServTotalMalformedAccessRequests_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.MalformedRequests */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_MalformedRequests);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_MalformedRequests);
 				break;
 
 			case radiusAuthServTotalBadAuthenticators_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.BadAuthenticators */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_BadAuthenticators);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_BadAuthenticators);
 				break;
 
 			case radiusAuthServTotalPacketsDropped_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.PacketsDropped */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_PacketsDropped);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_PacketsDropped);
 				break;
 
 			case radiusAuthServTotalUnknownTypes_oid:
 				/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Stats.UnknownTypes */
-				ret_value = dm_get_uint_by_id(globs, cwmp__IGD_SCG_RS_Auth_Stats_UnknownTypes);
+				ret_value = dm_get_uint_by_id(globs, dm__IGD_SCG_RS_Auth_Stats_UnknownTypes);
 				break;
 
 			case radiusAuthClientTable_oid:

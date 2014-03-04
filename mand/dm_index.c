@@ -1060,8 +1060,8 @@ struct index_definition def_388 = {
 	.size = 3,
 	.idx = {
 		{ .type = T_INSTANCE, .element = 0 },
-		{ .type = T_STR, .element = cwmp__IGD_LANDev_i_Hosts_H_j_MACAddress },
-		{ .type = T_STR, .element = cwmp__IGD_LANDev_i_Hosts_H_j_HostName },
+		{ .type = T_STR, .element = dm__IGD_LANDev_i_Hosts_H_j_MACAddress },
+		{ .type = T_STR, .element = dm__IGD_LANDev_i_Hosts_H_j_HostName },
 	}
 };
 
@@ -1081,8 +1081,8 @@ int main(void)
 
 		node->instance = i;
 		asprintf(&s, "Node %d", i);
-		dm_set_string_by_id(DM_TABLE(node->table), cwmp__IGD_LANDev_i_Hosts_H_j_HostName, s);
-		dm_set_string_by_id(DM_TABLE(node->table), cwmp__IGD_LANDev_i_Hosts_H_j_MACAddress, s);
+		dm_set_string_by_id(DM_TABLE(node->table), dm__IGD_LANDev_i_Hosts_H_j_HostName, s);
+		dm_set_string_by_id(DM_TABLE(node->table), dm__IGD_LANDev_i_Hosts_H_j_MACAddress, s);
 
 		insert_instance(&inst, node);
 	}

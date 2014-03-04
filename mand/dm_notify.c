@@ -35,11 +35,11 @@ notify_compare(struct notify_item *a, struct notify_item *b)
 
 RB_GENERATE(notify_queue, notify_item, node, notify_compare);
 
-static void cwmp_notify(void *data, struct notify_queue *queue);
+static void dm_notify(void *data, struct notify_queue *queue);
 
 static uint16_t slot_map = 0x0001;
 static int slot_cnt = 1;
-static struct slot slots[16] = { { .cb = cwmp_notify }, };
+static struct slot slots[16] = { { .cb = dm_notify }, };
 
 static int notify_is_valid(const struct dm_element *elem, int ntfy)
 {
@@ -405,7 +405,7 @@ DM_RESULT dm_set_notify_by_selector_recursive(const dm_selector sel, int slot, i
 	return DM_VALUE_NOT_FOUND;
 }
 
-static void cwmp_notify(void *data __attribute__ ((unused)), struct notify_queue *queue)
+static void dm_notify(void *data __attribute__ ((unused)), struct notify_queue *queue)
 {
 	char buf[MAX_PARAM_NAME_LEN];
 	struct notify_item *item;

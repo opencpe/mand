@@ -281,7 +281,7 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 		for (n = i; n; n = n->next)
 			if (n->flags & F_INDEX) {
 				idx++;
-				fprintf(f, "\t\t{ .type = %s, .element = cwmp_%s_%s },\n", t_types[n->type], base, n->name);
+				fprintf(f, "\t\t{ .type = %s, .element = dm_%s_%s },\n", t_types[n->type], base, n->name);
 			}
 		fprintf(f, "\t},\n");
 		fprintf(f, "\t.size\t= %d\n", idx);
@@ -310,7 +310,7 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 
 			fprintf(f, "\t\t{\n\t\t\t/* %d */ \n\t\t\t.key\t= \"%s\",\n", i->tid, i->name);
 
-			fprintf(h, "#define cwmp_%s_%s\t\t%d\n", base, i->name, i->tid);
+			fprintf(h, "#define dm_%s_%s\t\t%d\n", base, i->name, i->tid);
 
 			if (i->flags != 0 || i->get || i->set ||
 			    ((p && p->name[0] == '{') && (p->get || p->set || p->flags & F_MAP_ID))) {
@@ -407,13 +407,13 @@ void genKeywordTab(FILE *f, FILE *h, FILE *stubs, struct node *i, const char *ba
 						for (p = e; *p; p++)
 							if (*p == '-' || *p == '+' || *p == ' ' || *p == '.')
 								*p = '_';
-						fprintf(h, "\tcwmp__%s_%s_%s,\n", base, i->alias, e);
+						fprintf(h, "\tdm__%s_%s_%s,\n", base, i->alias, e);
 
 						e = s;
 						n++;
 					}
 					fprintf(f, "\", .cnt = %d },\n", n);
-					fprintf(h, "} cwmp__%s_%s_e;\n", base, i->alias);
+					fprintf(h, "} dm__%s_%s_e;\n", base, i->alias);
 				}
 				if (i->type != T_COUNTER) {
 					if (i->get || i->set) {

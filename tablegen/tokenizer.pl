@@ -59,7 +59,7 @@ sub gen_table {
 	    if ($ref->{'flags'}{'index'} == 2) {
 		printf($f ".flags = IDX_UNIQUE, ");
 	    }
-	    printf($f ".type = T_%s, .element = cwmp_%s_%s },\n", uc($ref->{'type'}), $prfx, $ref->{'name'});
+	    printf($f ".type = T_%s, .element = dm_%s_%s },\n", uc($ref->{'type'}), $prfx, $ref->{'name'});
 	    $idx++;
 	}
 	printf($f "\t},\n");
@@ -78,7 +78,7 @@ sub gen_table {
 	my $ref = \%{$pos->{'keys'}{$field}};
 
 	printf($f "\t\t{\n\t\t\t/* %d */ \n\t\t\t.key\t= \"%s\",\n", $i + 1, $field);
-	printf($h "#define cwmp_%s_%s\t\t%d\n", $prfx, $ref->{'name'}, $i + 1);
+	printf($h "#define dm_%s_%s\t\t%d\n", $prfx, $ref->{'name'}, $i + 1);
 
 	my @flags = keys %{$ref->{'flags'}};
 	if (@flags) {
@@ -143,7 +143,7 @@ sub gen_table {
 		printf($f "\t\t\t},\n");  
 	    }
 	    when ('counter') {
-		printf($f "\t\t\t.u.counter_ref\t= cwmp_%s_%s,\n", $prfx, $ref->{'counter_ref'});
+		printf($f "\t\t\t.u.counter_ref\t= dm_%s_%s,\n", $prfx, $ref->{'counter_ref'});
 	    }
 	    when ('enum') {
 		printf($f "\t\t\t.u.e\t= { .cnt = %d, .data = \"%s\" },\n",
@@ -153,9 +153,9 @@ sub gen_table {
 		foreach my $j (0 .. $#{$ref->{'enum'}}) {
 		    my $s =  $ref->{'enum'}[$j];
 		    $s =~ tr/-\. \+/_/;
-		    printf($h "\tcwmp__%s_%s_%s,\n", $prfx, $ref->{'alias'}, $s);
+		    printf($h "\tdm__%s_%s_%s,\n", $prfx, $ref->{'alias'}, $s);
 		}
-		printf($h "} cwmp__%s_%s_e;\n", $prfx, $ref->{'alias'});
+		printf($h "} dm__%s_%s_e;\n", $prfx, $ref->{'alias'});
 	    }
 	}
 	if ($ref->{'type'} ne 'counter') {

@@ -129,11 +129,11 @@ init_radiusAuthClientExtTable()
 	initialize_table_radiusAuthClientExtTable();
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client */
-	clnts = dm_get_instance_ref_by_selector((dm_selector){ cwmp__InternetGatewayDevice,
-				cwmp__IGD_X_TPLINO_NET_SessionControl,
-				cwmp__IGD_SCG_RadiusServer,
-				cwmp__IGD_SCG_RS_Authentication,
-				cwmp__IGD_SCG_RS_Auth_Client, 0});
+	clnts = dm_get_instance_ref_by_selector((dm_selector){ dm__InternetGatewayDevice,
+				dm__IGD_X_TPLINO_NET_SessionControl,
+				dm__IGD_SCG_RadiusServer,
+				dm__IGD_SCG_RS_Authentication,
+				dm__IGD_SCG_RS_Auth_Client, 0});
 
 	if (!clnts) {
 		EXIT();
@@ -246,7 +246,7 @@ radiusAuthClientExtTable_get_value(netsnmp_request_info *request,
 	}
 
 	/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats */
-	stats = dm_get_table_by_id(ctx->client, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats);
+	stats = dm_get_table_by_id(ctx->client, dm__IGD_SCG_RS_Auth_Clnt_i_Stats);
 
 	switch (table_info->colnum) {
 	case COLUMN_RADIUSAUTHCLIENTINETADDRESSTYPE:
@@ -259,7 +259,7 @@ radiusAuthClientExtTable_get_value(netsnmp_request_info *request,
 		struct in_addr host;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Prefix */
-		host = dm_get_ipv4_by_id(ctx->client, cwmp__IGD_SCG_RS_Auth_Clnt_i_Prefix);
+		host = dm_get_ipv4_by_id(ctx->client, dm__IGD_SCG_RS_Auth_Clnt_i_Prefix);
 		inet_ntop(AF_INET, &host, hname, sizeof(hname));
 		
 		/** InetAddress = ASN_OCTET_STR */
@@ -271,7 +271,7 @@ radiusAuthClientExtTable_get_value(netsnmp_request_info *request,
 		unsigned char *id;
 		
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Description */
-		id = dm_get_string_by_id(ctx->client, cwmp__IGD_SCG_RS_Auth_Clnt_i_Description);
+		id = dm_get_string_by_id(ctx->client, dm__IGD_SCG_RS_Auth_Clnt_i_Description);
 		if (!id || !*id)
 			id = "";
 		
@@ -283,55 +283,55 @@ radiusAuthClientExtTable_get_value(netsnmp_request_info *request,
 	case COLUMN_RADIUSAUTHSERVEXTACCESSREQUESTS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.AccessRequests */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessRequests));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessRequests));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTDUPACCESSREQUESTS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.DupAccessRequests */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_DupAccessRequests));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_DupAccessRequests));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTACCESSACCEPTS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.AccessAccepts */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessAccepts));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessAccepts));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTACCESSREJECTS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.AccessRejects */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessRejects));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessRejects));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTACCESSCHALLENGES:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.AccessChallenges */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessChallenges));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_AccessChallenges));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTMALFORMEDACCESSREQUESTS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.MalformedRequests */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_MalformedRequests));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_MalformedRequests));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTBADAUTHENTICATORS:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.BadAuthenticators */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_BadAuthenticators));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_BadAuthenticators));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTPACKETSDROPPED:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.PacketsDropped */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_PacketsDropped));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_PacketsDropped));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVEXTUNKNOWNTYPES:
 		/** COUNTER = ASN_COUNTER */
 		/** VAR: InternetGatewayDevice.X_TPLINO_NET_SessionControl.RadiusServer.Authentication.Client.{i}.Stats.UnknownTypes */
-		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, cwmp__IGD_SCG_RS_Auth_Clnt_i_Stats_UnknownTypes));
+		snmp_set_var_typed_integer(var, ASN_COUNTER, dm_get_uint_by_id(stats, dm__IGD_SCG_RS_Auth_Clnt_i_Stats_UnknownTypes));
 		break;
 		
 	case COLUMN_RADIUSAUTHSERVCOUNTERDISCONTINUITY:

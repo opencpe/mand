@@ -186,9 +186,9 @@ static void build_config(struct dm_value_table *snmp)
 		"access tplino_ro \"\" any noauth exact all none none\n"
 		"sysContact %s\n"
 		"sysLocation %s\n",
-		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_ReadCommunity),
-		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_Contact),
-		dm_get_string_by_id(snmp, cwmp__IGD_SNMP_Location));
+		dm_get_string_by_id(snmp, dm__IGD_SNMP_ReadCommunity),
+		dm_get_string_by_id(snmp, dm__IGD_SNMP_Contact),
+		dm_get_string_by_id(snmp, dm__IGD_SNMP_Location));
 
 	fclose(fout);
 
@@ -200,14 +200,14 @@ void start_snmpd(void)
 	struct dm_value_table *snmp;
 
 	ENTER();
-	snmp = dm_get_table_by_selector((dm_selector){cwmp__InternetGatewayDevice,
-							    cwmp__IGD_X_TPLINO_NET_SNMP, 0});
+	snmp = dm_get_table_by_selector((dm_selector){dm__InternetGatewayDevice,
+							    dm__IGD_X_TPLINO_NET_SNMP, 0});
 	if (!snmp) {
 		EXIT();
 		return;
 	}
 
-	if (!dm_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
+	if (!dm_get_bool_by_id(snmp, dm__IGD_SNMP_Enabled)) {
 		EXIT();
 		return;
 	}
@@ -236,14 +236,14 @@ void dm_restart_snmpd_action(const dm_selector sel __attribute__((unused)),
 
 	ENTER();
 
-	snmp = dm_get_table_by_selector((dm_selector){cwmp__InternetGatewayDevice,
-							    cwmp__IGD_X_TPLINO_NET_SNMP, 0});
+	snmp = dm_get_table_by_selector((dm_selector){dm__InternetGatewayDevice,
+							    dm__IGD_X_TPLINO_NET_SNMP, 0});
 	if (!snmp) {
 		EXIT();
 		return;
 	}
 
-	if (!dm_get_bool_by_id(snmp, cwmp__IGD_SNMP_Enabled)) {
+	if (!dm_get_bool_by_id(snmp, dm__IGD_SNMP_Enabled)) {
 		if (snmp_running)
 			stop_snmpd();
 		EXIT();

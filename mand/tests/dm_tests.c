@@ -90,11 +90,11 @@ void test_del_object()
 	dm_add_instance_by_selector(&nif, &id);
 
 	nif[3] = id;
-	nif[4] = cwmp__IGD_IfMap_If_i_Name;
+	nif[4] = dm__IGD_IfMap_If_i_Name;
 	nif[5] = 0;
 	dm_set_string_by_selector(nif, "Test", 0);
 
-	nif[4] = cwmp__IGD_IfMap_If_i_Device;
+	nif[4] = dm__IGD_IfMap_If_i_Device;
 	nif[5] = 0;
 	id = DM_ID_AUTO_OBJECT;
 	dm_add_instance_by_selector(&nif, &id);
