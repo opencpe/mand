@@ -214,7 +214,7 @@ else
         fi
         AC_NETSNMP_CHECK
 fi
-AM_CONDITIONAL(AGENTX, test x$have_net_snmp = xyes)
+AM_CONDITIONAL(AGENTX, test x$want_netsnmp = xyes)
 
 AC_SUBST(LIBTOOL_DEPS)
 AC_SUBST(LIBM)
