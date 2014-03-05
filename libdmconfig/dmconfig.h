@@ -29,7 +29,7 @@
 #endif
 
 #include "dmmsg.h"
-#include "codes.h"
+#include "libdmconfig/codes.h"
 
 extern int dmconfig_debug_level;
 

@@ -5,7 +5,8 @@
 ## libdmconfig test/sample programs
 ## not part of a test suite
 
-AM_CFLAGS = -g -std=gnu99
+AM_CFLAGS = -g -std=gnu99 \
+	-I$(top_srcdir)
 
 check_PROGRAMS = client_sample polling_sample dm_sample \
 		 event_client_sample event_notify_sample

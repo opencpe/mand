@@ -4,7 +4,8 @@
 
 AM_CFLAGS = -g -funit-at-a-time \
 	-I$(top_srcdir) \
-	-I$(top_srcdir)/include/compat
+	-I$(top_srcdir)/include/compat \
+    -I$(top_builddir)
 
 SUBDIRS = snmp .
 
