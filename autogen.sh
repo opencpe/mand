@@ -3,5 +3,6 @@
 libtoolize -f -c
 shtoolize -q all
 aclocal
-automake
+autoheader
+automake --add-missing
 autoconf
