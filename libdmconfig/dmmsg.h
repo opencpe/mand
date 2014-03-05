@@ -134,7 +134,7 @@ int dm_avpgrp_add_address(void *ctx, DM_AVPGRP **avpgrp,
 			    int af, const void *data);
 int dm_avpgrp_add_uint32_string(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
 				  uint8_t flags, uint32_t vendor_id, uint32_t d1, const char *d2);
-int dm_get_address_avp(int *af, void *addr, const void *src);
+int dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t len);
 
 static inline uint32_t uint24to32(uint8_t i24[3]);
 static inline void uint32to24(uint8_t i24[3], uint32_t i32);

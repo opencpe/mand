@@ -2519,13 +2519,31 @@ dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
 
 			if (header->code != AVP_ADDRESS)
 				r = DM_INVALID_TYPE;
-			else if (!dm_get_address_avp(&af, &addr, header->data) ||
+			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), header->data, header->len) ||
 				af != AF_INET)
 				r = DM_INVALID_VALUE;
 			else {
 				debug(": = %s\n", inet_ntoa(addr));
 
 				set_DM_IP4(*value, addr);
+			}
+
+			break;
+		}
+
+		case T_IPADDR6: {
+			int		af;
+			struct in6_addr addr;
+
+			if (header->code != AVP_ADDRESS)
+				r = DM_INVALID_TYPE;
+			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), header->data, header->len) ||
+				af != AF_INET6)
+				r = DM_INVALID_VALUE;
+			else {
+				/* debug(": = %s\n", inet_ntoa(addr)); */
+
+				set_DM_IP6(*value, addr);
 			}
 
 			break;
@@ -2859,6 +2877,27 @@ dmconfig_value2avp(GET_GRP_CONTAINER *container,
 			}
 
 			debug(": [Answer: %s]\n", inet_ntoa(DM_IP4(val)));
+
+			EXIT();
+			return DM_OK;
+		default:
+			EXIT();
+			return DM_INVALID_TYPE;
+		}
+	case T_IPADDR6:
+		switch (container->type) {
+		case AVP_UNKNOWN:
+			container->type = AVP_ADDRESS;
+		case AVP_ADDRESS:
+			if (dm_avpgrp_add_address(container->ctx,
+						    &container->grp, AVP_ADDRESS,
+						    0, VP_TRAVELPING, AF_INET6,
+						    DM_IP6_REF(val))) {
+				EXIT();
+				return DM_OOM;
+			}
+
+			/* debug(": [Answer: %s]\n", inet_ntoa(DM_IP6(val))); */
 
 			EXIT();
 			return DM_OK;

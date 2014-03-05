@@ -249,7 +249,7 @@ uint32_t dm_generic_register_request_path(DMCONTEXT *dmCtx, uint32_t code,
 					  void *callback_ud);
 uint32_t dm_generic_register_request_char_address(DMCONTEXT *dmCtx,
 						  uint32_t code, const char *str,
-						  struct in_addr addr,
+						  int af, const void *addr,
 						  DMCONFIG_CALLBACK callback,
 						  void *callback_ud);
 
@@ -273,7 +273,7 @@ uint32_t dm_generic_send_request_path_get_char(DMCONTEXT *dmCtx, uint32_t code,
 uint32_t dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx,
 						       uint32_t code,
 						       const char *str,
-						       struct in_addr addr,
+						       int af, const void *addr,
 						       char **data);
 
 uint32_t dm_grp_set(DM_AVPGRP **grp, const char *name, int type, void *value,
@@ -516,7 +516,7 @@ static inline uint32_t dm_decode_counter(DM_AVPGRP *grp, uint32_t *val);
 static inline uint32_t dm_decode_enumid(DM_AVPGRP *grp, int32_t *val);
 static inline uint32_t dm_decode_enum(DM_AVPGRP *grp, char **val);
 static inline uint32_t dm_decode_bool(DM_AVPGRP *grp, uint8_t *val);
-static inline uint32_t dm_decode_addr(DM_AVPGRP *grp, struct in_addr *addr);
+static inline uint32_t dm_decode_addr(DM_AVPGRP *grp, int *af, void *addr, socklen_t size);
 static inline uint32_t dm_decode_date(DM_AVPGRP *grp, time_t *val);
 static inline uint32_t dm_decode_timeval(DM_AVPGRP *grp,
 					 struct timeval *timeval);
@@ -2381,29 +2381,20 @@ dm_decode_bool(DM_AVPGRP *grp, uint8_t *val)
 	return RC_OK;
 }
 
-		/* currently only decodes IPv4 addresses */
 static inline uint32_t
-dm_decode_addr(DM_AVPGRP *grp, struct in_addr *addr)
+dm_decode_addr(DM_AVPGRP *grp, int *af, void *addr, socklen_t size)
 {
 	uint32_t	code;
 	uint8_t		flags;
 	uint32_t	vendor_id;
 	void		*data;
 	size_t		len;
-	int		af;
-
-	union {
-		struct in_addr	in;
-		struct in6_addr	in6;
-	} result_addr;
 
 	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
 	    code != AVP_ADDRESS ||
-	    len != sizeof(uint16_t) + sizeof(struct in_addr) ||
-	    !dm_get_address_avp(&af, &result_addr, data) || af != AF_INET)
+	    !dm_get_address_avp(af, addr, size, data, len))
 	   	return RC_ERR_MISC;
 
-	*addr = result_addr.in;
 	return RC_OK;
 }
 

@@ -321,7 +321,7 @@ luaif_tvpair_to_value(lua_State *L, uint32_t type,
 
 			if (type != AVP_ADDRESS || !lua_isstring(L, -1))
 				r = DM_INVALID_TYPE;
-			else if (!inet_aton(lua_tostring(L, -1), &addr))
+			else if (!inet_pton(AF_INET, lua_tostring(L, -1), &addr))
 				r = DM_INVALID_VALUE;
 			else {
 				debug(": = %s\n", lua_tostring(L, -1));
@@ -332,6 +332,21 @@ luaif_tvpair_to_value(lua_State *L, uint32_t type,
 			break;
 		}
 
+		case T_IPADDR6: {
+			struct in6_addr addr;
+
+			if (type != AVP_ADDRESS || !lua_isstring(L, -1))
+				r = DM_INVALID_TYPE;
+			else if (!inet_pton(AF_INET6, lua_tostring(L, -1), &addr))
+				r = DM_INVALID_VALUE;
+			else {
+				debug(": = %s\n", lua_tostring(L, -1));
+
+				set_DM_IP6(*value, addr);
+			}
+
+			break;
+		}
 		case T_ENUM: {
 			int enumid;
 
@@ -757,12 +772,15 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		}
 		break;
 
-	case T_IPADDR4:
+	case T_IPADDR4: {
+		char buf[INET6_ADDRSTRLEN];
+
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_ADDRESS;
 		case AVP_ADDRESS:
-			lua_pushstring(L, inet_ntoa(DM_IP4(val)));
+			inet_ntop(AF_INET, DM_IP4_REF(val), buf, sizeof(buf));
+			lua_pushstring(L, buf);
 
 			debug(": %s\n", lua_tostring(L, -1));
 
@@ -771,6 +789,26 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 			return DM_INVALID_TYPE;
 		}
 		break;
+	}
+
+	case T_IPADDR6: {
+		char buf[INET6_ADDRSTRLEN];
+
+		switch (type) {
+		case AVP_UNKNOWN:
+			type = AVP_ADDRESS;
+		case AVP_ADDRESS:
+			inet_ntop(AF_INET6, DM_IP6_REF(val), buf, sizeof(buf));
+			lua_pushstring(L, buf);
+
+			debug(": %s\n", lua_tostring(L, -1));
+
+			break;
+		default:
+			return DM_INVALID_TYPE;
+		}
+		break;
+	}
 
 	case T_BOOL:
 		switch (type) {
@@ -1078,6 +1116,7 @@ luaif_list_cb(void *data, CB_type type, dm_id id,
 			type = AVP_ENUM;
 			break;
 		case T_IPADDR4:
+		case T_IPADDR6:
 			type = AVP_ADDRESS;
 			break;
 		case T_POINTER:

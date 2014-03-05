@@ -262,6 +262,7 @@ while (my $colref = $csv->getline($fin)) {
 	    }
 	}
 	when ( /^ipv4/i )          { $pos->{'type'} = 'ipaddr4'; }
+	when ( /^ipv6/i )          { $pos->{'type'} = 'ipaddr6'; }
 	when ( /^binary/i )        { $pos->{'type'} = 'binary'; }
 	when ( /^base64/i )        { $pos->{'type'} = 'base64'; }
 	when ( /^dateTime/i )      { $pos->{'type'} = 'date'; }

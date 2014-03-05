@@ -163,4 +163,18 @@ static inline struct in_addr dm_cache_get_ipv4_by_id(const struct dm_value_table
 	return DM_IP4(dm_cache_get_any_value_by_id(ift, id));
 };
 
+/*
+ * IPv6 Address
+ */
+static inline struct in6_addr dm_cache_get_ipv6_by_selector(const dm_selector sel) __attribute__((nonnull (1)));
+struct in6_addr dm_cache_get_ipv6_by_selector(const dm_selector sel)
+{
+	return DM_IP6(dm_cache_get_any_value_by_selector(sel, T_IPADDR6));
+};
+
+static inline struct in6_addr dm_cache_get_ipv6_by_id(const struct dm_value_table *ift, dm_id id)
+{
+	return DM_IP6(dm_cache_get_any_value_by_id(ift, id));
+};
+
 #endif

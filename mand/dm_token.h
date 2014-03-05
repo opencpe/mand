@@ -46,6 +46,7 @@ enum {
 	T_ENUM,
 	T_SELECTOR,
 	T_IPADDR4,
+	T_IPADDR6,
 	T_INT64,
 	T_UINT64,
 	T_TICKS,
@@ -191,6 +192,7 @@ typedef struct {
 		int                      bool_val;
 		time_t                   time_val;
 		struct in_addr           ip4_val;
+		struct in6_addr          ip6_val;
 		char                     *string;
 		binary_t                 *binary;
 		dm_selector           *selector;
@@ -291,6 +293,11 @@ typedef struct {
 #define DM_IP4_REF(val)         ({ DM_type_assert(val, T_IPADDR4); &(val)._v.ip4_val; })
 #define set_DM_IP4(val, t)      { (val)._v.ip4_val = t; _set_DM_type(val, T_IPADDR4); }
 #define init_DM_IP4(n, f)       (DM_VALUE){ ._v.ip4_val = n, .flags = f, _init_DM_type(T_IPADDR4) }
+
+#define DM_IP6(val)             ({ const DM_VALUE _v = (val); DM_type_assert(_v, T_IPADDR6); _v._v.ip6_val; })
+#define DM_IP6_REF(val)         ({ DM_type_assert(val, T_IPADDR6); &(val)._v.ip6_val; })
+#define set_DM_IP6(val, t)      { (val)._v.ip6_val = t; _set_DM_type(val, T_IPADDR6); }
+#define init_DM_IP6(n, f)       (DM_VALUE){ ._v.ip6_val = n, .flags = f, _init_DM_type(T_IPADDR6) }
 
 #define DM_TABLE(val)           ({ const DM_VALUE _v = (val); DM_type_assert(_v, T_TOKEN); assert_struct_magic_start(_v._v.table, TABLE_MAGIC); _v._v.table; })
 #define DM_TABLE_REF(val)       ({ DM_type_assert(val, T_TOKEN); assert_struct_magic_start((val)._v.table, TABLE_MAGIC); &(val)._v.table; })

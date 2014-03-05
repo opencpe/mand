@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <arpa/inet.h>
 
 #include "dm.h"
 #include "dm_token.h"
@@ -263,8 +264,15 @@ static void serialize_element(FILE *stream,
 	        case T_IPADDR4: {
 			char s[INET_ADDRSTRLEN];
 
-			inet_ntop(AF_INET, DM_IP4_REF(value), s, INET_ADDRSTRLEN);
+			inet_ntop(AF_INET, DM_IP4_REF(value), s, sizeof(s));
 			findent(stream, indent); fprintf(stream, "<%s%s>%.*s</%s>\n", elem->key, nfbuf, INET_ADDRSTRLEN, s, elem->key);
+			break;
+		}
+	        case T_IPADDR6: {
+			char s[INET6_ADDRSTRLEN];
+
+			inet_ntop(AF_INET6, DM_IP6_REF(value), s, sizeof(s));
+			findent(stream, indent); fprintf(stream, "<%s%s>%.*s</%s>\n", elem->key, nfbuf, INET6_ADDRSTRLEN, s, elem->key);
 			break;
 		}
 		case T_TOKEN:

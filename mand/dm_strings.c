@@ -277,6 +277,18 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 
 			break;
 		}
+		case T_IPADDR6: {
+			struct in6_addr addr;
+
+			if (!inet_pton(AF_INET6, str, &addr))
+				res = DM_INVALID_VALUE;
+			else {
+				updated = memcmp(DM_IP6_REF(*value), &addr, sizeof(struct in6_addr));
+				set_DM_IP6(*value, addr);
+			}
+
+			break;
+		}
 		case T_DATE: {
 			time_t	val;
 			char	*endl;

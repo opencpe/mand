@@ -945,6 +945,7 @@ DM_RESULT dm_set_value_by_selector(const dm_selector sel, int type, const void *
 			break;
 
 		case T_IPADDR4:
+		case T_IPADDR6:
 		case T_COUNTER:
 		default:
 			return DM_INVALID_TYPE;
@@ -1588,6 +1589,9 @@ int dm_compare_values(int type, DM_VALUE *a, DM_VALUE *b)
 
 	case T_IPADDR4:
 		return memcmp(DM_IP4_REF(*a), DM_IP4_REF(*b), sizeof(struct in_addr));
+
+	case T_IPADDR6:
+		return memcmp(DM_IP6_REF(*a), DM_IP6_REF(*b), sizeof(struct in6_addr));
 
 	default:
 		/* last resort, use pointer address */

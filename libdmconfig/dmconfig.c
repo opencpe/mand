@@ -631,26 +631,27 @@ dm_generic_register_request_path(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
-/** send an compound asynchonous request, only argument is a IP(v4) address
+/** send an compound asynchonous request, only argument is a IP(v4/v6) address
  *
- * Start an asynchonous request where the only argument is a IP(v4) address
+ * Start an asynchonous request where the only argument is a IP(v4/v6) address
  * invoke a callback when the operation completes (either with success or error)
  *
  * @param [in] dmCtx       Pointer to socket context to work on
  * @param [in] code        Request code
- * @param [in] addr        Request argument, must be a IP(v4) address
+ * @param [in] af          Address family of addr, AF_INET or AF_INET6
+ * @param [in] addr        Request argument, must be a IP(v4/v6) address
  * @param [in] callback    Callback function to invoke
  * @param [in] callback_ud Pointer to userdata that will be passed to the callback funtions
  *
  * @retval RC_OK                Callback was installed
  * @retval RC_ERR_ALLOC         Out of memory
  *
- * @TODO: extend to IPv6
  * @ingroup API
  */
 uint32_t
-dm_generic_register_request_char_address(DMCONTEXT *dmCtx, uint32_t code,
-					 const char *str, struct in_addr addr,
+dm_generic_register_request_char_address(DMCONTEXT *dmCtx,
+					 uint32_t code, const char *str,
+					 int af, const void *addr,
 					 DMCONFIG_CALLBACK callback,
 					 void *callback_ud)
 {
@@ -658,10 +659,8 @@ dm_generic_register_request_char_address(DMCONTEXT *dmCtx, uint32_t code,
 	uint32_t	rc;
 
 	if (!(grp = dm_grp_new()) ||
-	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0,
-				   VP_TRAVELPING, str) ||
-	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
-	    			    AF_INET, &addr)) {
+	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str) ||
+	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING, af, addr)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -972,24 +971,25 @@ dm_generic_send_request_path_get_char(DMCONTEXT *dmCtx, uint32_t code,
 	return rc;
 }
 
-/** Synchonous compound request, arguments are a string and an IP(v4) address
+/** Synchonous compound request, arguments are a string and an IP(v4/v6) address
  *
  * @param [in] dmCtx       Pointer to socket context to work on
  * @param [in] code        Request code
  * @param [in] str         First request argument, must be a string
- * @param [in] addr        Second request argument, must be an IP(v4) address
+ * @param [in] af          Address family of addr, AF_INET or AF_INET6
+ * @param [in] addr        Second request argument, must be an IP(v4/v6) address
  * @param [inout] data     Pointer to char pointer to put the result string into
  *
  * @retval RC_OK                Request was successfull
  * @retval RC_ERR_ALLOC         Out of memory
  *
- * @TODO: extend to IPv6
  * @ingroup API
  */
 uint32_t
 dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 					      const char *str,
-					      struct in_addr addr, char **data)
+					      int af, const void *addr,
+					      char **data)
 {
 	DM_AVPGRP	*grp;
 	DM_AVPGRP	*answer;
@@ -997,8 +997,7 @@ dm_generic_send_request_char_address_get_char(DMCONTEXT *dmCtx, uint32_t code,
 
 	if (!(grp = dm_grp_new()) ||
 	    dm_avpgrp_add_string(NULL, &grp, AVP_STRING, 0, VP_TRAVELPING, str) ||
-	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING,
-	    			    AF_INET, &addr)) {
+	    dm_avpgrp_add_address(NULL, &grp, AVP_ADDRESS, 0, VP_TRAVELPING, af, addr)) {
 		dm_grp_free(grp);
 		return RC_ERR_ALLOC;
 	}
@@ -1666,13 +1665,6 @@ dm_decode_notifications(DM_AVPGRP *grp, uint32_t *type, DM_AVPGRP **notify)
 uint32_t
 dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 {
-	int		af;
-	union {
-		struct in_addr	in;
-		struct in6_addr	in6;
-	} addr;
-	char *dum;
-
 	switch (type) {
 	case AVP_BOOL:
 		return (*val = strdup(dm_get_uint8_avp(data) ? "1" : "0"))
@@ -1705,11 +1697,19 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 		dm_to64(data, len, *val);
 		return RC_OK;
 	}
-	case AVP_ADDRESS:
-		if (!dm_get_address_avp(&af, &addr, data) ||
-		    af != AF_INET || !(dum = inet_ntoa(addr.in)))
+	case AVP_ADDRESS: {
+		char buf[INET6_ADDRSTRLEN];
+		int af;
+		union {
+			struct in_addr	in;
+			struct in6_addr	in6;
+		} addr;
+
+		if (!dm_get_address_avp(&af, &addr, sizeof(addr), data, len))
 			return RC_ERR_MISC;
-		return (*val = strdup(dum)) ? RC_OK : RC_ERR_ALLOC;
+		inet_ntop(af, &addr, buf, sizeof(buf));
+		return (*val = strdup(buf)) ? RC_OK : RC_ERR_ALLOC;
+	}
 	case AVP_DATE:
 		return asprintf(val, "%u", (uint32_t)dm_get_time_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
