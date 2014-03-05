@@ -46,5 +46,8 @@ config.log
 config.status
 stamp-h1
 
+# build directories
+/build*
+
 !.gitignore
 !.arcconfig
