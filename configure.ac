@@ -95,7 +95,7 @@ AC_CHECK_HEADERS([ssl.h])
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_LIB(crypt, crypt)
-AC_CHECK_LIB([lua], lua_call, , [have_liblua=no], [-ldl -lm])
+AC_CHECK_LIB([lua], lua_callk, , [have_liblua=no], [-ldl -lm])
 if test x$have_liblua = xno; then
    AC_CHECK_LIB([lua5.1], lua_call, , AC_MSG_ERROR(Required liblua missing), [-ldl -lm])
 fi
