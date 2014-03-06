@@ -2573,4 +2573,15 @@ dm_decode_instance_created(DM_AVPGRP *notify, char **path)
 	return dm_decode_path(notify, path);
 }
 
-#endif
+
+/* API v2 */
+
+typedef DM_AVPGRP DM_OBJ;
+
+uint32_t dm_expect_any(DM_OBJ *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *size) __attribute__((nonnull (1,2,3,4,5)));
+uint32_t dm_expect_object(DM_OBJ *grp, DM_OBJ **obj) __attribute__((nonnull (1,2)));
+uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size) __attribute__((nonnull (1,4,5)));
+uint32_t dm_expect_string_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_uint32_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value) __attribute__((nonnull (1,4)));
+
+#endif /* __DMCONFIG_H */

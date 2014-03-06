@@ -11,6 +11,7 @@
 #endif
 
 #include <errno.h>
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -1787,3 +1788,95 @@ dm_decode_node_list(DM_AVPGRP *grp, char **name, uint32_t *type,
 	return RC_OK;
 }
 
+/* API v2 */
+
+uint32_t dm_expect_any(DM_OBJ *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *size)
+{
+	uint8_t flags;
+
+	assert(grp != NULL);
+	assert(code != NULL);
+	assert(vendor_id != NULL);
+	assert(data != NULL);
+	assert(size != NULL);
+
+	if (dm_avpgrp_get_avp(grp, code, &flags, vendor_id, data, size) != RC_OK
+	    || *size <= 0)
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t dm_expect_object(DM_OBJ *grp, DM_OBJ **obj)
+{
+	uint32_t	code;
+	uint32_t	vendor_id;
+	void		*data;
+	size_t		len;
+
+	assert(grp != NULL);
+	assert(obj != NULL);
+
+	if (dm_expect_any(grp, &code, &vendor_id, &data, &len) != RC_OK
+	    || code != AVP_CONTAINER
+	    || len <= 0)
+		return RC_ERR_MISC;
+
+	if (!(*obj = dm_decode_avpgrp(grp, data, len)))
+		return RC_ERR_ALLOC;
+
+	return RC_OK;
+}
+
+uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size)
+{
+	uint32_t code;
+	uint32_t vendor_id;
+
+	assert(grp != NULL);
+	assert(data != NULL);
+	assert(size != NULL);
+
+	if (dm_expect_any(grp, &code, &vendor_id, data, size) != RC_OK
+	    || code != exp_code
+	    || vendor_id != exp_vendor_id
+	    || *size <= 0)
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t dm_expect_string_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value)
+{
+	size_t size;
+	void *data;
+	uint32_t r;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size)) != RC_OK)
+		return r;
+
+	if (!(*value = talloc_strndup(grp, data, size)))
+		return RC_ERR_ALLOC;
+
+	return RC_OK;
+}
+
+uint32_t dm_expect_uint32_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value)
+{
+	uint32_t r;
+	size_t size;
+	void *data;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size) != RC_OK)
+	    || size != sizeof(uint32_t))
+		return RC_ERR_MISC;
+
+	*value = dm_get_uint32_avp(data);
+	return RC_OK;
+}
