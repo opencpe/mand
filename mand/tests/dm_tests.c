@@ -81,20 +81,20 @@ void test_del_object()
 	dm_id id, nid;
 	dm_selector nif;
 	
-	/* .InternetGatewayDevice.X_TPOSS_InterfaceMap.Interface.{i}. */
-	dm_name2sel("InternetGatewayDevice.X_TPOSS_InterfaceMap.Interface.2", &nif);
+	/* .system.ntp.{i}. */
+	dm_name2sel("system.ntp.2", &nif);
 	dm_del_table_by_selector(&nif);
 
-	dm_name2sel("InternetGatewayDevice.X_TPOSS_InterfaceMap.Interface", &nif);
+	dm_name2sel("system.ntp", &nif);
 	id = DM_ID_AUTO_OBJECT;
 	dm_add_instance_by_selector(&nif, &id);
 
 	nif[3] = id;
-	nif[4] = dm__IGD_IfMap_If_i_Name;
+	nif[4] = dm__Sys_NTP_i_name;//dm__IGD_IfMap_If_i_Name;
 	nif[5] = 0;
 	dm_set_string_by_selector(nif, "Test", 0);
 
-	nif[4] = dm__IGD_IfMap_If_i_Device;
+	nif[4] = dm__Sys_NTP_i_transport;//dm__IGD_IfMap_If_i_Device;
 	nif[5] = 0;
 	id = DM_ID_AUTO_OBJECT;
 	dm_add_instance_by_selector(&nif, &id);
@@ -114,6 +114,33 @@ void test_del_object()
 	nif[3] = nid;
 	nif[4] = 0;
 	dm_del_table_by_selector(&nif);
+}
+
+#define DM_CONFIG   "/jffs/etc/dm.xml"
+void dm_save(void)
+{
+	static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	char *fname;
+	int fd;
+	FILE *fout;
+
+	pthread_mutex_lock(&save_mutex);
+
+	fname = strdup(DM_CONFIG ".XXXXXX");
+	if (fname && (fd = mkstemp(fname)) != -1) {
+		fout = fdopen(fd, "w");
+		if (fout) {
+			dm_serialize_store(fout, S_CFG);
+			fclose(fout);
+			rename(fname, DM_CONFIG);
+		} else {
+			close(fd);
+		}
+	}
+	free(fname);
+
+	pthread_mutex_unlock(&save_mutex);
 }
 
 int
