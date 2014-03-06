@@ -1,0 +1,223 @@
+pyang ietf-system@2013-11-07.yang ietf-interfaces@2013-07-04.yang\
+      ietf-ip@2013-10-18.yang opencpe-system@2014-01-27.yang\
+      opencpe-firmware-mgmt@2014-01-27.yang\
+      --features ietf-system:authentication,local-users,timezone-location,\
+crypt-hash-md5,crypt-hash-sha-256,crypt-hash-sha-512,ntp\
+      --features opencpe-firmware-mgmt:firmware-slots,firmware-download-ftp,\
+firmware-download-http,firmware-download-https,firmware-download-scp\
+      --features last-boot-status-report\
+      --deviation-module opencpe-deviations@2014-01-12.yang\
+      -f tree
+
+module: ietf-system
+   +--rw system
+   |  +--rw contact?          string
+   |  +--rw hostname?         inet:domain-name
+   |  +--rw location?         string
+   |  +--rw clock
+   |  |  +--rw (timezone)?
+   |  |     +--:(timezone-location) {timezone-location}?
+   |  |     |  +--rw timezone-location?     ianatz:iana-timezone
+   |  |     +--:(timezone-utc-offset)
+   |  |        +--rw timezone-utc-offset?   int16
+   |  +--rw ntp! {ntp}?
+   |  |  +--rw enabled?   boolean
+   |  |  +--rw server* [name]
+   |  |     +--rw name    string
+   |  |     +--rw (transport)
+   |  |        +--:(udp)
+   |  |           +--rw udp
+   |  |              +--rw address    inet:host
+   |  +--rw dns-resolver
+   |  |  +--rw search*    inet:domain-name
+   |  |  +--rw server* [name]
+   |  |  |  +--rw name           string
+   |  |  |  +--rw (transport)
+   |  |  |     +--:(udp-and-tcp)
+   |  |  |        +--rw udp-and-tcp
+   |  |  |           +--rw address    inet:ip-address
+   |  |  +--rw options
+   |  |     +--rw timeout?    uint8
+   |  |     +--rw attempts?   uint8
+   |  +--rw authentication {authentication}?
+   |     +--rw user-authentication-order*   identityref
+   |     +--rw user* [name] {local-users}?
+   |        +--rw name        string
+   |        +--rw password?   crypt-hash
+   |        +--rw ssh-key* [name]
+   |           +--rw name         string
+   |           +--rw algorithm    string
+   |           +--rw key-data     binary
+   +--ro system-state
+      +--ro platform
+      |  +--ro os-name?                         string
+      |  +--ro os-release?                      string
+      |  +--ro os-version?                      string
+      |  +--ro machine?                         string
+      |  +--ro ocpe-fw-mgmt:firmware-version?   string
+      |  +--ro ocpes:serial-number?             string
+      +--ro clock
+      |  +--ro current-datetime?   yang:date-and-time
+      |  +--ro boot-datetime?      yang:date-and-time
+      +--ro ocpe-fw-mgmt:firmware-slot* [name] {firmware-slots}?
+      |  +--ro ocpe-fw-mgmt:name       string
+      |  +--ro ocpe-fw-mgmt:version?   string
+      |  +--ro ocpe-fw-mgmt:active?    boolean
+      |  +--ro ocpe-fw-mgmt:path?      inet:uri
+      +--ro ocpe-fw-mgmt:firmware-job*
+         +--ro ocpe-fw-mgmt:job-id            int32
+         +--ro ocpe-fw-mgmt:install-target    leafref {firmware-slots}?
+         +--ro ocpe-fw-mgmt:status
+            +--ro ocpe-fw-mgmt:status        enumeration
+            +--ro ocpe-fw-mgmt:status-msg?   string
+            +--ro ocpe-fw-mgmt:progress      percent
+rpcs:
+   +---x set-current-datetime    
+   |  +--ro input     
+   |     +--ro current-datetime    yang:date-and-time
+   +---x system-restart          
+   +---x system-shutdown         
+module: ietf-interfaces
+   +--rw interfaces
+   |  +--rw interface* [name]
+   |     +--rw name                        string
+   |     +--rw description?                string
+   |     +--rw type                        identityref
+   |     +--rw enabled?                    boolean
+   |     +--rw link-up-down-trap-enable?   enumeration {if-mib}?
+   |     +--rw ip:ipv4!
+   |     |  +--rw ip:enabled?      boolean
+   |     |  +--rw ip:forwarding?   boolean
+   |     |  +--rw ip:mtu?          uint16
+   |     |  +--rw ip:address* [ip]
+   |     |  |  +--rw ip:ip               inet:ipv4-address-no-zone
+   |     |  |  +--rw (subnet)
+   |     |  |     +--:(prefix-length)
+   |     |  |     |  +--rw ip:prefix-length?   uint8
+   |     |  |     +--:(netmask)
+   |     |  |        +--rw ip:netmask?         yang:dotted-quad {ipv4-non-contiguous-netmasks}?
+   |     |  +--rw ip:neighbor* [ip]
+   |     |     +--rw ip:ip                    inet:ipv4-address-no-zone
+   |     |     +--rw ip:link-layer-address    yang:phys-address
+   |     +--rw ip:ipv6!
+   |        +--rw ip:enabled?                     boolean
+   |        +--rw ip:forwarding?                  boolean
+   |        +--rw ip:mtu?                         uint32
+   |        +--rw ip:address* [ip]
+   |        |  +--rw ip:ip               inet:ipv6-address-no-zone
+   |        |  +--rw ip:prefix-length    uint8
+   |        +--rw ip:neighbor* [ip]
+   |        |  +--rw ip:ip                    inet:ipv6-address-no-zone
+   |        |  +--rw ip:link-layer-address    yang:phys-address
+   |        +--rw ip:dup-addr-detect-transmits?   uint32
+   |        +--rw ip:autoconf
+   |           +--rw ip:create-global-addresses?        boolean
+   |           +--rw ip:create-temporary-addresses?     boolean {ipv6-privacy-autoconf}?
+   |           +--rw ip:temporary-valid-lifetime?       uint32 {ipv6-privacy-autoconf}?
+   |           +--rw ip:temporary-preferred-lifetime?   uint32 {ipv6-privacy-autoconf}?
+   +--ro interfaces-state
+      +--ro interface* [name]
+         +--ro name               string
+         +--ro type               identityref
+         +--ro admin-status       enumeration {if-mib}?
+         +--ro oper-status        enumeration
+         +--ro last-change?       yang:date-and-time
+         +--ro if-index           int32 {if-mib}?
+         +--ro phys-address?      yang:phys-address
+         +--ro higher-layer-if*   interface-state-ref
+         +--ro lower-layer-if*    interface-state-ref
+         +--ro speed?             yang:gauge64
+         +--ro statistics
+         |  +--ro discontinuity-time    yang:date-and-time
+         |  +--ro in-octets?            yang:counter64
+         |  +--ro in-unicast-pkts?      yang:counter64
+         |  +--ro in-broadcast-pkts?    yang:counter64
+         |  +--ro in-multicast-pkts?    yang:counter64
+         |  +--ro in-discards?          yang:counter32
+         |  +--ro in-errors?            yang:counter32
+         |  +--ro in-unknown-protos?    yang:counter32
+         |  +--ro out-octets?           yang:counter64
+         |  +--ro out-unicast-pkts?     yang:counter64
+         |  +--ro out-broadcast-pkts?   yang:counter64
+         |  +--ro out-multicast-pkts?   yang:counter64
+         |  +--ro out-discards?         yang:counter32
+         |  +--ro out-errors?           yang:counter32
+         +--ro ip:ipv4!
+         |  +--ro ip:forwarding?   boolean
+         |  +--ro ip:mtu?          uint16
+         |  +--ro ip:address* [ip]
+         |  |  +--ro ip:ip               inet:ipv4-address-no-zone
+         |  |  +--ro (subnet)?
+         |  |  |  +--:(prefix-length)
+         |  |  |  |  +--ro ip:prefix-length?   uint8
+         |  |  |  +--:(netmask)
+         |  |  |     +--ro ip:netmask?         yang:dotted-quad {ipv4-non-contiguous-netmasks}?
+         |  |  +--ro ip:origin?          ip-address-origin
+         |  +--ro ip:neighbor* [ip]
+         |     +--ro ip:ip                    inet:ipv4-address-no-zone
+         |     +--ro ip:link-layer-address?   yang:phys-address
+         |     +--ro ip:origin?               neighbor-origin
+         +--ro ip:ipv6!
+            +--ro ip:forwarding?   boolean
+            +--ro ip:mtu?          uint32
+            +--ro ip:address* [ip]
+            |  +--ro ip:ip               inet:ipv6-address-no-zone
+            |  +--ro ip:prefix-length    uint8
+            |  +--ro ip:origin?          ip-address-origin
+            |  +--ro ip:status?          enumeration
+            +--ro ip:neighbor* [ip]
+               +--ro ip:ip                    inet:ipv6-address-no-zone
+               +--ro ip:link-layer-address?   yang:phys-address
+               +--ro ip:origin?               neighbor-origin
+               +--ro ip:is-router?            empty
+module: opencpe-firmware-mgmt
+rpcs:
+   +---x firmware-download    
+   |  +--ro input     
+   |  |  +--ro (transport)?
+   |  |  |  +--:(ftp) {firmware-download-ftp}?
+   |  |  |  |  +--ro ftp!
+   |  |  |  |     +--ro address    inet:uri
+   |  |  |  +--:(http) {firmware-download-http}?
+   |  |  |  |  +--ro http!
+   |  |  |  |     +--ro address    inet:uri
+   |  |  |  +--:(https) {firmware-download-https}?
+   |  |  |  |  +--ro https!
+   |  |  |  |     +--ro address    inet:uri
+   |  |  |  +--:(scp) {firmware-download-scp}?
+   |  |  |     +--ro scp!
+   |  |  |        +--ro address    inet:uri
+   |  |  +--ro (credentials)?
+   |  |  |  +--:(user-pass)
+   |  |  |  |  +--ro user-pass!
+   |  |  |  |     +--ro username    string
+   |  |  |  |     +--ro password    string
+   |  |  |  +--:(certificate)
+   |  |  |  |  +--ro certificate!
+   |  |  |  |     +--ro path    string
+   |  |  |  +--:(ssh-key)
+   |  |  |     +--ro ssh-key!
+   |  |  |        +--ro path    string
+   |  |  +--ro install-target              leafref {firmware-slots}?
+   |  |  +--ro timeframe?                  int32
+   |  |  +--ro retry-count?                uint8
+   |  |  +--ro retry-interval?             uint32
+   |  |  +--ro retry-interval-increment?   percent
+   |  +--ro output    
+   |     +--ro job-id    int32
+   +---x firmware-commit      
+   |  +--ro input     
+   |     +--ro job-id    int32
+   +---x get-job-status       
+   |  +--ro input     
+   |  |  +--ro job-id    int32
+   |  +--ro output    
+   |     +--ro job-id            int32
+   |     +--ro install-target    leafref {firmware-slots}?
+   |     +--ro status
+   |        +--ro status        enumeration
+   |        +--ro status-msg?   string
+   |        +--ro progress      percent
+   +---x set-bootorder         {firmware-slots}?
+      +--ro input     
+         +--ro bootorder*   leafref

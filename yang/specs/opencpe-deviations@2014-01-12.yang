@@ -1,0 +1,98 @@
+module opencpe-deviations {
+
+ namespace "urn:opencpe:deviations";
+
+ prefix "ocped";
+
+ // import statements here: e.g.,
+
+ import ietf-system {
+  prefix "sys";
+  revision-date 2013-11-07;
+ }
+
+ import ietf-interfaces {
+  prefix "if";
+  revision-date 2013-07-04;
+ }
+
+ import ietf-ip {
+  prefix "ip";
+  revision-date 2013-10-18;
+ }
+
+ organization
+ "Travelping GmbH";
+
+ contact
+  "Röntgenstraße 13
+  39108 Magdeburg
+  Editor: Helge Sychla <hs@travelping.com>";
+
+ description
+  "This module defines a home gateway for the TeraStream project.";
+
+ revision "2014-01-12" {
+   description
+     "Version 0.1.2
+     Fix wording of IPv6 neighbor state deviation";
+ }
+ revision "2013-12-19" {
+   description
+     "Version 0.1.1
+      Rename module to opencpe-deviations.
+      State reason for deviations in description statements.";
+ }
+
+ revision "2013-12-12" {
+   description
+     "Version 0.1.0 -- Move deviations from homegateway to separate module.";
+ }
+
+ // deviate statements
+
+ deviation /sys:system/sys:ntp/sys:server/sys:association-type {
+   description
+     "Out of Scope - Not required for HGW.
+      HGW will probably only use default NTP options.";
+   deviate not-supported;
+ }
+
+ deviation /sys:system/sys:ntp/sys:server/sys:iburst {
+   description
+     "Out of Scope - Not required for HGW.
+      HGW will probably only use default NTP options.";
+   deviate not-supported;
+ }
+
+ deviation /sys:system/sys:ntp/sys:server/sys:prefer {
+   description
+     "Out of Scope - Not required for HGW.
+      No special treatment of one server needed.";
+   deviate not-supported;
+ }
+
+ deviation /if:interfaces-state/if:interface/ip:ipv6/ip:neighbor/ip:state {
+   description
+       "In scope but will not be in the first release.";
+   deviate not-supported;
+ }
+
+ // feature statements
+
+ // identity statements
+
+ // typedef statements
+
+ // grouping statements
+
+ // data definition statements
+
+ // augment statements
+
+ // rpc statements
+
+ // notification statements
+
+ // DO NOT put deviation statements in a published module
+}

@@ -19,8 +19,8 @@
 - lua-event
 - xsltproc
 - perl
-- perl Text/CSV module
-- perl DEPS::Transform module
+- python
+- pyang 
 
 ## Optional tools and libraries
 
