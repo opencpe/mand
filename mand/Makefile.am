@@ -7,7 +7,7 @@ AM_CFLAGS = -g -funit-at-a-time \
 	-I$(top_srcdir)/include/compat \
     -I$(top_builddir)
 
-SUBDIRS = snmp .
+SUBDIRS = snmp tests
 
 sbin_PROGRAMS = dmctrl mand
 
@@ -60,4 +60,4 @@ p_table.c p_table.h p_table_stubs.c: $(top_srcdir)/tablegen/tokenizer.pl $(top_s
 
 
 impl_list.csv:
-	grep "VAR.*InternetGatewayDevice\." $(srcdir)/*.[ch] | sed -e"s/\([^:]*\).*VAR:\s*\(.*\)\*\/.*/\1,\2/g" > impl_list.csv
+	grep "VAR.*system\." $(srcdir)/*.[ch] | sed -e"s/\([^:]*\).*VAR:\s*\(.*\)\*\/.*/\1,\2/g" > impl_list.csv
