@@ -1154,7 +1154,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 					break;
 				}
 			} else {
-				/** InternetGatewayDevice */
+				/* system */
 				if (!dm_walk_by_selector_cb((dm_selector) {dm__system, 0},
 							       list_ctx.max_level, &list_ctx, dmconfig_list_cb)) {
 					code = RC_ERR_MISC;
