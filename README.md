@@ -16,6 +16,7 @@
 - libev (including the event.h compatibility header, libev-libevent-dev package on Debian/Ubuntu)
 - libtalloc
 - lua 5.1
+- lua-event
 - xsltproc
 - perl
 - perl Text/CSV module

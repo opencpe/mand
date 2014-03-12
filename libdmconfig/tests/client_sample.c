@@ -74,13 +74,13 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 		goto abort;
 	}
 
-#define SIZE 8*1024*1
+#define SIZE 8//*1024*1
 	char *dum = malloc(SIZE);
 	memset(dum, 'X', SIZE - 1);
 	dum[SIZE-1] = '\0';
 
-	if (dm_grp_set_unknown(&grp, "InternetGatewayDevice.ManagementServer.PeriodicInformInterval", "42") ||
-	    dm_grp_set_string(&grp, "InternetGatewayDevice.DeviceInfo.ModelName", dum) ||
+	if (dm_grp_set_unknown(&grp, "system.ntp.1.udp.port", "42") ||
+	    dm_grp_set_string(&grp, "system.ntp.1.name", dum) ||
 	    dm_send_packet_set(&ctx, grp)) {
 		fprintf(stderr, "An error occurred: Couldn't create or send SET packet\n");
 		dm_grp_free(grp);
@@ -107,24 +107,60 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 	}
 	printf("\"Switch session\" was successful\n");
 
-		/* retrieve some parameters */
+	/* retrieve some parameters */
 
 	if (!(grp = dm_grp_new())) {
 		fprintf(stderr, "An error occurred: Couldn't create new AVP group\n");
 		goto abort;
 	}
 
-	if (dm_grp_get_int32(&grp, "InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.DHCPLeaseTime") ||
-	    dm_grp_get_string(&grp, "InternetGatewayDevice.DeviceInfo.ModelName") ||
-	    dm_grp_get_addr(&grp, "InternetGatewayDevice.DeviceInfo.SyslogServer") ||
-	    dm_grp_get_unknown(&grp, "InternetGatewayDevice.DeviceInfo.Manufacturer") ||
-	    dm_send_packet_get(&ctx, grp, &ret_grp) ||
-	    dm_decode_int32(ret_grp, &intval) ||
-	    dm_decode_string(ret_grp, &charval) ||
-	    dm_avpgrp_get_avp(ret_grp, &unknown_type, &flags, &vendor_id, &data, &len) ||
-	    dm_decode_unknown_as_string(unknown_type, data, len, &address) ||
-	    dm_decode_unknown(ret_grp, &unknown_type, &unknown_data, &unknown_size)) {
-		fprintf(stderr, "An error occurred: Couldn't create, send or decode GET packet\n");
+	if (dm_grp_get_int32(&grp, "system.ntp.2.udp.port") ) {
+		fprintf(stderr, "An error occurred: dm_grp_get_int32 failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_grp_get_string(&grp, "system.ntp.2.name")) {
+		fprintf(stderr, "An error occurred: dm_grp_get_string failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_grp_get_addr(&grp, "system.ntp.2.udp.address") ) {
+		fprintf(stderr, "An error occurred: dm_grp_get_addr failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_grp_get_unknown(&grp, "system.ntp.2.transport") ) {
+		fprintf(stderr, "An error occurred: dm_grp_get_unknown failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_send_packet_get(&ctx, grp, &ret_grp) ) {
+		fprintf(stderr, "An error occurred: dm_send_packet_get failed due %d\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_decode_int32(ret_grp, &intval) ) {
+		fprintf(stderr, "An error occurred: dm_decode_int32 failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_decode_string(ret_grp, &charval) ) {
+		fprintf(stderr, "An error occurred: dm_decode_string failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_avpgrp_get_avp(ret_grp, &unknown_type, &flags, &vendor_id, &data, &len) ) {
+		fprintf(stderr, "An error occurred: dm_avpgrp_get_avp failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_decode_unknown_as_string(unknown_type, data, len, &address) ) {
+		fprintf(stderr, "An error occurred: dm_decode_unknown_as_string failed\n");
+		dm_grp_free(grp);
+		goto abort;
+	}
+	if (dm_decode_unknown(ret_grp, &unknown_type, &unknown_data, &unknown_size)) {
+		fprintf(stderr, "An error occurred: dm_decode_unknown failed\n");
 		dm_grp_free(grp);
 		goto abort;
 	}
