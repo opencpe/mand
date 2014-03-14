@@ -1,0 +1,12 @@
+module opencpe-actions {
+    
+    namespace "urn:opencpe:actions";
+    prefix "ocpe-action";
+
+    include opencpe-actions-meta-extensions;
+
+    ocpe-action:annotate "/sys:system/sys:ntp" {
+        ocpe-action:action "dm_ntp";
+    }
+
+}

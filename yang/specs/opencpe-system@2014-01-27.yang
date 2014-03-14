@@ -1,0 +1,87 @@
+module opencpe-system {
+
+    namespace "urn:opencpe:system";
+
+    prefix "ocpes";
+
+    // import statements here: e.g.,
+
+    import ietf-system {
+        prefix "sys";
+        revision-date 2013-11-07;
+    }
+
+    import opencpe-firmware-mgmt {
+        prefix "ocpe-fw-mgmt";
+        revision-date 2014-02-06;
+    }
+
+    organization
+        "Travelping GmbH";
+
+    contact
+        "Röntgenstraße 13
+        39108 Magdeburg
+        Editor: Helge Sychla <hs@travelping.com>";
+
+    description
+        "This module defines a home gateway for the TeraStream project.";
+
+    revision "2014-01-27" {
+        description
+            "Version 0.1.3
+            Add feature last-boot-status-report from opencpe-firmware-management.";
+    }
+
+    revision "2014-01-09" {
+        description
+            "Version 0.1.2
+            Move Firmware-realted nodes to module opencpe-firmware-mgmt.";
+    }
+
+    revision "2013-12-19" {
+        description
+            "Version 0.1.1
+            Rename module to opencpe-system.
+            Add list of available partitions.";
+    }
+
+    revision "2013-12-12" {
+        description
+            "Version 0.1.0 -- Move augmentations from homegateway to separate module.";
+    }
+
+    // deviate statements
+
+    // feature statements
+
+    feature last-boot-status-report {
+        if-feature ocpe-fw-mgmt:firmware-slots;
+        description
+            "Indicates that the device can report failed attempts to boot a firmware-slot back to the NCS.";
+    }
+
+    // identity statements
+
+    // typedef statements
+
+    // grouping statements
+
+    // data definition statements
+
+    // augment statements
+
+    augment "/sys:system-state/sys:platform" {
+        leaf serial-number {
+            type string;
+            description
+                "Serial Number of the device";
+        }
+    }
+
+    // rpc statements
+
+    // notification statements
+
+    // DO NOT put deviation statements in a published module
+}

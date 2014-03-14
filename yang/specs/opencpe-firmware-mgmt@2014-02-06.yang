@@ -1,0 +1,350 @@
+module opencpe-firmware-mgmt {
+
+    namespace "urn:opencpe:firmware-mgmt";
+
+    prefix "ocpe-fw-mgmt";
+
+    // import statements here: e.g.,
+
+    import ietf-system {
+        prefix "sys";
+        revision-date 2013-11-07;
+    }
+
+    import ietf-inet-types {
+        prefix "inet";
+        revision-date 2013-07-15;
+    }
+
+    organization
+        "Travelping GmbH";
+
+    contact
+        "Röntgenstraße 13
+        39108 Magdeburg
+        Editor: Helge Sychla <hs@travelping.com>";
+
+    description
+        "This module defines RPCs for the TeraStream home gateway project.";
+
+    revision "2014-02-06" {
+        description
+            "Version 0.1.5
+            Remove RPC get-job-status.
+            Remove transport choice, use URI with username instead.";
+    }
+
+    revision "2014-01-27" {
+        description
+            "Version 0.1.5
+            Move boot status to system module.";
+    }
+
+    revision "2014-01-20" {
+        description
+            "Version 0.1.4
+            Move download status to download-job.
+            Add RPC to fetch job status.
+            Add key to firmware-slots.
+            Use leafrefs to refer firmware-slots.
+            Remove system-reset RPC because that is covered by Netconf's delete-config(startup)+system-restart().
+            Re-include download RPCs.";
+    }
+
+    revision "2014-01-12" {
+        description
+            "Version 0.1.3
+            Move RPC firmware-download to transport-specific modules.";
+    }
+
+    revision "2014-01-09" {
+        description
+            "Version 0.1.2
+            Rename feature multiple-partitions to firmware-slots.";
+    }
+
+    revision "2013-12-19" {
+        description
+            "Version 0.1.1
+            Rename module to opencpe-firmware-mgmt.
+            Add target location to download RPC.";
+    }
+
+    revision "2013-12-12" {
+        description
+            "Version 0.1.0 -- Initial version.";
+    }
+
+    // feature statements
+
+    feature firmware-slots {
+        description
+            "Indicates that the device can store more than one firmware version 
+            which can be selectively booted.";
+    }
+
+
+    feature firmware-download-ftp {
+        description
+            "Indicates that the device can download new firmware using the FTP protocol.";
+    }
+
+    feature firmware-download-http {
+        description
+            "Indicates that the device can download new firmware using the HTTP protocol.";
+    }
+
+    feature firmware-download-https {
+        description
+            "Indicates that the device can download new firmware using the HTTPS protocol.";
+    }
+
+    feature firmware-download-scp {
+        description
+            "Indicates that the device can download new firmware using the SCP protocol.";
+    }
+
+    // identity statements
+
+    // typedef statements
+
+    typedef percent {
+        type uint8 {
+            range "0 .. 100";
+        }
+        description
+            "Percentage";
+    }
+
+    // grouping statements
+
+    grouping firmware-job {
+        leaf job-id {
+            type int32;
+            mandatory true;
+        }
+
+        leaf install-target {
+            if-feature firmware-slots;
+
+            description
+                "Name of the firmware-slot in which the downloaded firmware will be installed.";
+            type leafref {
+                path "/sys:system-state/firmware-slot/name";
+            }
+            mandatory true;
+        }
+
+        container status {
+            description
+                "The job's status.";
+
+            leaf status {
+                type enumeration {
+                    enum planned;
+                    enum in-progress;
+                    enum dl-failed;
+                    enum verification-failed;
+                    enum done;
+                }
+                mandatory true;
+            }
+
+            leaf status-msg {
+                description
+                    "Additional status information gathered from OS.";
+                type string;
+                mandatory false;
+            }
+
+            leaf progress {
+                when "../status = 'in-progress'";
+                type percent;
+                mandatory true;
+            }
+        }
+    }
+
+    // data definition statements
+
+    // augment statements
+
+    augment "/sys:system-state/sys:platform" {
+        leaf firmware-version {
+            type string;
+            description
+                "Version of the currently running firmware";
+        }
+    }
+
+    augment "/sys:system-state" {
+        list firmware-slot {
+            key name;
+
+            if-feature firmware-slots;
+            description
+                "Information about available firmware-slots and their firmware.";
+
+            leaf name {
+                description
+                    "Name of the slot.";
+                type string;
+            }
+
+            leaf version {
+                description
+                    "Version of the firmware currently installed in this firmware-slot.";
+                type string;
+            }
+
+            leaf active {
+                description
+                    "Indicates that the firmware stored in this slot will be booted next.";
+                type boolean;
+            }
+
+            leaf path {
+                description
+                    "Path to the firmware file in the storage associated with this firmware-slot";
+                type inet:uri;
+            }
+        }
+
+        list firmware-job {
+            uses firmware-job;
+        }
+    }
+
+    // rpc statements
+
+    rpc firmware-download {
+        input {
+            leaf address {
+                type inet:uri;
+                mandatory true;
+                description
+                    "URI of the firmware image including username.
+                      Depending on the supported protocols,
+                      the following formats are possible:
+                      http://<username>@<host>[:<port>]
+                      https://<username>@<host>[:<port>]
+                      ftp://<username>@<host>[:<port>]
+                      scp://<username>@<host>[:<port>]";
+            }
+
+            choice credentials {
+                description
+                    "Type of authentication to use for firmware downloads.";
+
+                case password {
+                    container password {
+                        presence true;
+                        leaf password {
+                            type string;
+                            mandatory true;
+                        }
+                    }
+                }
+                case certificate {
+                    container certificate {
+                        presence true;
+                        leaf path {
+                            type string;
+                            mandatory true;
+                        }
+                    }
+                }
+                case ssh-key {
+                    container ssh-key {
+                        presence true;
+                        leaf path {
+                            type string;
+                            mandatory true;
+                        }
+                    }
+                }
+            }
+
+            leaf install-target {
+                if-feature firmware-slots;
+
+                description
+                    "Name of the firmware-slot in which the downloaded firmware will be installed.";
+                type leafref {
+                    path "/sys:system-state/firmware-slot/name";
+                }
+                mandatory true;
+            }
+
+            leaf timeframe {
+                description
+                    "Time for which the firmware-image will be available for download.
+                    The device will start the download at a random point during this timeframe.
+                    If value 0 (zero) is given, the file is assumed to be available infinitely.";
+                type int32;
+                units seconds;
+                default 0;
+                mandatory false;
+            }
+
+            leaf retry-count {
+                description
+                    "Number of times a failed download is retried.";
+                type uint8;
+                default 3;
+                mandatory false;
+            }
+            leaf retry-interval {
+                description
+                    "Number of seconds to wait before a retry.";
+                type uint32;
+                default 300;
+                units seconds;
+                mandatory false;
+            }
+            leaf retry-interval-increment {
+                description
+                    "Maximum percentage to alter the retry-interval.";
+                type percent;
+                default 20;
+                units percent;
+                mandatory false;
+            }
+
+        }
+        output {
+            leaf job-id {
+                type int32;
+                mandatory true;
+            }
+        }
+    }
+    rpc firmware-commit {
+        description
+            "Install a previously downloaded firmware.";
+        input {
+            leaf job-id {
+                type int32;
+                mandatory true;
+            }
+        }
+    }
+
+    rpc set-bootorder {
+        if-feature firmware-slots;
+
+        description
+            "Sets the order in which the bootloader tries to boot available firmware-images.";
+        input {
+            leaf-list bootorder {
+                type leafref {
+                    path "/sys:system-state/firmware-slot/name";
+                }
+            }
+        }
+    }
+
+    // notification statements
+
+    // DO NOT put deviation statements in a published module
+}

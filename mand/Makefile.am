@@ -23,7 +23,7 @@ libdmstore_la_SOURCES = dm_store.c dm_index.c dm_notify.c dm_cache.c \
 			dm_strings.c dm_action.c \
 			dm_cfgsessions.c dm_cfgversion.c \
 			dm_cfg_bkrst.c dm_validate.c \
-			p_table.c p_table_stubs.c dm_assert.c
+			p_table.c dm_assert.c
 libdmstore_la_LIBADD = $(LIBM) $(DMLIBS) $(top_builddir)/utils/libdmutils.la
 
 libdm_la_SOURCES = \
@@ -32,8 +32,8 @@ libdm_la_SOURCES = \
 		inet_helper.c \
 		dm_luaif.c
 
-BUILT_SOURCES = p_table.c p_table.h p_table_stubs.c
-CLEANFILES = p_table.c p_table.h p_table_stubs.c
+BUILT_SOURCES = p_table.c p_table.h 
+CLEANFILES = p_table.c p_table.h 
 
 DISTCLEANFILES = *xml *.log *~
 
@@ -55,8 +55,8 @@ endif
 
 mand_LDADD = libdm.la
 
-p_table.c p_table.h p_table_stubs.c: $(top_srcdir)/tablegen/tokenizer.pl $(top_srcdir)/tablegen/DM-Tab.csv
-	$(top_srcdir)/tablegen/tokenizer.pl $(top_srcdir)/tablegen/DM-Tab.csv
+p_table.c p_table.h: 
+	cd $(top_srcdir)/yang/specs/; pyang --plugindir ../pyang_plugin/ -f OpenCPE *.yang; mv p_table.c p_table.h dm_action_* ../../mand/; cd -
 
 
 impl_list.csv:
