@@ -304,8 +304,8 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
                 header_key = make_key(type_i, child.arg + '_', keep_hyphens=False)
                 hyphen_key = make_key(type_i, child.arg + '_', keep_hyphens=True)
             elif child.keyword == 'leaf-list':
-                header_key = "list_" + make_key(child, keep_hyphens=False)
-                hyphen_key = "list_" + make_key(child, keep_hyphens=True)
+                header_key = ''.join(child.arg.split('-')) + "_" + make_key(child, keep_hyphens=False)
+                hyphen_key = make_key(child, keep_hyphens=True)
             else:
                 header_key = make_key(child, keep_hyphens=False)
                 hyphen_key = make_key(child, keep_hyphens=True)
