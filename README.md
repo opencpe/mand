@@ -18,9 +18,8 @@
 - lua 5.1
 - lua-event
 - xsltproc
-- perl
 - python
-- pyang 
+- pyang
 
 ## Optional tools and libraries
 
@@ -42,7 +41,7 @@
 
 * build and install
 
-	make 
+	make
 	make install
 
 # Documentation
