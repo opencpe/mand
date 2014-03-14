@@ -1206,21 +1206,9 @@ int dm_del_table_by_selector(const dm_selector sel)
 	return 0;
 }
 
-
-typedef int walk_cb(void *, CB_type, dm_id, const struct dm_element *, const DM_VALUE);
-
-static int dm_walk_table_cb(int level, void *userData,
-			       walk_cb *cb,
-			       const struct dm_table *kw_base,
-			       struct dm_value_table *st_base);
-static int dm_walk_object_cb(int level, void *userData,
-				walk_cb *cb, dm_id id,
-				const struct dm_element *elem,
-				DM_VALUE value);
-
 static int dm_walk_element_cb(int level, void *userData,
-				 walk_cb *cb,
-				 const struct dm_element_ref *ref)
+			      walk_cb *cb,
+			      const struct dm_element_ref *ref)
 {
 	int ret = 1;
 	DM_VALUE value;
@@ -1246,10 +1234,9 @@ static int dm_walk_element_cb(int level, void *userData,
 	return ret;
 }
 
-static int dm_walk_table_cb(int level, void *userData,
-			       walk_cb *cb,
-			       const struct dm_table *kw_base,
-			       struct dm_value_table *st_base)
+int dm_walk_table_cb(int level, void *userData, walk_cb *cb,
+		     const struct dm_table *kw_base,
+		     struct dm_value_table *st_base)
 {
 	int ret = 1;
 	struct dm_element_ref ref;
@@ -1272,10 +1259,9 @@ static int dm_walk_table_cb(int level, void *userData,
 	return ret;
 }
 
-static int dm_walk_object_cb(int level, void *userData,
-				walk_cb *cb, dm_id id,
-				const struct dm_element *kw_elem,
-				DM_VALUE value)
+int dm_walk_object_cb(int level, void *userData, walk_cb *cb, dm_id id,
+		      const struct dm_element *kw_elem,
+		      DM_VALUE value)
 {
 	int ret = 1;
 	debug("(element: %p, instance: %p)\n", kw_elem, DM_INSTANCE(value));

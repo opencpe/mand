@@ -284,8 +284,8 @@ static void serialize_element(FILE *stream,
 	}
 }
 
-static int walk_cb(void *userData, CB_type type, dm_id id,
-		   const struct dm_element *elem, const DM_VALUE value)
+static int serialize_walk_cb(void *userData, CB_type type, dm_id id,
+			     const struct dm_element *elem, const DM_VALUE value)
 {
 	int r = 1;
 	struct walk_data *w = (struct walk_data *)userData;
@@ -346,16 +346,17 @@ static int walk_cb(void *userData, CB_type type, dm_id id,
 void dm_serialize_store(FILE *stream, int flags)
 {
 	struct walk_data w;
-	dm_selector sel = { dm__system, 0 };
 
 	w.stream = stream;
 	w.flags = flags;
-	w.indent = 0;
+	w.indent = 1;
 
 	dm_update_flags();
 
 	fprintf(stream, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-	dm_walk_by_selector_cb(sel, DM_SELECTOR_LEN, &w, walk_cb);
+	fprintf(stream, "<OpenCPE version=\"%d\">\n", CFG_VERSION);
+	dm_walk_table_cb(DM_SELECTOR_LEN, &w, serialize_walk_cb, &dm_root, dm_value_store);
+	fprintf(stream, "</OpenCPE>\n");
 }
 
 void dm_serialize_element(FILE *stream, const char *element, int flags)
@@ -370,11 +371,11 @@ void dm_serialize_element(FILE *stream, const char *element, int flags)
 
 	w.stream = stream;
 	w.flags = flags;
-	w.indent = 0;
+	w.indent = 1;
 
 	fprintf(stream, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 	fprintf(stream, "<data>\n");
-	dm_walk_by_selector_cb(sel, DM_SELECTOR_LEN, &w, walk_cb);
+	dm_walk_by_selector_cb(sel, DM_SELECTOR_LEN, &w, serialize_walk_cb);
 	fprintf(stream, "</data>\n");
 }
 

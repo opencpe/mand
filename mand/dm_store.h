@@ -282,9 +282,13 @@ static inline struct dm_value_table *dm_get_instance_by_id(struct dm_instance *,
 /* helper */
 
 int dm_compare_values(int, DM_VALUE *, DM_VALUE *);
-int dm_walk_by_selector_cb(const dm_selector, int, void *,
-			      int (*cb)(void *, CB_type, dm_id, const struct dm_element *, const DM_VALUE))
-	__attribute__((nonnull (1)));
+
+/* data model walker */
+
+typedef int walk_cb(void *, CB_type, dm_id, const struct dm_element *, const DM_VALUE);
+int dm_walk_table_cb(int level, void *userData, walk_cb *cb, const struct dm_table *kw_base, struct dm_value_table *st_base) __attribute__((nonnull (3,4,5)));
+int dm_walk_object_cb(int level, void *userData, walk_cb *cb, dm_id id, const struct dm_element *elem, DM_VALUE value) __attribute__((nonnull (2,3)));
+int dm_walk_by_selector_cb(const dm_selector, int, void *userData, walk_cb *cb) __attribute__((nonnull (1,3)));
 
 
 /*
