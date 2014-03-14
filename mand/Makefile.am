@@ -32,8 +32,8 @@ libdm_la_SOURCES = \
 		inet_helper.c \
 		dm_luaif.c
 
-BUILT_SOURCES = p_table.c p_table.h 
-CLEANFILES = p_table.c p_table.h 
+BUILT_SOURCES = p_table.c p_table.h dm_action_table.c dm_action_table.h
+CLEANFILES = p_table.c p_table.h dm_action_table.c dm_action_table.h
 
 DISTCLEANFILES = *xml *.log *~
 
@@ -55,8 +55,8 @@ endif
 
 mand_LDADD = libdm.la
 
-p_table.c p_table.h: 
-	cd $(top_srcdir)/yang/specs/; pyang --plugindir ../pyang_plugin/ -f OpenCPE *.yang; mv p_table.c p_table.h dm_action_* ../../mand/; cd -
+p_table.c p_table.h dm_action_table.c dm_action_table.h: $(top_srcdir)/yang/specs/*yang
+	$(PYANG) --plugindir $(top_srcdir)/yang/pyang_plugin/ -p $(top_srcdir)/yang/specs -f OpenCPE $(top_srcdir)/yang/specs/*.yang
 
 
 impl_list.csv:
