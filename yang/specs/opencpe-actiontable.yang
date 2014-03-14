@@ -1,0 +1,17 @@
+module opencpe-actiontable {
+    
+    namespace "urn:opencpe:actiontable";
+    prefix "ocpe-actiontable";
+
+    include opencpe-actiontable-meta-extensions;
+
+    ocpe-actiontable:action-field ntp {
+        ocpe-actiontable:include    "NULL";
+        ocpe-actiontable:comment    "a first try on the new action table";
+        ocpe-actiontable:sel        2;
+        ocpe-actiontable:pre        "NULL";
+        ocpe-actiontable:action     "NULL";
+        ocpe-actiontable:post       "NULL";
+        ocpe-actiontable:chain      "NULL";
+    }
+}

@@ -49,5 +49,10 @@ stamp-h1
 # build directories
 /build*
 
+# pyang plugin
+OpenCPE.pyc
+p_table*
+dm_action_*
+
 !.gitignore
 !.arcconfig

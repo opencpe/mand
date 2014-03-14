@@ -1,8 +1,0 @@
-".system.","Sys",,,"object","-","R","V",,
-".system.ntp.","NTP",,,"object","R","R",,,
-".system.ntp.{i}.",,,,"object","R","R",,,
-".system.ntp.{i}.name",,,,"string","R","R",,,
-".system.ntp.{i}.transport",,,,"enum(udp)","R","R",,,
-".system.ntp.{i}.udp",,,,"object","R","R",,,
-".system.ntp.{i}.udp.address",,,,"ipv4","R","R",,"ntp",
-".system.ntp.{i}.udp.port",,,,"unsignedInt[1:65535]","R","R",,,

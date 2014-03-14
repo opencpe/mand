@@ -1,0 +1,70 @@
+opencpe-firmware-mgmt:
+=====================
+=====================
+supported
+=========
+* firmware-slots
+* firmware-download-ftp
+* firmware-download-http
+* firmware-download-https
+* firmware-download-scp
+
+not supported
+=============
+* --
+
+opencpe-system:
+=====================
+=====================
+suported
+========
+* last-boot-status-report
+
+not supported
+=============
+* --
+
+ietf-system@2013-11-07:
+======================
+======================
+supported
+=========
+* authentication
+* local-users 
+* timezone-location
+* crypt-hash-md5
+* crypt-hash-sha-256
+* crypt-hash-sha-512
+* ntp
+
+not supported
+=============
+* radius
+* radius-authentication
+* ntp-udp-port
+* dns-udp-tcp-port
+
+ietf-interfaces@2013-07-04:
+==========================
+==========================
+supported
+=========
+* arbitrary-names
+* pre-provisioning
+* if-mib
+
+not supported
+=============
+* --
+
+ietf-ip@2013-10-18:
+==================
+==================
+supported
+=========
+* --
+
+not supported
+=============
+* ipv4-non-contiguous-netmasks
+* ipv6-privacy-autoconf
