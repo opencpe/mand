@@ -1,12 +1,28 @@
 module opencpe-actions {
-    
+
     namespace "urn:opencpe:actions";
     prefix "ocpe-action";
 
     include opencpe-actions-meta-extensions;
 
-    ocpe-action:annotate "/sys:system/sys:ntp" {
+    ocpe-action:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:address" {
         ocpe-action:action "dm_ntp";
+    }
+
+    ocpe-action:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:port" {
+        ocpe-action:action "dm_ntp";
+    }
+
+    ocpe-action:annotate "/sys:system/sys:dns-resolver/sys:server/sys:udp-and-tcp/sys:address" {
+        ocpe-action:action "dm_dns";
+    }
+
+    ocpe-action:annotate "/sys:system/sys:dns-resolver/sys:server/sys:udp-and-tcp/sys:port" {
+        ocpe-action:action "dm_dns";
+    }
+
+    ocpe-action:annotate "/sys:system/sys:dns-resolver/sys:search" {
+        ocpe-action:action "dm_dns";
     }
 
 }
