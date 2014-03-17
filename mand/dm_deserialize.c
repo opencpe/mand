@@ -293,8 +293,8 @@ int dm_deserialize_store(FILE *stream, int _flags)
 	const struct dm_element element = { .type = T_TOKEN, .u.t.table = &dm_root };
 	DM_VALUE dm_value_root;
 
-	struct XMLstate stateStk[10] = { { .flags = XML_ROOT },
-					 { .element = &element, .value = &dm_value_root, .base = "", .flags = XML_VALID } };
+	struct XMLstate stateStk[10] = { { .base = "", .flags = XML_ROOT },
+					 { .element = &element, .value = &dm_value_root, .base = NULL, .flags = XML_VALID } };
 	struct XMLstate *state = &stateStk[0];
 
 	old_flags = flags;
