@@ -182,6 +182,9 @@
 			<enum name="RC-Err-Connection"              code="4"/>
 			<enum name="RC-Err-Misc"                    code="5"/> <!-- protocol issues (mostly...) -->
 			<enum name="RC-Err-Alloc"                   code="6"/>
+			<enum name="RC-Err-Invalid-AVP-Length"      code="7"/>
+			<enum name="RC-Err-AVP-Misformed"           code="8"/>
+			<enum name="RC-Err-AVP-End"                 code="9"/>
 			<enum name="RC-Err-Invalid-SessionId"       code="11"/>
 			<enum name="RC-Err-Requires-CfgSession"     code="12"/>
 			<enum name="RC-Err-Cannot-Open-CfgSession"  code="13"/>

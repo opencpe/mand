@@ -111,7 +111,7 @@ struct dm_instance_node *dm_get_instance_node_by_selector(const dm_selector) __a
 struct dm_instance_node *dm_get_instance_node_by_id(struct dm_instance *, dm_id);
 
 int dm_mark_updated_by_selector(const dm_selector sel) __attribute__((nonnull (1)));
-const struct dm_table *dm_get_object_table_by_selector(dm_selector sel) __attribute__((nonnull (1)));
+const struct dm_table *dm_get_object_table_by_selector(const dm_selector sel) __attribute__((nonnull (1)));
 
 /*
  * DM_VALUE memory helper

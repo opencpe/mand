@@ -43,6 +43,9 @@
 # include <talloc.h>
 #endif
 
+#include "mand/dm_token.h"
+#include "mand/dm_strings.h"
+
 #include "dmmsg.h"
 #include "codes.h"
 #include "dmconfig.h"
@@ -1613,40 +1616,36 @@ dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
  * @ingroup API
  */
 uint32_t
-dm_decode_notifications(DM_AVPGRP *grp, uint32_t *type, DM_AVPGRP **notify)
+dm_decode_notifications(DM2_AVPGRP *grp, uint32_t *type, DM2_AVPGRP *notify)
 {
-	DM_AVPGRP	*ev_container;
+	DM2_AVPGRP	ev_container;
 
+	uint32_t	r;
 	uint32_t	code;
-	uint8_t		flags;
 	uint32_t	vendor_id;
 	void		*data;
 	size_t		len;
 
-	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len)) {
+	assert(grp);
+	assert(type);
+
+	if (!notify)
+		notify = &ev_container;
+	dm_init_avpgrp(grp->ctx, NULL, 0, notify);
+
+	r = dm_expect_avp(grp, &code, &vendor_id, &data, &len);
+	if (r == RC_ERR_AVP_END) {
 		*type = NOTIFY_NOTHING;	/* special notify type - queue was empty */
-		if (notify)
-			*notify = NULL;
 		return RC_OK;
-	}
-	if (code != AVP_CONTAINER || !len)
-		return RC_ERR_MISC;
+	} else if (r != RC_OK)
+		return r;
 
-	if (!(ev_container = dm_decode_avpgrp(grp, data, len)))
-		return RC_ERR_ALLOC;
+	if (code != AVP_CONTAINER || len <= 0)
+		return RC_ERR_AVP_MISFORMED;
 
-	if (dm_avpgrp_get_avp(ev_container, &code, &flags, &vendor_id,
-				&data, &len) ||
-	    code != AVP_NOTIFY_TYPE || len != sizeof(uint32_t)) {
-		dm_grp_free(ev_container);
-		return RC_ERR_MISC;
-	}
-	*type = dm_get_uint32_avp(data);
-
-	if (notify)
-		*notify = ev_container;
-	else
-		dm_grp_free(ev_container);
+	dm_init_avpgrp(grp->ctx, data, len, notify);
+	if ((r = dm_expect_uint32_type(notify, AVP_NOTIFY_TYPE, VP_TRAVELPING, type)) != RC_OK)
+		return r;
 
 	return RC_OK;
 }
@@ -1726,107 +1725,81 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 		/* it aborts if there's a node containing children, so it should only be used for "level 1" lists */
 
 uint32_t
-dm_decode_node_list(DM_AVPGRP *grp, char **name, uint32_t *type,
-		    uint32_t *size, uint32_t *datatype)
+dm_decode_node_list(DM2_AVPGRP *grp, char **name, uint32_t *type, uint32_t *size, uint32_t *datatype)
 {
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
+	uint32_t r = RC_OK;
+	DM2_AVPGRP container;
 
-	DM_AVPGRP	*node_container;
+	assert(grp != NULL);
+	assert(name != NULL);
+	assert(type != NULL);
 
-	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_CONTAINER || !len)
-		return RC_ERR_MISC;
+	if ((r = dm_expect_object(grp, &container)) != RC_OK
+	    || (r = dm_expect_end(grp)) != RC_OK
+	    || (r = dm_expect_string_type(&container, AVP_NODE_NAME, VP_TRAVELPING, name)) != RC_OK
+	    || (r = dm_expect_uint32_type(&container, AVP_NODE_TYPE, VP_TRAVELPING, type)) != RC_OK)
+		return r;
 
-	if (!(node_container = dm_decode_avpgrp(NULL, data, len)))
-		return RC_ERR_ALLOC;
+	switch (*type) {
+	case NODE_PARAMETER: {
+		uint32_t vendor_id;
+		void *data;
+		size_t len;
 
-	if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
-				&data, &len) ||
-	    code != AVP_NODE_NAME || !len) {
-		dm_grp_free(node_container);
-		return RC_ERR_MISC;
-	}
-	if (!(*name = strndup(data, len))) {
-		dm_grp_free(node_container);
-		return RC_ERR_ALLOC;
-	}
+		if (!datatype)
+			break;
 
-	if (dm_avpgrp_get_avp(node_container, &code, &flags, &vendor_id,
-				&data, &len) ||
-	    code != AVP_NODE_TYPE || len != sizeof(uint32_t)) {
-		dm_grp_free(node_container);
-		return RC_ERR_MISC;
-	}
-	*type = dm_get_uint32_avp(data);
+		if ((r = dm_expect_avp(&container, datatype, &vendor_id, &data, &len)) != RC_OK
+		    || (r = dm_expect_end(&container)) != RC_OK)
+			break;
 
-	if (*type == NODE_PARAMETER) {
-		if (datatype) {
-			if (dm_avpgrp_get_avp(node_container, &code, &flags,
-						&vendor_id, &data, &len) ||
-			    (code == AVP_NODE_DATATYPE && len != sizeof(uint32_t))) {
-				dm_grp_free(node_container);
-				return RC_ERR_MISC;
+		if (*datatype == AVP_NODE_DATATYPE) {
+			if (len != sizeof(uint32_t)) {
+				r = RC_ERR_MISC;
+				break;
 			}
-			*datatype = code == AVP_NODE_DATATYPE ? dm_get_uint32_avp(data)
-							      : code;
+			*datatype = dm_get_uint32_avp(data);
 		}
-	} else if (*type == NODE_OBJECT && size) {
-		if (dm_avpgrp_get_avp(node_container, &code, &flags,
-					&vendor_id, &data, &len) ||
-		    code != AVP_NODE_SIZE || len != sizeof(uint32_t)) {
-			dm_grp_free(node_container);
-			return RC_ERR_MISC;
-		}
-		*size = dm_get_uint32_avp(data);
+		break;
+	}
+	case NODE_OBJECT:
+		if (!size)
+			break;
+
+		if ((r = dm_expect_uint32_type(&container, AVP_NODE_SIZE, VP_TRAVELPING, size) != RC_OK)
+		    || (r = dm_expect_end(&container)) != RC_OK)
+		break;
 	}
 
-	dm_grp_free(node_container);
-	return RC_OK;
+	return r;
 }
 
 /* API v2 */
 
-uint32_t dm_expect_any(DM_OBJ *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *size)
+uint32_t dm_expect_end(DM2_AVPGRP *grp)
 {
-	uint8_t flags;
-
-	assert(grp != NULL);
-	assert(code != NULL);
-	assert(vendor_id != NULL);
-	assert(data != NULL);
-	assert(size != NULL);
-
-	if (dm_avpgrp_get_avp(grp, code, &flags, vendor_id, data, size) != RC_OK)
-		return RC_ERR_MISC;
-
-	return RC_OK;
+	return dm_expect_grp_end(grp);
 }
 
-uint32_t dm_expect_object(DM_OBJ *grp, DM_OBJ **obj)
+uint32_t dm_expect_object(DM2_AVPGRP *grp, DM2_AVPGRP *obj)
 {
-	uint32_t	code;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
+	uint32_t code;
+	uint32_t vendor_id;
+	void *data;
+	size_t len;
 
 	assert(grp != NULL);
 	assert(obj != NULL);
 
-	if (dm_expect_any(grp, &code, &vendor_id, &data, &len) != RC_OK
+	if (dm_expect_avp(grp, &code, &vendor_id, &data, &len) != RC_OK
 	    || code != AVP_CONTAINER)
 		return RC_ERR_MISC;
 
-	if (!(*obj = dm_decode_avpgrp(grp, data, len)))
-		return RC_ERR_ALLOC;
-
+	dm_init_avpgrp(grp->ctx, data, len, obj);
 	return RC_OK;
 }
 
-uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size)
+uint32_t dm_expect_raw(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size)
 {
 	uint32_t code;
 	uint32_t vendor_id;
@@ -1835,7 +1808,7 @@ uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, v
 	assert(data != NULL);
 	assert(size != NULL);
 
-	if (dm_expect_any(grp, &code, &vendor_id, data, size) != RC_OK
+	if (dm_expect_avp(grp, &code, &vendor_id, data, size) != RC_OK
 	    || code != exp_code
 	    || vendor_id != exp_vendor_id)
 		return RC_ERR_MISC;
@@ -1843,7 +1816,31 @@ uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, v
 	return RC_OK;
 }
 
-uint32_t dm_expect_string_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value)
+uint32_t dm_expect_value(DM2_AVPGRP *grp, struct dm2_avp *avp)
+{
+	assert(grp != NULL);
+	assert(avp != NULL);
+
+	return dm_expect_avp(grp, &avp->code, &avp->vendor_id, &avp->data, &avp->size);
+}
+
+uint32_t dm_expect_bin(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, struct dm_bin *bin)
+{
+	uint32_t code;
+	uint32_t vendor_id;
+
+	assert(grp != NULL);
+	assert(bin != NULL);
+
+	if (dm_expect_avp(grp, &code, &vendor_id, &bin->data, &bin->size) != RC_OK
+	    || code != exp_code
+	    || vendor_id != exp_vendor_id)
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t dm_expect_string_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value)
 {
 	size_t size;
 	void *data;
@@ -1855,13 +1852,47 @@ uint32_t dm_expect_string_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vend
 	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size)) != RC_OK)
 		return r;
 
-	if (!(*value = talloc_strndup(grp, data, size)))
+	if (!(*value = talloc_strndup(grp->ctx, data, size)))
 		return RC_ERR_ALLOC;
 
 	return RC_OK;
 }
 
-uint32_t dm_expect_uint32_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value)
+uint32_t dm_expect_uint8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint8_t *value)
+{
+	uint32_t r;
+	size_t size;
+	void *data;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size) != RC_OK)
+	    || size != sizeof(uint8_t))
+		return RC_ERR_MISC;
+
+	*value = dm_get_uint8_avp(data);
+	return RC_OK;
+}
+
+uint32_t dm_expect_uint16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint16_t *value)
+{
+	uint32_t r;
+	size_t size;
+	void *data;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size) != RC_OK)
+	    || size != sizeof(uint16_t))
+		return RC_ERR_MISC;
+
+	*value = dm_get_uint16_avp(data);
+	return RC_OK;
+}
+
+uint32_t dm_expect_uint32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value)
 {
 	uint32_t r;
 	size_t size;
@@ -1877,3 +1908,4 @@ uint32_t dm_expect_uint32_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vend
 	*value = dm_get_uint32_avp(data);
 	return RC_OK;
 }
+

@@ -42,6 +42,14 @@ typedef struct obj_avpinfo		OBJ_AVPINFO;
 typedef struct answerInfo		ANSWERINFO;
 typedef struct notify_info		NOTIFY_INFO;
 
+typedef struct dmc_request {
+	void *ctx;
+	uint32_t hop2hop;
+	uint32_t end2end;
+	uint32_t code;
+	uint32_t sessionid;
+} DMC_REQUEST;
+
 typedef struct obj_group {
 	uint32_t	type;
 	DM_REQUEST	*req;
@@ -59,26 +67,6 @@ struct obj_avpinfo {
 	void		*data;
 	size_t		len;
 };
-
-typedef struct get_grp_container {
-	uint32_t	type;
-	void		*ctx;
-	DM_AVPGRP	*grp;
-} GET_GRP_CONTAINER;
-
-typedef struct set_grp_container {
-	OBJ_AVPINFO	*header;
-	SESSION		*session;
-} SET_GRP_CONTAINER;
-
-typedef struct list_ctx {
-	void		*ctx;
-	DM_AVPGRP	*grp;
-
-	int		level;
-	int		max_level;
-	int		firstone;
-} LIST_CTX;
 
 		/* socket specific context */
 
@@ -219,11 +207,27 @@ struct _pcap_ctx {
 
 		/* headers */
 
+extern uint32_t cfg_sessionid;
+
 uint8_t init_libdmconfig_server(struct event_base *base);
 
 void processRequestedSessions(void);
 
+SESSION *lookup_session(uint32_t sessionid);
+void unsubscribeNotify(SESSION *le);
+
 int reset_timeout_obj(uint32_t sessionid);
 void dm_event_broadcast(const dm_selector sel, enum dm_action_type type);
+int register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
+uint32_t process_request_session(struct event_base *base,
+				 SOCKCONTEXT *sockCtx,
+				 uint32_t dm_code, uint32_t hopid,
+				 uint32_t sessionid,
+				 DM2_AVPGRP *grp);
+uint32_t process_end_session(uint32_t sessionid);
+
+/* API v2 */
+
+uint32_t dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value) __attribute__((nonnull (1,4)));
 
 #endif

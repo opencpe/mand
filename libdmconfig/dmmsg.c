@@ -314,3 +314,231 @@ dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t 
 		return 0;
 }
 
+/* API v2 */
+
+/* decoder functions */
+
+#if 0
+/* the future to come, but one step at a time */
+/**
+ * initalize a new pkacet with data received from the network
+ * minimum lenght of received data if 4 bytes
+ *
+ * @param ctx     talloc memory context for request
+ * @param req     pointer to pointer to new request structure
+ * @param data    pointer to the data read from the network
+ * @param len     length of data
+ *
+ * @result        amount of data read form buffer
+ */
+int
+dm_init_packet(void *ctx, DM_PACKET **packet, DM2_AVPGRP *grp, void *data, size_t len)
+{
+	struct dm_packet *hdr = (struct dm_packet *)data;
+	size_t pkt_len;
+	unsigned char *pkt;
+
+	assert(packet != NULL);
+	if (len < sizeof(struct dm_packet))
+		return 0;
+
+	pkt_len = uint24to32(hdr->length);
+	if (len < pkt_len)
+		return 0;
+
+	if (len > pkt_len)
+		len = pkt_len;
+	if (!(*packet = pkt = talloc_zero_size(ctx, len)))
+		return 0;
+
+	memcpy(pkt, data, len);
+
+	dm_init_avpgrp(ctx, pkt + sizeof(struct dm_packet), pkt_len - sizeof(struct dm_packet), grp);
+	return len;
+}
+#else
+
+void
+dm_init_packet(DM_PACKET *packet, DM2_AVPGRP *grp)
+{
+	dm_init_avpgrp(packet, packet + 1, dm_packet_length(packet) - sizeof(struct dm_packet), grp);
+}
+
+#endif
+
+void
+dm_init_avpgrp(void *ctx, void *data, size_t size, DM2_AVPGRP *grp)
+{
+	assert(data != NULL);
+	assert(grp != NULL);
+
+	grp->ctx = ctx;
+	grp->data = data;
+	grp->size = size;
+	grp->pos = 0;
+}
+
+uint32_t
+dm_expect_avp(DM2_AVPGRP *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *len)
+{
+	struct dm_avp *avp;
+	size_t avp_len, padded_avp_len;
+
+	assert(grp != NULL);
+	assert(code != NULL);
+	assert(vendor_id != NULL);
+	assert(data != NULL);
+	assert(len != NULL);
+
+	if (grp->pos >= grp->size)
+		return RC_ERR_AVP_END;
+
+	avp = (struct dm_avp *)(grp->data + grp->pos);
+	avp_len = uint24to32(avp->length);
+	padded_avp_len = PAD32(avp_len);
+
+	if (avp_len < 8
+	    || ((avp->flags & AVP_FLAG_VENDOR) != 0 && avp_len < 12)
+	    || grp->pos + padded_avp_len > grp->size)
+		return RC_ERR_INVALID_AVP_LENGTH;
+
+	grp->pos += padded_avp_len;
+
+	*code = ntohl(avp->code);
+	*vendor_id = 0;
+	*len = avp_len - 8;
+	*data = ((uint8_t*)avp) + 8;
+
+	if (avp->flags & AVP_FLAG_VENDOR) {
+		*vendor_id = ntohl(avp->vendor_id);
+		*len -= 4;
+		*data += 4;
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+dm_expect_grp_end(DM2_AVPGRP *grp)
+{
+	if (grp->pos == grp->size)
+		return RC_OK;
+
+	return RC_ERR_AVP_MISFORMED;
+}
+
+/* encoder functions */
+
+uint32_t
+dm_new_packet(void *ctx, DM2_REQUEST *req, uint32_t code, uint32_t appid, uint32_t hopid, uint32_t endid)
+{
+	DM_PACKET *pkt;
+
+	assert(req != NULL);
+
+	memset(req, 0, sizeof(DM2_REQUEST));
+
+	if (!(req->packet = pkt = talloc_zero_size(ctx, DM_BLOCK_ALLOC)))
+		return RC_ERR_ALLOC;
+
+	pkt->version = 1;
+	uint32to24(pkt->code, code);
+	uint32to24(pkt->length, sizeof(struct dm_packet));
+	pkt->app_id = htonl(appid);
+	pkt->hop2hop_id = htonl(hopid);
+	pkt->end2end_id = htonl(endid);
+
+	req->grp[0].start = req->grp[0].pos = sizeof(struct dm_packet);
+
+	return RC_OK;
+}
+
+uint32_t
+dm_finalize_packet(DM2_REQUEST *req)
+{
+	if (req->level != 0)
+		return RC_ERR_AVP_MISFORMED;
+
+	uint32to24(req->packet->length, req->grp[0].pos);
+
+	return RC_OK;
+}
+
+uint32_t
+dm_new_group(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id)
+{
+	req->grp[req->level + 1].start = req->grp[req->level + 1].pos = req->grp[req->level].pos;
+	req->level++;
+
+	return dm_put_avp(req, code, vendor_id, NULL, 0);
+}
+
+uint32_t
+dm_finalize_group(DM2_REQUEST *req)
+{
+	struct dm_avp *avp;
+	size_t avp_len;
+
+	if (req->level == 0)
+		return RC_ERR_AVP_MISFORMED;
+
+	avp = (struct dm_avp *)(req->packet + req->grp[req->level].start);
+	avp_len = req->grp[req->level].pos - req->grp[req->level].start;
+	uint32to24(avp->length, avp_len);
+
+	req->level--;
+
+	req->grp[req->level].pos += PAD32(avp_len);
+	return RC_OK;
+}
+
+static uint32_t
+dm_packet_ensure_space(DM2_REQUEST *req, size_t len)
+{
+	size_t have = ((req->grp[req->level].pos + DM_BLOCK_ALLOC - 1) % DM_BLOCK_ALLOC);
+	size_t want = ((req->grp[req->level].pos + DM_BLOCK_ALLOC - 1 + len) % DM_BLOCK_ALLOC);
+
+	fprintf(stderr, "Want: %zd, Have: %zd\n", req->grp[req->level].pos, req->grp[req->level].pos + len);
+	fprintf(stderr, "Want: %zd, Have: %zd\n", have, want);
+
+	if (have == want)
+		return RC_OK;
+
+	if (!(req->packet = talloc_realloc_size(NULL, req->packet, want * DM_BLOCK_ALLOC)))
+		return RC_ERR_ALLOC;
+
+	return RC_OK;
+}
+
+uint32_t
+dm_put_avp(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, void *data, size_t len)
+{
+	uint32_t rc;
+	struct dm_avp *avp;
+	size_t avp_len = len + 8;
+	void *d;
+
+	if (len != 0 && !data)
+		return RC_ERR_AVP_MISFORMED;
+
+	if ((rc = dm_packet_ensure_space(req, len + 12)) != RC_OK)
+		return rc;
+
+	d = avp = (struct dm_avp *)(req->packet + req->grp[req->level].pos);
+	d += 8;
+
+	avp->code = htonl(code);
+	if (vendor_id != 0) {
+		avp->flags |= AVP_FLAG_VENDOR;
+		avp->vendor_id = htonl(vendor_id);
+		avp_len += 2;
+		d += 2;
+	}
+
+	if (data)
+		memcpy(d, data, len);
+	uint32to24(avp->length, avp_len);
+
+	req->grp[req->level].pos += PAD32(avp_len);
+	return RC_OK;
+}

@@ -28,6 +28,8 @@ libdmstore_la_LIBADD = $(LIBM) $(DMLIBS) $(top_builddir)/utils/libdmutils.la
 
 libdm_la_SOURCES = \
 		dm_dmconfig.c \
+		dm_dmconfig_rpc_impl.c \
+		dm_dmconfig_rpc_skel.c \
 		process.c \
 		inet_helper.c \
 		dm_luaif.c

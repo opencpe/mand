@@ -79,6 +79,7 @@ struct dm_packet {
 	uint32_t	app_id;
 	uint32_t	hop2hop_id;
 	uint32_t	end2end_id;
+	unsigned char   avps[];
 } __attribute__ ((packed));
 
 struct dm_request {
@@ -466,5 +467,40 @@ dm_get_timeval_avp(const void *src) {
 
 	return ret;
 }
+
+/* API v2 */
+
+typedef struct dm2_avpgrp {
+	void *ctx;
+	void *data;
+	size_t size;
+	size_t pos;
+} DM2_AVPGRP;
+
+typedef struct dm2_request {
+	struct {
+		size_t start;
+		size_t pos;
+	} grp[16];
+	int level;
+
+	DM_PACKET *packet;
+} DM2_REQUEST;
+
+/*
+int dm_init_packet(void *ctx, DM_PACKET **packet, DM2_AVPGRP *grp, void *data, size_t len) __attribute__((nonnull (1,2,3,4)));
+*/
+
+void dm_init_packet(DM_PACKET *packet, DM2_AVPGRP *grp) __attribute__((nonnull (1,2)));
+void dm_init_avpgrp(void *ctx, void *data, size_t size, DM2_AVPGRP *grp) __attribute__((nonnull (4)));
+uint32_t dm_expect_avp(DM2_AVPGRP *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *len) __attribute__((nonnull (1,2,3,4,5)));
+uint32_t dm_expect_grp_end(DM2_AVPGRP *grp) __attribute__((nonnull (1)));
+
+uint32_t dm_new_packet(void *ctx, DM2_REQUEST *req, uint32_t code, uint32_t appid, uint32_t hopid, uint32_t endid) __attribute__((nonnull (2)));
+uint32_t dm_finalize_packet(DM2_REQUEST *req) __attribute__((nonnull (1)));
+uint32_t dm_new_group(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id) __attribute__((nonnull (1)));
+uint32_t dm_finalize_group(DM2_REQUEST *req) __attribute__((nonnull (1)));
+uint32_t dm_put_avp(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, void *data, size_t len) __attribute__((nonnull (1)));
+
 
 #endif

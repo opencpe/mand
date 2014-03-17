@@ -1340,7 +1340,7 @@ int dm_walk_by_selector_cb(const dm_selector sel, int level, void *userData, wal
 	return ret;
 }
 
-const struct dm_table *dm_get_object_table_by_selector(dm_selector sel)
+const struct dm_table *dm_get_object_table_by_selector(const dm_selector sel)
 {
 	struct dm_element_ref ref;
 

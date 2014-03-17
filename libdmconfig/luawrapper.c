@@ -67,11 +67,11 @@ static uint32_t Lua_decode_unknown(lua_State *L, uint32_t type,
 static uint32_t Lua_decode_get(lua_State *L, DM_AVPGRP *answer);
 static uint32_t Lua_decode_list(lua_State *L, DM_AVPGRP *grp, int *nodes);
 static uint32_t Lua_decode_retrieve_enums(lua_State *L, DM_AVPGRP *answer);
-static uint32_t Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer);
+static uint32_t Lua_decode_notifications(lua_State *L, DM2_AVPGRP *answer);
 
 static void generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx,
 				 void *user_data, uint32_t answer_rc,
-				 DM_AVPGRP *answer_grp);
+				 DM2_AVPGRP *answer_grp);
 static void generic_Lua_connect_callback(DMCONFIG_EVENT event,
 					 DMCONTEXT *dmCtx __attribute__((unused)),
 					 void *userdata);
@@ -391,10 +391,10 @@ Lua_decode_retrieve_enums(lua_State *L, DM_AVPGRP *answer)
 }
 
 static uint32_t
-Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
+Lua_decode_notifications(lua_State *L, DM2_AVPGRP *answer)
 {
 	uint32_t	type;
-	DM_AVPGRP	*event;
+	DM2_AVPGRP	event;
 
 	uint32_t	rc;
 
@@ -413,11 +413,10 @@ Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 		switch (type) {
 		case NOTIFY_PARAMETER_CHANGED: {
 			uint32_t	type, vendor_id;
-			uint8_t		flags;
 			void		*data;
 			size_t		len;
 
-			if ((rc = dm_decode_parameter_changed(event, &path, &type)))
+			if ((rc = dm_decode_parameter_changed(&event, &path, &type)))
 				return rc;
 
 			lua_createtable(L, 0, 3);
@@ -428,16 +427,16 @@ Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 			lua_setfield(L, -2, "path");
 			free(path);
 
-			if (dm_avpgrp_get_avp(event, &type, &flags,
-						&vendor_id, &data, &len))
-				return RC_ERR_MISC;
+			if ((rc = dm_expect_avp(&event, &type, &vendor_id, &data, &len)) != RC_OK
+			    || (rc = dm_expect_end(&event)) != RC_OK)
+				return rc;
 			if ((rc = Lua_decode_unknown(L, type, data, len)))
 				return rc;
 			lua_setfield(L, -2, "value");
 			break;
 		}
 		case NOTIFY_INSTANCE_CREATED:
-			if ((rc = dm_decode_instance_created(event, &path)))
+			if ((rc = dm_decode_instance_created(&event, &path)))
 				return rc;
 
 			lua_pushstring(L, path);
@@ -445,7 +444,7 @@ Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 			break;
 
 		case NOTIFY_INSTANCE_DELETED:
-			if ((rc = dm_decode_instance_deleted(event, &path)))
+			if ((rc = dm_decode_instance_deleted(&event, &path)))
 				return rc;
 
 			lua_pushstring(L, path);
@@ -457,9 +456,7 @@ Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 		}
 
 		lua_setfield(L, -2, "info");
-
 		lua_settable(L, -3);
-		dm_grp_free(event);
 	}
 
 	return rc;
@@ -467,7 +464,7 @@ Lua_decode_notifications(lua_State *L, DM_AVPGRP *answer)
 
 static void
 generic_Lua_callback(DMCONFIG_EVENT event, DMCONTEXT *dmCtx, void *user_data,
-		     uint32_t answer_rc, DM_AVPGRP *answer_grp)
+		     uint32_t answer_rc, DM2_AVPGRP *answer_grp)
 {
 	LUA_CALLBACK	*cb = user_data;
 	lua_State	*L = cb->L;

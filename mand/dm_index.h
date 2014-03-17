@@ -38,7 +38,7 @@ struct dm_instance_node *dm_alloc_instance_node(const struct dm_table *, const d
 void dm_free_instance_node(const struct dm_table *, struct dm_instance_node *);
 
 static inline struct dm_instance_node *
-find_instance_by_selector(dm_selector sel, dm_id id, int type, DM_VALUE *val)
+find_instance_by_selector(const dm_selector sel, dm_id id, int type, DM_VALUE *val)
 {
 	struct dm_instance *inst = dm_get_instance_ref_by_selector(sel);
 

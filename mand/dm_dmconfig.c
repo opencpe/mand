@@ -6,6 +6,8 @@
 #include "config.h"
 #endif
 
+#include <assert.h>
+
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -67,6 +69,8 @@
 #include "dm_validate.h"
 #include "utils/binary.h"
 
+#include "dm_dmconfig_rpc_skel.h"
+
 #define SDEBUG
 #include "debug.h"
 
@@ -74,10 +78,7 @@
 #define dm_ENTER(sid) dm_debug(sid, "%s", "enter")
 #define dm_EXIT(sid) dm_debug(sid, "%s, %d", "exit", __LINE__)
 
-#define UINT16_DIGITS	6	/* log(2^16-1)+1 */
-
 static int init_libdmconfig_socket(int type);
-static SESSION *lookup_session(uint32_t sessionid);
 
 static void session_times_out(int fd __attribute__((unused)),
 			      short type __attribute__((unused)), void *param);
@@ -90,67 +91,32 @@ static void async_free_sockCtx(EV_P __attribute__((unused)),
 static void disableSockCtx(SOCKCONTEXT *sockCtx);
 static inline void threadDerefSockCtx(SOCKCONTEXT *sockCtx);
 
-static inline void unsubscribeNotify(SESSION *le);
-
 static void acceptEvent(int sfd __attribute__((unused)),
 			short event __attribute__((unused)),
 			void *arg __attribute__((unused)));
 static void readEvent(int fd, short event, void *arg);
-static inline int processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status);
+static inline int process_data(SOCKCONTEXT *sockCtx, COMMSTATUS status);
+static inline int process_packet(SOCKCONTEXT *sockCtx, OBJ_GROUP *obj);
 static void writeEvent(int fd, short event, void *arg);
 
 static int register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
 			   uint32_t rc, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
-static int register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
 static int register_packet(DM_REQUEST *packet, SOCKCONTEXT *sockCtx);
 
 static int reset_writeEvent(SOCKCONTEXT *sockCtx);
 static void async_reset_writeEvent(EV_P __attribute__((unused)),
 				   ev_async *w, int revents __attribute__((unused)));
 
-static DM_AVPGRP *build_notify_events(struct notify_queue *queue, int level);
-static void dmconfig_notify_cb(void *data, struct notify_queue *queue);
-
-static DM_RESULT dmconfig_avp2value(OBJ_AVPINFO *header,
-				    const struct dm_element *elem,
-				    DM_VALUE *value);
-static DM_RESULT dmconfig_value2avp(GET_GRP_CONTAINER *container,
-				    const struct dm_element *elem,
-				    const DM_VALUE val);
-
-static DM_RESULT dmconfig_set_cb(void *data, const dm_selector sel,
-				 const struct dm_element *elem,
-				 struct dm_value_table *base,
-				 const void *value __attribute__((unused)),
-				 DM_VALUE *st);
-static DM_RESULT dmconfig_get_cb(void *data,
-				 const dm_selector sb __attribute__((unused)),
-				 const struct dm_element *elem,
-				 const DM_VALUE val);
-static int dmconfig_list_cb(void *data, CB_type type, dm_id id,
-			    const struct dm_element *elem,
-			    const DM_VALUE value __attribute__((unused)));
-static DM_RESULT dmconfig_retrieve_enums_cb(void *data,
-					    const dm_selector sb __attribute__((unused)),
-					    const struct dm_element *elem,
-					    const DM_VALUE val __attribute__((unused)));
-
-static inline uint32_t process_request_session(struct event_base *base,
-					       SOCKCONTEXT *sockCtx,
-					       uint32_t dm_code, uint32_t hopid,
-					       uint32_t sessionid,
-					       DM_AVPGRP *grp);
 static uint32_t process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags,
 				      uint32_t hopid, struct timeval timeout);
 static uint32_t process_switch_session(SOCKCONTEXT *sockCtx, uint32_t flags,
 				       uint32_t hopid, SESSION *le, struct timeval timeout);
-static int process_end_session(uint32_t sessionid);
 
 		/* session handling: session list and misc. variables  */
 
 			/* libdmconfig clients get sessionIds in the range of 1 to MAX_INT */
 static uint32_t			session_counter;
-static uint32_t			cfg_sessionid = 0;	/* 0 means there's no (libdmconfig) configure session */
+uint32_t			cfg_sessionid = 0;	/* 0 means there's no (libdmconfig) configure session */
 
 static int			accept_socket;
 static struct event_base	*evbase;
@@ -171,7 +137,7 @@ static pthread_mutex_t		dmconfig_mutex = PTHREAD_MUTEX_INITIALIZER; /* generic d
 
 static pthread_t		main_thread;
 
-static SESSION *
+SESSION *
 lookup_session(uint32_t sessionid)
 {
 	SESSION *ret;
@@ -475,7 +441,7 @@ threadDerefSockCtx(SOCKCONTEXT *sockCtx)
 		pthread_mutex_unlock(&sockCtx->lock);
 }
 
-static inline void
+void
 unsubscribeNotify(SESSION *le)
 {
 	free_slot(le->notify.slot);
@@ -503,7 +469,7 @@ readEvent(int fd, short event, void *arg)
 		pthread_mutex_unlock(&sockCtx->lock);
 
 		debug(": alreadyRead: %d, status: %d", alreadyRead, status);
-	} while (processRequest(sockCtx, status));
+	} while (process_data(sockCtx, status));
 
 	EXIT();
 }
@@ -514,7 +480,7 @@ readEvent(int fd, short event, void *arg)
  */
 
 static inline int
-processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
+process_data(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 {
 	COMMCONTEXT		*ctx;
 
@@ -523,15 +489,6 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 	char			*buf = NULL;
 
 	OBJ_GROUP		obj;
-
-	uint32_t		hop2hop;
-	uint32_t		end2end;
-
-	OBJ_AVPINFO		header;
-	uint32_t		dm_code;
-
-	uint32_t		code = RC_OK;
-
 	struct timeval		timeout;
 
 	memset(&obj, 0, sizeof(obj));
@@ -569,1009 +526,134 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 		goto server_err;
 	}
 
-		/* request read successfully */
+	switch (process_packet(sockCtx, &obj)) {
 
-	hop2hop = dm_hop2hop_id(&obj.req->packet);
-	end2end = dm_end2end_id(&obj.req->packet);
+	case RC_OK:
+		pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking unnecessary here */
+						/* currently, no read timeouts */
+						/* unless a request was partially read */
+		if (event_add(&ctx->event, NULL)) {	/* reset readEvent's timeout */
+			pthread_mutex_unlock(&sockCtx->lock);
+			goto server_err;
+		}
+		pthread_mutex_unlock(&sockCtx->lock);
+
+		EXIT();
+		return 1;
+
+	case RC_ERR_ALLOC:
+
+server_err:
+		/* critical error: deallocate everything properly */
+
+		L_FOREACH(SESSION, cur, session_head) {
+			if (cur->notify.slot)
+				unsubscribeNotify(cur);
+			event_del(&cur->timeout);
+		}
+		talloc_free(session_head);
+		session_head = NULL;
+
+		L_FOREACH(REQUESTED_SESSION, cur, reqsession_head)
+			event_del(&cur->timeout);
+		talloc_free(reqsession_head);
+		reqsession_head = NULL;
+
+		L_FOREACH(SOCKCONTEXT, cur, socket_head)
+			disableSockCtx(cur);
+		/* at least try to free the socket_head if no threads depend on any sockCtx */
+		if (!socket_head->next) {
+			talloc_free(socket_head);
+			socket_head = NULL;
+		}
+
+		free(dum);
+		free(path);
+		free(buf);
+
+		event_del(&clientConnection);
+		shutdown(accept_socket, SHUT_RDWR);
+		close(accept_socket);
+
+		/* restart server */
+
+		init_libdmconfig_server(evbase);
+
+		EXIT();
+		return 0;
+
+
+	default:
+reaccept:
+		/* protocol/communication errors (including terminated peer connections) */
+		/* there's no need to reset everything */
+
+		disableSockCtx(sockCtx);
+
+		EXIT();
+		return 0;
+	}
+}
+
+static inline int
+process_packet(SOCKCONTEXT *sockCtx, OBJ_GROUP *obj)
+{
+	DMC_REQUEST req;
+	DM2_AVPGRP grp;
+	DM_OBJ *answer = NULL;
+	int r;
+	uint32_t rc = RC_OK;
+
+	/* request read successfully */
+
+	dm_init_packet(&obj->req->packet, &grp);
+
+	req.hop2hop = dm_hop2hop_id(&obj->req->packet);
+	req.end2end = dm_end2end_id(&obj->req->packet);
+	req.code = dm_packet_code(&obj->req->packet);
 
 #ifdef LIBDMCONFIG_DEBUG
 	fprintf(stderr, "Received %s:\n",
-		dm_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST ?
+		dm_packet_flags(obj->req->packet) & CMD_FLAG_REQUEST ?
 							"request" : "answer");
-	dump_dm_packet(obj.req);
-	dm_request_reset_avp(obj.req);
+	dump_dm_packet(obj->req);
+	dm_request_reset_avp(obj->req);
 #endif
 
-				/* don't accept client answers currently */
-	if (!(dm_packet_flags(&obj.req->packet) & CMD_FLAG_REQUEST)) {
+	/* don't accept client answers currently */
+	if (!(dm_packet_flags(&obj->req->packet) & CMD_FLAG_REQUEST)) {
 		debug("(): error, not a request");
-		goto reaccept;
+		return RC_ERR_CONNECTION;
 	}
 
-	if (dm_request_get_avp(obj.req, &header.code, &header.flags,
-				 &header.vendor_id, &header.data, &header.len)) {
-		debug("(): error, could not decode avp's");
-		goto server_err;
-	}
-	if (header.code != AVP_SESSIONID || header.len != sizeof(uint32_t)) {
-		debug("(): error, no or invalid session id");
-		goto reaccept;
-	}
+	if ((r = dm_expect_uint32_type(&grp, AVP_SESSIONID, VP_TRAVELPING, &req.sessionid)) != RC_OK)
+		return r;
 
-	obj.sessionid = dm_get_uint32_avp(header.data);
-	dm_debug(obj.sessionid, "session");
+	dm_debug(req.sessionid, "session");
 
-	if (!dm_request_get_avp(obj.req, &header.code, &header.flags,
-				  &header.vendor_id, &header.data,
-				  &header.len)) {
-		if (header.code != AVP_CONTAINER) {
-			debug("(): error, avp is not a container");
-			goto reaccept;
-		}
-		if (!(obj.reqgrp = dm_decode_avpgrp(obj.req, header.data,
-						      header.len))) {
-			debug("(): error, could no decode avp container");
-			goto server_err;
-		}
-	}
-
-	dm_code = dm_packet_code(&obj.req->packet);
-
-	if (dm_code != CMD_GET_PASSIVE_NOTIFICATIONS && obj.sessionid &&	/* reset_timeout_obj validates the sessionId, too */
-	    reset_timeout_obj(obj.sessionid)) {					/* except for POLLs because they don't reset the timeout */
-		code = RC_ERR_INVALID_SESSIONID;
+	/* TODO: cleanup, WTF is used for....*/
+	if (req.code != CMD_GET_PASSIVE_NOTIFICATIONS && req.sessionid &&	/* reset_timeout_obj validates the sessionId, too */
+	    reset_timeout_obj(req.sessionid)) {					/* except for POLLs because they don't reset the timeout */
+		rc = RC_ERR_INVALID_SESSIONID;
 		debug("(): error, invalid session id");
-	} else {	/* must... not... use... a... GO... TO... */
-		switch (dm_code) {
-		case CMD_STARTSESSION:
-		case CMD_SWITCHSESSION: {
-			uint32_t rc;
-
-			if (!(rc = process_request_session(evbase, sockCtx, dm_code, hop2hop, obj.sessionid, obj.reqgrp)))
-				goto increase_timeout;
-			if (rc == RC_ERR_ALLOC)
-				goto server_err;
-			goto reaccept;
-		}
-
-		case CMD_ENDSESSION:
-			dm_debug(obj.sessionid, "CMD: %s... ", "END SESSION");
-
-			if (process_end_session(obj.sessionid))
-				code = RC_ERR_INVALID_SESSIONID;
-
-			break;
-
-		case CMD_SESSIONINFO: {
-			SESSION *le;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "GET SESSION INFO");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)) ||
-			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags))
-				goto server_err;
-
-			break;
-		}
-
-		case CMD_CFGSESSIONINFO: {
-			SESSION *le;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "GET CONFIGURE SESSION INFO");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!(le = lookup_session(cfg_sessionid))) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)) ||
-			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_SESSIONID, 0, VP_TRAVELPING, cfg_sessionid) ||
-			    dm_avpgrp_add_uint32(obj.req, &obj.answer_grp, AVP_UINT32, 0, VP_TRAVELPING, le->flags) ||
-			    dm_avpgrp_add_timeval(obj.req, &obj.answer_grp, AVP_TIMEVAL, 0, VP_TRAVELPING, le->timeout_session))
-				goto server_err;
-
-			break;
-		}
-
-		case CMD_SUBSCRIBE_NOTIFY: {
-			SESSION		*le;
-			int		slot;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "SUBSCRIBE NOTIFY");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (le->notify.slot || (slot = alloc_slot(dmconfig_notify_cb, le)) == -1) {
-				code = RC_ERR_CANNOT_SUBSCRIBE_NOTIFY;
-				break;
-			}
-
-			le->notify.slot = slot;
-			le->notify.clientSockCtx = sockCtx;
-
-			pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking unnecessary here */
-			sockCtx->notifySession = le;
-			pthread_mutex_unlock(&sockCtx->lock);
-
-			break;
-		}
-
-		case CMD_UNSUBSCRIBE_NOTIFY: {
-			SESSION	*le;
-
-			dm_debug(obj.sessionid, "CMD: UNSUBSCRIBE NOTIFY... ");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!le->notify.slot) {
-				code = RC_ERR_REQUIRES_NOTIFY;
-				break;
-			}
-
-			unsubscribeNotify(le);
-
-			break;
-		}
-
-		case CMD_PARAM_NOTIFY: {
-			uint32_t	notify;
-			SESSION		*le;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "PARAM NOTIFY");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!le->notify.slot) {
-				code = RC_ERR_REQUIRES_NOTIFY;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			if (header.code != AVP_BOOL || header.len != sizeof(uint8_t))
-				goto reaccept;
-
-			notify = dm_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			if (header.code != AVP_CONTAINER || !header.len)
-				goto reaccept;
-
-			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
-				goto server_err;
-
-			while (!dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-						    &header.vendor_id, &header.data, &header.len)) {
-				dm_selector sb, *sel;
-
-				if (header.code != AVP_PATH)
-					goto reaccept;
-				if (!header.len) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				if (!(path = strndup(header.data, header.len)))
-					goto server_err;
-
-				dm_debug(obj.sessionid, "CMD: %s \"%s\" (%s)", "PARAM NOTIFY",
-					 path, notify == ACTIVE_NOTIFY ? "active" : "passive");
-
-				sel = dm_name2sel(path, &sb);
-				free(path);
-				path = NULL;
-				if (!sel) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				if (dm_set_notify_by_selector(sb, le->notify.slot, notify) != DM_OK) {
-					code = RC_ERR_MISC;
-					break;
-				}
-			}
-
-			break;
-		}
-
-		case CMD_RECURSIVE_PARAM_NOTIFY: {
-			uint32_t	notify;
-			SESSION		*le;
-			dm_selector	sb, *sel;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "RECURSIVE PARAM NOTIFY");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!le->notify.slot) {
-				code = RC_ERR_REQUIRES_NOTIFY;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			if (header.code != AVP_BOOL || header.len != sizeof(uint8_t))
-				goto reaccept;
-
-			notify = dm_get_uint8_avp(header.data) ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			if (header.code != AVP_CONTAINER || !header.len)
-				goto reaccept;
-
-			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
-				goto server_err;
-
-			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			if (header.code != AVP_PATH)
-				goto reaccept;
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"... ", "RECURSIVE PARAM NOTIFY", path);
-
-			sel = dm_name2sel(*path ? path : "system", &sb);
-			free(path);
-			path = NULL;
-			if (!sel) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (dm_set_notify_by_selector_recursive(sb, le->notify.slot, notify) != DM_OK)
-				code = RC_ERR_MISC;
-
-			break;
-		}
-
-		case CMD_GET_PASSIVE_NOTIFICATIONS: {
-			SESSION			*le;
-			struct notify_queue	*queue;
-
-			dm_debug(obj.sessionid, "CMD: %s... ", "GET PASSIVE NOTIFICATIONS");
-
-			if (!(le = lookup_session(obj.sessionid))) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (!le->notify.slot) {
-				code = RC_ERR_REQUIRES_NOTIFY;
-				break;
-			}
-
-			queue = get_notify_queue(le->notify.slot);
-			obj.answer_grp = build_notify_events(queue, PASSIVE_NOTIFY);
-			if (!obj.answer_grp) {
-				/*
-				 * NOTE: we cannot discern real errors from empty queues
-				 * simply assume it was an empty queue (empty answer grp expected)
-				 */
-				if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
-					goto server_err;
-				break;
-			}
-			if (!talloc_reference(obj.req, obj.answer_grp))
-				goto server_err;
-
-			break;
-		}
-
-		case CMD_DB_ADDINSTANCE: {
-			dm_selector	sb, *sel;
-			dm_id	id;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB ADD INSTANCE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB ADD INSTANCE", path);
-
-			sel = dm_name2sel(path, &sb);
-			free(path);
-			path = NULL;
-			if (!sel) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_UINT16 || header.len != sizeof(uint16_t))
-				goto reaccept;
-
-			id = dm_get_uint16_avp(header.data);
-
-			dm_debug(obj.sessionid, "CMD: %s id = 0x%hX", "DB ADD INSTANCE", id);
-
-			if (!dm_add_instance_by_selector(sb, &id)) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
-				goto server_err;
-			if (dm_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
-						   VP_TRAVELPING, id))
-				goto server_err;
-
-			break;
-		}
-
-		case CMD_DB_DELINSTANCE: {	/* improvised: check whether this is a table */
-			dm_selector sb, *sel;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB DELETE INSTANCE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB DELETE INSTANCE", path);
-
-			sel = dm_name2sel(path, &sb);
-			free(path);
-			path = NULL;
-			if (!sel) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!dm_del_table_by_selector(sb)) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			break;
-		}
-
-		case CMD_DB_SET: {	/* iterate grouped AVPs & display changes */
-			SET_GRP_CONTAINER container = {
-				.header = &header,
-				.session = lookup_session(obj.sessionid)
-			};
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB SET");
-
-			if (!container.session) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			while (!dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						    &header.vendor_id, &header.data, &header.len)) {
-				dm_selector	sb, *sel;
-				DM_RESULT	rc;
-
-				if (header.code != AVP_CONTAINER)
-					goto reaccept;
-
-				if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)) ||
-				    dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-							&header.vendor_id, &header.data, &header.len))
-					goto server_err;
-				if (header.code != AVP_PATH)
-					goto reaccept;
-				if (!header.len) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				if (!(path = strndup(header.data, header.len)))
-					goto server_err;
-
-				dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB SET", path);
-
-				sel = dm_name2sel(path, &sb);
-				free(path);
-				path = NULL;
-				if (!sel) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-							&header.vendor_id, &header.data, &header.len))
-					goto server_err;
-
-				if ((rc = dm_get_value_ref_by_selector_cb(sb, &container /* ...tweak... */, &container, dmconfig_set_cb)) == DM_OOM)
-					goto server_err;
-				if (rc != DM_OK) {
-					code = RC_ERR_MISC;
-					break;
-				}
-				talloc_free(obj.avpgrp);
-			}
-
-			break;
-		}
-		case CMD_DB_GET: {	/* iterate path AVPs & send answers */
-			GET_BY_SELECTOR_CB get_value = cfg_sessionid && obj.sessionid == cfg_sessionid ?
-							dm_cache_get_value_by_selector_cb : dm_get_value_by_selector_cb;
-			GET_GRP_CONTAINER container;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB GET");
-
-			container.ctx = obj.req;
-			if (!(container.grp = new_dm_avpgrp(container.ctx)))
-				goto server_err;
-
-			while (!dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						    &header.vendor_id, &header.data, &header.len)) {
-				dm_selector	sb, *sel;
-				DM_RESULT	rc;
-
-				if (header.code != AVP_TYPE_PATH  && header.len <= sizeof(uint32_t))
-					goto reaccept;
-
-				container.type = dm_get_uint32_avp(header.data);
-
-				if (!(path = strndup((char*)header.data + sizeof(uint32_t), header.len - sizeof(uint32_t))))
-					goto server_err;
-
-				dm_debug(obj.sessionid, "CMD: %s \"%s\", type: %d", "DB GET", path, container.type);
-
-				sel = dm_name2sel(path, &sb);
-				free(path);
-				path = NULL;
-				if (!sel) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				if ((rc = get_value(sb, T_ANY, &container, dmconfig_get_cb)) == DM_OOM)
-					goto server_err;
-				if (rc != DM_OK) {
-					code = RC_ERR_MISC;
-					break;
-				}
-			}
-
-			obj.answer_grp = container.grp;
-
-			break;
-		}
-
-		case CMD_DB_LIST: {
-			LIST_CTX	list_ctx;
-			int		level;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB LIST");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			memset(&list_ctx, 0, sizeof(LIST_CTX));
-			list_ctx.ctx = obj.req;
-			if (!(list_ctx.grp = new_dm_avpgrp(list_ctx.ctx)))
-				goto server_err;
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_UINT16 || header.len != sizeof(uint16_t))
-				goto reaccept;
-			level = dm_get_uint16_avp(header.data);
-			list_ctx.max_level = level ? : DM_SELECTOR_LEN;
-
-			dm_debug(obj.sessionid, "CMD: %s %u", "DB LIST", level);
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-
-			if (header.len) {
-				dm_selector sb, *sel;
-
-				if (!(path = strndup(header.data, header.len)))
-					goto server_err;
-
-				dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB LIST", path);
-
-				sel = dm_name2sel(path, &sb);
-				free(path);
-				path = NULL;
-				if (!sel) {
-					code = RC_ERR_MISC;
-					break;
-				}
-
-				list_ctx.firstone = 1;	/* there has to be a better solution to ignore the first one */
-				if (!dm_walk_by_selector_cb(sb, level ? level + 1 : DM_SELECTOR_LEN,
-							       &list_ctx, dmconfig_list_cb)) {
-					code = RC_ERR_MISC;
-					break;
-				}
-			} else {
-				/* system */
-				if (!dm_walk_table_cb(list_ctx.max_level, &list_ctx, dmconfig_list_cb, &dm_root, dm_value_store)) {
-					code = RC_ERR_MISC;
-					break;
-				}
-			}
-
-			obj.answer_grp = list_ctx.grp;
-
-			break;
-		}
-
-		case CMD_DB_RETRIEVE_ENUMS: {
-			dm_selector	sb, *sel;
-			DM_RESULT	rc;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB RETRIEVE ENUMS");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB RETRIEVE ENUMS", path);
-
-			sel = dm_name2sel(path, &sb);
-			free(path);
-			path = NULL;
-			if (!sel) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
-				goto server_err;
-
-			if ((rc = dm_get_value_by_selector_cb(sb, T_ENUM, &obj, dmconfig_retrieve_enums_cb)) == DM_OOM)
-				goto server_err;
-			if (rc != DM_OK) {
-				talloc_free(obj.answer_grp);
-				obj.answer_grp = NULL;
-				code = RC_ERR_MISC;
-			}
-
-			break;
-		}
-
-		case CMD_DB_DUMP: {
-			long tsize;
-			size_t r = 0;
-			FILE *tf;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB DUMP");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB DUMP", path);
-
-			tf = tmpfile();
-			if (!tf)
-				goto server_err;
-
-			if (path && *path)
-				dm_serialize_element(tf, path, S_ALL);
-			else
-				dm_serialize_store(tf, S_ALL);
-
-			free(path);
-			path = NULL;
-
-			tsize = ftell(tf);
-			fseek(tf, 0, SEEK_SET);
-
-			if (!tsize) {
-				fclose(tf);
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			buf = malloc(tsize);
-			if (buf)
-				r = fread(buf, tsize, 1, tf);
-			fclose(tf);
-			if (r != 1)
-				goto server_err;
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
-				goto server_err;
-			if (dm_avpgrp_add_raw(obj.req, &obj.answer_grp, AVP_STRING, 0,
-						VP_TRAVELPING, buf, tsize))
-				goto server_err;
-			free(buf);
-			buf = NULL;
-
-			break;
-		}
-
-		case CMD_DB_SAVE:			/* saves running config to persistent storage */
-			dm_debug(obj.sessionid, "CMD: %s", "DB SAVE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (obj.sessionid == cfg_sessionid &&
-			    !cache_is_empty()) {		/* cache not empty */
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			dm_save();
-
-			break;
-
-		case CMD_DB_COMMIT: {
-			SESSION *le;
-
-			/* commits cache to running config and tries to apply changes */
-			dm_debug(obj.sessionid, "CMD: %s", "DB COMMIT");
-
-			if (!(le = lookup_session(obj.sessionid)) || obj.sessionid != cfg_sessionid) {
-				code = RC_ERR_REQUIRES_CFGSESSION;
-				break;
-			}
-
-			if (cache_validate()) {
-				exec_actions_pre();
-				cache_apply(le->notify.slot ? : -1);
-				exec_actions();
-				exec_pending_notifications();
-			} else {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			break;
-		}
-
-		case CMD_DB_CANCEL:
-			dm_debug(obj.sessionid, "CMD: %s", "DB CANCEL");
-
-			if (!cfg_sessionid || obj.sessionid != cfg_sessionid) {
-				code = RC_ERR_REQUIRES_CFGSESSION;
-				break;
-			}
-
-			cache_reset();
-
-			break;
-
-		case CMD_DB_FINDINSTANCE: {
-			dm_selector			sb, *sel;
-			dm_id			param;
-			DM_VALUE			value;
-
-			struct dm_instance_node	*inst;
-
-			const struct dm_table	*kw;
-			DM_RESULT			rc;
-
-			dm_debug(obj.sessionid, "CMD: %s", "DB FINDINSTANCE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-					/* parameter/value container */
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_CONTAINER)
-				goto reaccept;
-			if (!(obj.avpgrp = dm_decode_avpgrp(obj.req, header.data, header.len)))
-				goto server_err;
-
-					/* path of table */
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(path = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s \"%s\"", "DB FINDINSTANCE", path);
-
-			sel = dm_name2sel(path, &sb);
-			free(path);
-			path = NULL;
-			if (!sel) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-					/* find table structure */
-			if (!(kw = dm_get_object_table_by_selector(sb))) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-					/* name of paramter to check (last part of path) */
-			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_PATH)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if ((param = dm_get_element_id_by_name(header.data, header.len, kw)) == DM_ERR) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			dm_debug(obj.sessionid, "CMD: %s: parameter id: %u", "DB FINDINSTANCE", param);
-
-					/* value to look for (type is AVP code) */
-			if (dm_avpgrp_get_avp(obj.avpgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: %s: value", "DB FINDINSTANCE");
-			if ((rc = dmconfig_avp2value(&header, kw->table + param - 1, &value)) == DM_OOM)
-				goto server_err;
-			if (rc != DM_OK) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			inst = find_instance_by_selector(sb, param, kw->table[param - 1].type, &value);
-			dm_free_any_value(kw->table + param - 1, &value);
-			if (!inst) {
-				code = RC_ERR_MISC;
-				break;
-			}
-			dm_debug(obj.sessionid, "CMD: %s: answer: %u", "DB FINDINSTANCE", inst->instance);
-
-			if (!(obj.answer_grp = new_dm_avpgrp(obj.req)))
-				goto server_err;
-			if (dm_avpgrp_add_uint16(obj.req, &obj.answer_grp, AVP_UINT16, 0,
-						   VP_TRAVELPING, inst->instance))
-				goto server_err;
-
-			break;
-		}
-
-		case CMD_DEV_CONF_SAVE:
-			dm_debug(obj.sessionid, "CMD: %s", "DEV CONFSAVE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_STRING)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(dum = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: DEV CONFSAVE - Remote Server: %s", dum);
-			if (save_conf(dum))
-				code = RC_ERR_MISC;
-			free(dum);
-			dum = NULL;
-
-			break;
-
-		case CMD_DEV_CONF_RESTORE:
-			dm_debug(obj.sessionid, "CMD: %s", "DEV CONFRESTORE");
-
-			if (!obj.sessionid) {
-				code = RC_ERR_INVALID_SESSIONID;
-				break;
-			}
-
-			if (dm_avpgrp_get_avp(obj.reqgrp, &header.code, &header.flags,
-						&header.vendor_id, &header.data, &header.len))
-				goto server_err;
-			if (header.code != AVP_STRING)
-				goto reaccept;
-			if (!header.len) {
-				code = RC_ERR_MISC;
-				break;
-			}
-
-			if (!(dum = strndup(header.data, header.len)))
-				goto server_err;
-
-			dm_debug(obj.sessionid, "CMD: DEV CONFRESTORE - Remote Server: %s", dum);
-			if (restore_conf(dum))
-				code = RC_ERR_MISC;
-			free(dum);
-			dum = NULL;
-
-			break;
-
-		default:
-			dm_debug(obj.sessionid, "CMD: unknown/invalid: %d", dm_code);
-			goto reaccept;
-		}
-	}
-
-	/* FIXME: replace the goto with proper RC code handling */
-	/* ie. split up "switch" into separate functions; don't confuse error conditions and error codes sent in answer */
-
-			/* the command evaluation has to set "code" and "answer_grp"
-			   (or leave it preinitialized to RC_OK, NULL) */
-	if (register_answer(dm_code, hop2hop, end2end, code, obj.answer_grp, sockCtx))
-		goto server_err;
-
-increase_timeout:
-
-	pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking unnecessary here */
-						/* currently, no read timeouts */
-						/* unless a request was partially read */
-	if (event_add(&ctx->event, NULL)) {	/* reset readEvent's timeout */
-		pthread_mutex_unlock(&sockCtx->lock);
-		goto server_err;
-	}
-	pthread_mutex_unlock(&sockCtx->lock);
-
-	EXIT();
-	return 1;
-
-reaccept:		/* protocol/communication errors (including terminated peer connections) */
-			/* there's no need to reset everything */
-
-	disableSockCtx(sockCtx);
-
-	EXIT();
-	return 0;
-
-server_err:		/* critical error: deallocate everything properly */
-
-	L_FOREACH(SESSION, cur, session_head) {
-		if (cur->notify.slot)
-			unsubscribeNotify(cur);
-		event_del(&cur->timeout);
-	}
-	talloc_free(session_head);
-	session_head = NULL;
-
-	L_FOREACH(REQUESTED_SESSION, cur, reqsession_head)
-		event_del(&cur->timeout);
-	talloc_free(reqsession_head);
-	reqsession_head = NULL;
-
-	L_FOREACH(SOCKCONTEXT, cur, socket_head)
-		disableSockCtx(cur);
-		/* at least try to free the socket_head if no threads depend on any sockCtx */
-	if (!socket_head->next) {
-		talloc_free(socket_head);
-		socket_head = NULL;
-	}
-
-	free(dum);
-	free(path);
-	free(buf);
-
-	event_del(&clientConnection);
-	shutdown(accept_socket, SHUT_RDWR);
-	close(accept_socket);
-
-			/* restart server */
-
-	init_libdmconfig_server(evbase);
-
-	EXIT();
-	return 0;
+	} else
+		rc = rpc_dmconfig_switch(sockCtx, &req, &grp, &answer);
+
+	if (rc != RC_ERR_ALLOC)
+		/* the command evaluation has to set "code" and "answer"
+		   (or leave it preinitialized to RC_OK, NULL) */
+		if (register_answer(req.code, req.hop2hop, req.end2end, rc, answer, sockCtx))
+			return RC_ERR_ALLOC;
+
+	return rc;
 }
 
-static inline uint32_t
+uint32_t
 process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 			uint32_t dm_code, uint32_t hopid, uint32_t sessionid,
-			DM_AVPGRP *grp)
+			DM2_AVPGRP *grp)
 {
+	uint32_t	rc;
 	uint32_t	code;
 	uint8_t		header_flags;
 	uint32_t	vendor_id;
@@ -1605,24 +687,13 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 		le = NULL;
 	}
 
-	if (dm_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
-				&data, &len)) {
-		dm_EXIT(sessionid);
-		return RC_ERR_ALLOC;
-	}
-
-	if (code != AVP_UINT32 || len != sizeof(uint32_t)) {
-		dm_EXIT(sessionid);
-		return RC_ERR_MISC;
-	}
-
-	flags = dm_get_uint32_avp(data);
+	if ((rc = dm_expect_uint32_type(grp, AVP_UINT32, VP_TRAVELPING, &flags)) != RC_OK)
+		return rc;
 
 	timeout_session.tv_sec = SESSIONCTX_DEFAULT_TIMEOUT;
 	timeout_session.tv_usec = 0;
 
-	while (!dm_avpgrp_get_avp(grp, &code, &header_flags, &vendor_id,
-				    &data, &len)) {
+	while ((rc = dm_expect_avp(grp, &code, &vendor_id, &data, &len)) == RC_OK) {
 		if (len != sizeof(DM_TIMEVAL)) {
 			dm_EXIT(sessionid);
 			return RC_ERR_MISC;
@@ -1713,8 +784,7 @@ process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
 		}
 
 		dm_EXIT(sessionid);
-		return process_switch_session(sockCtx, flags, hopid, le,
-					      timeout_session);
+		return process_switch_session(sockCtx, flags, hopid, le, timeout_session);
 	}
 
 	debug(": CMD: START SESSION (id = %08X)\n", session_counter);
@@ -1855,7 +925,7 @@ processRequestedSessions(void)
 }
 
 		/* called by CMD_ENDSESSION requests and by timeout events */
-static int
+uint32_t
 process_end_session(uint32_t sessionid) {
 	SESSION *cur, *le;
 
@@ -1868,7 +938,7 @@ process_end_session(uint32_t sessionid) {
 
 	if (!le) {
 		dm_EXIT(sessionid);
-		return 1;
+		return RC_ERR_MISC;
 	}
 			/* remove from session list */
 	cur->next = le->next;
@@ -1890,7 +960,7 @@ process_end_session(uint32_t sessionid) {
 	}
 
 	dm_EXIT(sessionid);
-	return 0;
+	return RC_OK;
 }
 
 static int
@@ -1937,7 +1007,7 @@ register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
 	return r;
 }
 
-static int
+int
 register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
 {
 	DM_REQUEST	*request;
@@ -2196,170 +1266,6 @@ reset_timeout_obj(uint32_t sessionid)
 	return 0;
 }
 
-static DM_AVPGRP *
-build_notify_events(struct notify_queue *queue, int level)
-{
-	struct notify_item	*next;
-
-	DM_AVPGRP		*grp;
-	int			haveEvent = 0;
-
-	ENTER(": level=%d", level);
-
-	if (!(grp = new_dm_avpgrp(NULL))) {
-		EXIT();
-		return NULL;
-	}
-
-	for (struct notify_item *item = RB_MIN(notify_queue, queue);
-	     item;
-	     item = next) {
-		char			buffer[MAX_PARAM_NAME_LEN];
-		char			*path;
-
-		DM_AVPGRP		*event;
-
-		next = RB_NEXT(notify_queue, queue, item);
-
-		if (item->level != level)
-			continue;
-
-			/* active notification */
-
-		haveEvent = 1;
-
-		if (!(path = dm_sel2name(item->sb, buffer, sizeof(buffer))) ||
-		    !(event = new_dm_avpgrp(grp))) {
-			talloc_free(grp);
-			EXIT();
-			return NULL;
-		}
-
-		switch (item->type) {
-		case NOTIFY_ADD:
-			debug(": instance added: %s", path);
-
-			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
-						   VP_TRAVELPING,
-						   NOTIFY_INSTANCE_CREATED) ||
-			    dm_avpgrp_add_string(grp, &event, AVP_PATH, 0,
-			    	    		   VP_TRAVELPING, path)) {
-				talloc_free(grp);
-				EXIT();
-				return NULL;
-			}
-			break;
-
-		case NOTIFY_DEL:
-			debug(": instance removed: %s", path);
-
-			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
-						   VP_TRAVELPING,
-						   NOTIFY_INSTANCE_DELETED) ||
-			    dm_avpgrp_add_string(grp, &event, AVP_PATH, 0,
-			    	    		   VP_TRAVELPING, path)) {
-				talloc_free(grp);
-				EXIT();
-				return NULL;
-			}
-			break;
-
-		case NOTIFY_CHANGE: {
-			GET_GRP_CONTAINER container = {
-				.ctx = event,
-				.type = AVP_UNKNOWN
-			};
-			struct dm_element *elem;
-
-			debug(": parameter changed: %s", path);
-
-			if (dm_avpgrp_add_uint32(grp, &event, AVP_NOTIFY_TYPE, 0,
-						   VP_TRAVELPING,
-						   NOTIFY_PARAMETER_CHANGED)) {
-				talloc_free(grp);
-				EXIT();
-				return NULL;
-			}
-
-			if (!(container.grp = new_dm_avpgrp(container.ctx)) ||
-			    dm_get_element_by_selector(item->sb, &elem) == T_NONE ||
-			    dmconfig_value2avp(&container, elem, item->value) != DM_OK) {
-				talloc_free(grp);
-				EXIT();
-				return NULL;
-			}
-
-			if (dm_avpgrp_add_uint32_string(grp, &event, AVP_TYPE_PATH, 0,
-							  VP_TRAVELPING,
-							  container.type, path) ||
-			    dm_avpgrp_insert_avpgrp(grp, &event, container.grp)) {
-				talloc_free(grp);
-				EXIT();
-				return NULL;
-			}
-			break;
-		}
-		}
-
-		if (dm_avpgrp_add_avpgrp(NULL, &grp, AVP_CONTAINER, 0,
-					   VP_TRAVELPING, event)) {
-			talloc_free(grp);
-			EXIT();
-			return NULL;
-		}
-
-		talloc_free(event);
-		RB_REMOVE(notify_queue, queue, item);
-		free(item);
-	}
-
-	if (!haveEvent) {
-		talloc_free(grp);
-		EXIT();
-		return NULL;
-	}
-
-	EXIT();
-	return grp;
-}
-
-static void
-dmconfig_notify_cb(void *data, struct notify_queue *queue)
-{
-	SESSION			*session = data;
-	NOTIFY_INFO		*notify = &session->notify;
-
-	DM_AVPGRP		*grp, *dummy;
-	int			r;
-
-	dm_ENTER(session->sessionid);
-
-	grp = build_notify_events(queue, ACTIVE_NOTIFY);
-	if (!grp) {
-		dm_EXIT(session->sessionid);
-		return;
-	}
-	if (!(dummy = new_dm_avpgrp(NULL))) {
-		talloc_free(grp);
-		dm_EXIT(session->sessionid);
-		return;
-	}
-
-	r = dm_avpgrp_add_avpgrp(NULL, &dummy, AVP_CONTAINER, 0,
-				   VP_TRAVELPING, grp);
-	talloc_free(grp);
-	if (r) {
-		talloc_free(dummy);
-		dm_EXIT(session->sessionid);
-		return;
-	}
-
-	register_request(CMD_CLIENT_ACTIVE_NOTIFY, dummy, notify->clientSockCtx);
-
-	talloc_free(dummy);
-	dm_EXIT(session->sessionid);
-}
-
 void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 {
 	static const uint32_t event_types[] = {
@@ -2414,816 +1320,27 @@ void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 	EXIT();
 }
 
-static DM_RESULT
-dmconfig_avp2value(OBJ_AVPINFO *header, const struct dm_element *elem,
-		   DM_VALUE *value)
+/* API v2 */
+
+uint32_t dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value)
 {
-	char		*dum = NULL;
-	DM_RESULT	r = DM_OK;
-
-	ENTER();
-
-	if (!elem) {
-		EXIT();
-		return DM_VALUE_NOT_FOUND;
-	}
-
-	memset(value, 0, sizeof(DM_VALUE));
-
-	if (header->code == AVP_UNKNOWN) {
-		if (!(dum = strndup(header->data, header->len))) {
-			EXIT();
-			return DM_OOM;
-		}
-
-		switch (elem->type) {
-		case T_BASE64:
-		case T_BINARY: {	/* dm_string2value cannot be used since it treats T_BASE64 and T_BINARY differently */
-			unsigned int len;
-			binary_t *n;
-
-			/* this is going to waste some bytes.... */
-			len = ((header->len + 4) * 3) / 4;
-
-			n = malloc(sizeof(binary_t) + len);
-			if (!n) {
-				r = DM_OOM;
-				break;
-			}
-
-			debug(": base64 string: %d, buffer: %u", (int)header->len, len);
-			n->len = dm_from64((unsigned char *)dum, (unsigned char *)n->data);
-			debug(": base64 result: %d", n->len);
-			r = dm_set_binary_value(value, n);
-			free(n);
-
-			break;
-		}
-
-		default:
-			debug(": = %s\n", dum);
-			r = dm_string2value(elem, dum, 0, value);
-		}
-	} else {
-		switch (elem->type) {
-		case T_STR:	/* FIXME: strndup could be avoided by introducing a new dm_set_lstring_value... */
-			if (header->code != AVP_STRING)
-				r = DM_INVALID_TYPE;
-			else if (!(dum = strndup(header->data, header->len)))
-				r = DM_OOM;
-			else {
-				debug(": = \"%s\"\n", dum);
-				r = dm_set_string_value(value, dum);
-			}
-
-			break;
-
-		case T_BINARY:
-		case T_BASE64:
-			if (header->code != AVP_BINARY)
-				r = DM_INVALID_TYPE;
-			else {
-				debug(": = binary data...\n"); /* FIXME: hex dump for instance... */
-				r = dm_set_binary_data(value, header->len, header->data);
-			}
-
-			break;
-
-		case T_SELECTOR:
-			if (header->code != AVP_PATH)
-				r = DM_INVALID_TYPE;
-			else if (!(dum = strndup(header->data, header->len)))
-				r = DM_OOM;
-			else {
-				dm_selector sel;
-
-				debug(": = \"%s\"\n", dum);
-
-				if (*dum) {
-					if (!dm_name2sel(dum, &sel)) {
-						r = DM_INVALID_VALUE;
-						break;
-					}
-				} else
-					memset(&sel, 0, sizeof(dm_selector));
-
-				r = dm_set_selector_value(value, sel);
-			}
-
-			break;
-
-		case T_IPADDR4: {
-			int		af;
-			struct in_addr	addr;
-
-			if (header->code != AVP_ADDRESS)
-				r = DM_INVALID_TYPE;
-			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), header->data, header->len) ||
-				af != AF_INET)
-				r = DM_INVALID_VALUE;
-			else {
-				debug(": = %s\n", inet_ntoa(addr));
-
-				set_DM_IP4(*value, addr);
-			}
-
-			break;
-		}
-
-		case T_IPADDR6: {
-			int		af;
-			struct in6_addr addr;
-
-			if (header->code != AVP_ADDRESS)
-				r = DM_INVALID_TYPE;
-			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), header->data, header->len) ||
-				af != AF_INET6)
-				r = DM_INVALID_VALUE;
-			else {
-				/* debug(": = %s\n", inet_ntoa(addr)); */
-
-				set_DM_IP6(*value, addr);
-			}
-
-			break;
-		}
-
-		case T_ENUM: {
-			int enumid;
-
-			switch (header->code) {
-			case AVP_ENUM:
-				if (!(dum = strndup(header->data, header->len)))
-					r = DM_OOM;
-				else if ((enumid = dm_enum2int(&elem->u.e,
-								  dum)) == -1)
-					r = DM_INVALID_VALUE;
-				else {
-					debug(": = %s (%d)\n", dum, enumid);
-					set_DM_ENUM(*value, enumid);
-				}
-
-				break;
-			case AVP_ENUMID:
-				enumid = dm_get_int32_avp(header->data);
-				if (enumid < 0 || enumid >= elem->u.e.cnt) {
-					r = DM_INVALID_VALUE;
-				} else {
-					debug(": = %s (%d)\n",
-					      dm_int2enum(&elem->u.e, enumid),
-					      enumid);
-					set_DM_ENUM(*value, enumid);
-				}
-
-				break;
-			default:
-				r = DM_INVALID_TYPE;
-			}
-
-			break;
-		}
-
-		case T_INT:
-			if (header->code != AVP_INT32)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_INT(*value,
-					   dm_get_int32_avp(header->data));
-				debug(": = %d\n", DM_INT(*value));
-			}
-
-			break;
-
-		case T_UINT:
-			if (header->code != AVP_UINT32)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_UINT(*value,
-					    dm_get_uint32_avp(header->data));
-				debug(": = %u\n", DM_UINT(*value));
-			}
-
-			break;
-
-		case T_INT64:
-			if (header->code != AVP_INT64)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_INT64(*value,
-					     dm_get_int64_avp(header->data));
-				debug(": = %" PRIi64 "\n", DM_INT64(*value));
-			}
-
-			break;
-
-		case T_UINT64:
-			if (header->code != AVP_UINT64)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_UINT64(*value,
-					      dm_get_uint64_avp(header->data));
-				debug(": = %" PRIu64 "\n", DM_UINT64(*value));
-			}
-
-			break;
-
-		case T_BOOL:
-			if (header->code != AVP_BOOL)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_BOOL(*value,
-					    dm_get_uint8_avp(header->data));
-				debug(": = %d\n", DM_BOOL(*value));
-			}
-
-			break;
-
-		case T_DATE:
-			if (header->code != AVP_DATE)
-				r = DM_INVALID_TYPE;
-			else {
-				set_DM_TIME(*value,
-					    dm_get_time_avp(header->data));
-				debug(": = (%d) %s", (int)DM_TIME(*value),
-				      ctime(DM_TIME_REF(*value)));
-			}
-
-			break;
-
-		case T_TICKS:
-			switch (header->code) {
-			case AVP_ABSTICKS: /* FIXME: has to be converted? */
-			case AVP_RELTICKS:
-				set_DM_TICKS(*value,
-					     dm_get_int64_avp(header->data));
-				debug(": = %" PRItick "\n", DM_TICKS(*value));
-				break;
-			default:
-				r = DM_INVALID_TYPE;
-			}
-
-			break;
-
-		default:		/* includes T_COUNTER which is non-writable */
-			r = DM_INVALID_TYPE;
-		}
-	}
-
-	free(dum);
-
-	EXIT();
-	return r;
-}
-
-static DM_RESULT
-dmconfig_value2avp(GET_GRP_CONTAINER *container,
-		   const struct dm_element *elem, const DM_VALUE val)
-{
-	ENTER();
-
-	switch (elem->type) {
-	case T_ENUM:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_ENUM;
-		case AVP_ENUM:
-			if (dm_avpgrp_add_string(container->ctx,
-						   &container->grp, AVP_ENUM, 0,
-						   VP_TRAVELPING,
-						   dm_int2enum(&elem->u.e,
-						   		  DM_ENUM(val)))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %s (%d)]\n",
-			      dm_int2enum(&elem->u.e, DM_ENUM(val)),
-			      DM_ENUM(val));
-
-			EXIT();
-			return DM_OK;
-		case AVP_ENUMID:
-			if (dm_avpgrp_add_int32(container->ctx, &container->grp,
-						  AVP_ENUMID, 0, VP_TRAVELPING,
-						  DM_ENUM(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %s (%d)]\n",
-			      dm_int2enum(&elem->u.e, DM_ENUM(val)),
-			      DM_ENUM(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_COUNTER:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_COUNTER;
-		case AVP_COUNTER:
-			if (dm_avpgrp_add_uint32(container->ctx, &container->grp,
-						   AVP_COUNTER, 0, VP_TRAVELPING,
-						   DM_UINT(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %u]\n", DM_UINT(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_INT:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_INT32;
-		case AVP_INT32:
-			if (dm_avpgrp_add_int32(container->ctx, &container->grp,
-						  AVP_INT32, 0, VP_TRAVELPING,
-						  DM_INT(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %d]\n", DM_INT(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_UINT:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_UINT32;
-		case AVP_UINT32:
-			if (dm_avpgrp_add_uint32(container->ctx,
-						   &container->grp, AVP_UINT32, 0,
-						   VP_TRAVELPING, DM_UINT(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %u]\n", DM_UINT(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_INT64:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_INT64;
-		case AVP_INT64:
-			if (dm_avpgrp_add_int64(container->ctx, &container->grp,
-						  AVP_INT64, 0, VP_TRAVELPING,
-						  DM_INT64(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %" PRIi64 "]\n", DM_INT64(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_UINT64:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_UINT64;
-		case AVP_UINT64:
-			if (dm_avpgrp_add_uint64(container->ctx, &container->grp,
-						   AVP_UINT64, 0, VP_TRAVELPING,
-						   DM_UINT64(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %" PRIu64 " ]\n", DM_UINT64(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_STR:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_STRING;
-		case AVP_STRING:
-			if (dm_avpgrp_add_string(container->ctx, &container->grp,
-						   AVP_STRING, 0, VP_TRAVELPING,
-						   DM_STRING(val) ? : "")) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: \"%s\"]\n", DM_STRING(val) ? : "");
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_BINARY:
-	case T_BASE64:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_BINARY;
-		case AVP_BINARY:
-			if (dm_avpgrp_add_raw(container->ctx, &container->grp,
-						AVP_BINARY, 0, VP_TRAVELPING,
-						DM_BINARY(val) ? DM_BINARY(val)->data : "",
-						DM_BINARY(val) ? DM_BINARY(val)->len : 0)) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: \"binay data....\"]\n"); /* FIXME */
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_IPADDR4:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_ADDRESS;
-		case AVP_ADDRESS:
-			if (dm_avpgrp_add_address(container->ctx,
-						    &container->grp, AVP_ADDRESS,
-						    0, VP_TRAVELPING, AF_INET,
-						    DM_IP4_REF(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %s]\n", inet_ntoa(DM_IP4(val)));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_IPADDR6:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_ADDRESS;
-		case AVP_ADDRESS:
-			if (dm_avpgrp_add_address(container->ctx,
-						    &container->grp, AVP_ADDRESS,
-						    0, VP_TRAVELPING, AF_INET6,
-						    DM_IP6_REF(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			/* debug(": [Answer: %s]\n", inet_ntoa(DM_IP6(val))); */
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_BOOL:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_BOOL;
-		case AVP_BOOL:
-			if (dm_avpgrp_add_uint8(container->ctx, &container->grp,
-						  AVP_BOOL, 0, VP_TRAVELPING,
-						  (uint8_t) DM_BOOL(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %s (%d)]\n",
-			      DM_BOOL(val) ? "true" : "false", DM_BOOL(val));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_DATE:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_DATE;
-		case AVP_DATE:
-			if (dm_avpgrp_add_time(container->ctx, &container->grp,
-						 AVP_DATE, 0, VP_TRAVELPING,
-						 DM_TIME(val))) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: (%d) %s",
-			      (int)DM_TIME(val), ctime(DM_TIME_REF(val)));
-
-			EXIT();
-			return DM_OK;
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_SELECTOR:
-		switch (container->type) {
-		case AVP_UNKNOWN:
-			container->type = AVP_PATH;
-		case AVP_PATH: {
-			char buffer[MAX_PARAM_NAME_LEN];
-			char *name;
-
-			if (!DM_SELECTOR(val))
-				name = "";
-			else if (!(name = dm_sel2name(*DM_SELECTOR(val),
-							 buffer, sizeof(buffer)))) {
-				EXIT();
-				return DM_INVALID_VALUE;
-			}
-			if (dm_avpgrp_add_string(container->ctx, &container->grp,
-						   AVP_PATH, 0,
-						   VP_TRAVELPING, name)) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: \"%s\"]\n", name);
-
-			EXIT();
-			return DM_OK;
-		}
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	case T_TICKS:
-		if (container->type == AVP_UNKNOWN)
-			container->type = elem->flags & F_DATETIME ? AVP_ABSTICKS
-								   : AVP_RELTICKS;
-
-		switch (container->type) {
-		case AVP_ABSTICKS:
-		case AVP_RELTICKS: {
-			ticks_t t = container->type == AVP_ABSTICKS ? ticks2realtime(DM_TICKS(val))
-								    : DM_TICKS(val);
-
-			if (dm_avpgrp_add_int64(container->ctx, &container->grp,
-						  container->type, 0, VP_TRAVELPING, t)) {
-				EXIT();
-				return DM_OOM;
-			}
-
-			debug(": [Answer: %" PRItick "]\n", t);
-
-			EXIT();
-			return DM_OK;
-		}
-		default:
-			EXIT();
-			return DM_INVALID_TYPE;
-		}
-	default:
-		EXIT();
-		return DM_INVALID_TYPE;
-	}
-
-	/* never reached */
-
-	EXIT();
-	return DM_ERROR;
-}
-
-static DM_RESULT
-dmconfig_set_cb(void *data, const dm_selector sel,
-		const struct dm_element *elem,
-		struct dm_value_table *base,
-		const void *value __attribute__((unused)), DM_VALUE *st)
-{
-	SET_GRP_CONTAINER	*container = data;
-
-	DM_VALUE		new_value;
-	DM_RESULT		r;
-
-	ENTER();
-
-	if ((r = dmconfig_avp2value(container->header, elem, &new_value)) != DM_OK) {
-		EXIT();
+	size_t size;
+	void *data;
+	char path[1024];
+	uint32_t r;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size)) != RC_OK)
 		return r;
-	}
 
-	if (container->session->flags & CMD_FLAG_CONFIGURE) {
-		st->flags |= DV_UPDATE_PENDING;
-		DM_parity_update(*st);
-		cache_add(sel, "", elem, base, st, new_value, 0, NULL);
-	} else {
-		new_value.flags |= DV_UPDATED;
-		DM_parity_update(new_value);
-		r = dm_overwrite_any_value_by_selector(sel, elem->type,
-							  new_value,
-							  container->session->notify.slot ? : -1);
-	}
+	if (size >= sizeof(path))
+		return RC_ERR_MISC;
 
-	EXIT();
-	return r;
-}
+	strncpy(path, data, size);
+	if (!dm_name2sel(path, value))
+		return RC_ERR_MISC;
 
-static DM_RESULT
-dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
-		const struct dm_element *elem, const DM_VALUE val)
-{
-	return elem ? dmconfig_value2avp(data, elem, val)
-		    : DM_VALUE_NOT_FOUND;
-}
-
-		/* used by CMD_DB_LIST request */
-static int
-dmconfig_list_cb(void *data, CB_type type, dm_id id,
-		 const struct dm_element *elem, const DM_VALUE value)
-{
-	LIST_CTX		*ctx = data;
-	GET_GRP_CONTAINER	get_container = {.type = AVP_UNKNOWN};
-
-	uint32_t		node_type;
-
-	char			*node_name = elem->key;
-	char			numbuf[UINT16_DIGITS];
-
-	ENTER();
-
-	if (!node_name) {
-		EXIT();
-		return 0;
-	}
-
-	if (ctx->firstone) {		/* hack that prevents the first element from being processed */
-		ctx->firstone = 0;	/* later dm_walk_by_name might be modified or reimplemented */
-		EXIT();
-		return 1;
-	}
-
-	switch (type) {
-	case CB_object_end:
-	case CB_table_end:
-	case CB_object_instance_end:
-		if (ctx->level && ctx->level < ctx->max_level) {
-			get_container.grp = ctx->ctx;
-			get_container.ctx = talloc_parent(get_container.grp);
-
-			if (dm_avpgrp_add_avpgrp(get_container.ctx, &get_container.grp,
-						   AVP_CONTAINER, 0, VP_TRAVELPING, ctx->grp)) {
-				EXIT();
-				return 0;
-			}
-			talloc_free(ctx->grp);
-
-			ctx->grp = get_container.ctx;
-			ctx->ctx = talloc_parent(ctx->grp);
-
-			if (dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
-					   	   0, VP_TRAVELPING, get_container.grp)) {
-				EXIT();
-				return 0;
-			}
-			talloc_free(get_container.grp);
-		}
-		ctx->level--;
-
-		EXIT();
-		return 1;
-	case CB_object_start:
-		node_type = NODE_TABLE;
-		ctx->level++;
-		break;
-	case CB_object_instance_start:
-		snprintf(numbuf, sizeof(numbuf), "%hu", id);
-		node_name = numbuf;
-	case CB_table_start:
-		node_type = NODE_OBJECT;
-		ctx->level++;
-		break;
-	case CB_element:
-		node_type = NODE_PARAMETER;
-		break;
-	default:
-		EXIT();
-		return 0;
-	}
-
-	get_container.ctx = ctx->grp;
-	if (!(get_container.grp = new_dm_avpgrp(get_container.ctx))) {
-		EXIT();
-		return 0;
-	}
-
-	if (dm_avpgrp_add_string(get_container.ctx, &get_container.grp,
-				   AVP_NODE_NAME, 0, VP_TRAVELPING, node_name)) {
-		EXIT();
-		return 0;
-	}
-	if (dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
-				   AVP_NODE_TYPE, 0, VP_TRAVELPING, node_type)) {
-		EXIT();
-		return 0;
-	}
-
-	switch (node_type) {
-	case NODE_PARAMETER:
-		if (elem->type == T_POINTER) {
-			if (dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
-						   AVP_NODE_DATATYPE, 0, VP_TRAVELPING,
-						   AVP_POINTER)) {
-				EXIT();
-				return 0;
-			}
-		} else if (dmconfig_value2avp(&get_container, elem, value)) {
-			EXIT();
-			return 0;
-		}
-
-		if (dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
-					   0, VP_TRAVELPING, get_container.grp)) {
-			EXIT();
-			return 0;
-		}
-		talloc_free(get_container.grp);
-
-		break;
-
-	case NODE_TABLE:
-	case NODE_OBJECT:
-		if (ctx->level < ctx->max_level) {
-			ctx->ctx = get_container.grp;
-			if (!(ctx->grp = new_dm_avpgrp(ctx->ctx))) {
-				EXIT();
-				return 0;
-			}
-		} else {
-			if ((node_type == NODE_OBJECT &&
-			     dm_avpgrp_add_uint32(get_container.ctx, &get_container.grp,
-						    AVP_NODE_SIZE, 0, VP_TRAVELPING,
-						    elem->u.t.table->size)) ||
-			    dm_avpgrp_add_avpgrp(ctx->ctx, &ctx->grp, AVP_CONTAINER,
-					   	   0, VP_TRAVELPING, get_container.grp)) {
-				EXIT();
-				return 0;
-			}
-			talloc_free(get_container.grp);
-		}
-	}
-
-	EXIT();
-	return 1;
-}
-
-static DM_RESULT
-dmconfig_retrieve_enums_cb(void *data,
-			   const dm_selector sb __attribute__((unused)),
-			   const struct dm_element *elem,
-			   const DM_VALUE val __attribute__((unused)))
-{
-	OBJ_GROUP 		*obj = data;
-
-	const struct dm_enum	*enumer;
-
-	char			*ptr;
-	int			i;
-
-	ENTER();
-
-	if (!elem) {
-		EXIT();
-		return DM_VALUE_NOT_FOUND;
-	}
-
-	enumer = &elem->u.e;
-	for (ptr = enumer->data, i = enumer->cnt; i; i--, ptr += strlen(ptr) + 1)
-		if (dm_avpgrp_add_string(obj->req, &obj->answer_grp,
-					   AVP_STRING, 0, VP_TRAVELPING, ptr)) {
-			EXIT();
-			return DM_OOM;
-		}
-
-	EXIT();
-	return DM_OK;
+	return RC_OK;
 }

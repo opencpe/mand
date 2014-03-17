@@ -28,6 +28,9 @@
 # include <talloc.h>
 #endif
 
+#include <mand/dm_token.h>
+#include <mand/dm_strings.h>
+
 #include "dmmsg.h"
 #include "libdmconfig/codes.h"
 
@@ -294,12 +297,12 @@ uint32_t dm_register_add_instance(DMCONTEXT *dmCtx, const char *path, uint16_t i
 uint32_t dm_register_list(DMCONTEXT *dmCtx, const char *name, uint16_t level,
 			  DMCONFIG_CALLBACK callback, void *callback_ud);
 
-uint32_t dm_decode_notifications(DM_AVPGRP *grp, uint32_t *type,
-				 DM_AVPGRP **notify);
+uint32_t dm_decode_notifications(DM2_AVPGRP *grp, uint32_t *type,
+				 DM2_AVPGRP *notify);
 
 uint32_t dm_decode_unknown_as_string(uint32_t type, void *data, size_t len,
 				     char **val);
-uint32_t dm_decode_node_list(DM_AVPGRP *grp, char **name, uint32_t *type,
+uint32_t dm_decode_node_list(DM2_AVPGRP *grp, char **name, uint32_t *type,
 			     uint32_t *size, uint32_t *datatype);
 
 static inline DM_AVPGRP *dm_grp_new(void);
@@ -522,22 +525,50 @@ static inline uint32_t dm_decode_timeval(DM_AVPGRP *grp,
 					 struct timeval *timeval);
 static inline uint32_t dm_decode_absticks(DM_AVPGRP *grp, int64_t *val);
 static inline uint32_t dm_decode_relticks(DM_AVPGRP *grp, int64_t *val);
-static inline uint32_t dm_decode_path(DM_AVPGRP *grp, char **val);
+static inline uint32_t dm_decode_path(DM2_AVPGRP *grp, char **val);
 static inline uint32_t dm_decode_binary(DM_AVPGRP *grp, void **val, size_t *len);
 static inline uint32_t dm_decode_unknown(DM_AVPGRP *grp, uint32_t *type,
 					 void **val, size_t *size);
 static inline uint32_t dm_decode_enumval(DM_AVPGRP *grp, char **val);
-static inline uint32_t dm_decode_type_path(DM_AVPGRP *grp, uint32_t *v1,
+static inline uint32_t dm_decode_type_path(DM2_AVPGRP *grp, uint32_t *v1,
 					   char **v2);
 static inline uint32_t dm_decode_container(DM_AVPGRP *grp,
 					   DM_AVPGRP **container);
 
-static inline uint32_t dm_decode_parameter_changed(DM_AVPGRP *notify,
+static inline uint32_t dm_decode_parameter_changed(DM2_AVPGRP *notify,
 						   char **parameter,
 						   uint32_t *data_type);
-static inline uint32_t dm_decode_instance_deleted(DM_AVPGRP *, char **);
-static inline uint32_t dm_decode_instance_created(DM_AVPGRP *, char **);
+static inline uint32_t dm_decode_instance_deleted(DM2_AVPGRP *, char **);
+static inline uint32_t dm_decode_instance_created(DM2_AVPGRP *, char **);
 
+
+/* API v2 */
+
+struct dm_bin {
+	void *data;
+	size_t size;
+};
+
+struct dm2_avp {
+	uint32_t code;
+	uint32_t vendor_id;
+	void *data;
+	size_t size;
+};
+
+typedef DM_AVPGRP DM_OBJ;
+
+uint32_t dm_expect_end(DM2_AVPGRP *grp) __attribute__((nonnull (1)));
+uint32_t dm_expect_object(DM2_AVPGRP *grp, DM2_AVPGRP *obj) __attribute__((nonnull (1,2)));
+uint32_t dm_expect_raw(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size) __attribute__((nonnull (1,4,5)));
+uint32_t dm_expect_value(DM2_AVPGRP *grp, struct dm2_avp *avp) __attribute__((nonnull (1,2)));
+uint32_t dm_expect_bin(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, struct dm_bin *bin) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_string_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_uint8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint8_t *value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_uint16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint16_t *value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_uint32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value) __attribute__((nonnull (1,4)));
+
+/* old obsolete API */
 
 /** allocate new AVP group
  *
@@ -2468,19 +2499,9 @@ dm_decode_relticks(DM_AVPGRP *grp, int64_t *val)
 }
 
 static inline uint32_t
-dm_decode_path(DM_AVPGRP *grp, char **val)
+dm_decode_path(DM2_AVPGRP *grp, char **val)
 {
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
-
-	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
-	    code != AVP_PATH)
-		return RC_ERR_MISC;
-
-	return (*val = strndup(data, len)) ? RC_OK : RC_ERR_ALLOC;
+	return dm_expect_string_type(grp, AVP_PATH, VP_TRAVELPING, val);
 }
 
 static inline uint32_t
@@ -2519,20 +2540,19 @@ dm_decode_enumval(DM_AVPGRP *grp, char **val)
 }
 
 static inline uint32_t
-dm_decode_type_path(DM_AVPGRP *grp, uint32_t *v1, char **v2)
+dm_decode_type_path(DM2_AVPGRP *grp, uint32_t *v1, char **v2)
 {
 	uint32_t	code;
-	uint8_t		flags;
 	uint32_t	vendor_id;
 	void		*data;
 	size_t		len;
 
-	if (dm_avpgrp_get_avp(grp, &code, &flags, &vendor_id, &data, &len) ||
+	if (dm_expect_avp(grp, &code, &vendor_id, &data, &len) ||
 	    code != AVP_TYPE_PATH || len <= sizeof(uint32_t))
 		return RC_ERR_MISC;
 
 	*v1 = dm_get_uint32_avp(data);
-	*v2 = strndup((char*)data + sizeof(uint32_t), len - sizeof(uint32_t));
+	*v2 = talloc_strndup(grp->ctx, (char*)data + sizeof(uint32_t), len - sizeof(uint32_t));
 
 	return *v2 ? RC_OK : RC_ERR_ALLOC;
 }
@@ -2555,33 +2575,22 @@ dm_decode_container(DM_AVPGRP *grp, DM_AVPGRP **container)
 }
 
 static inline uint32_t
-dm_decode_parameter_changed(DM_AVPGRP *notify, char **parameter,
+dm_decode_parameter_changed(DM2_AVPGRP *notify, char **parameter,
 			    uint32_t *data_type)
 {
 	return dm_decode_type_path(notify, data_type, parameter);
 }
 
 static inline uint32_t
-dm_decode_instance_deleted(DM_AVPGRP *notify, char **path)
+dm_decode_instance_deleted(DM2_AVPGRP *notify, char **path)
 {
 	return dm_decode_path(notify, path);
 }
 
 static inline uint32_t
-dm_decode_instance_created(DM_AVPGRP *notify, char **path)
+dm_decode_instance_created(DM2_AVPGRP *notify, char **path)
 {
 	return dm_decode_path(notify, path);
 }
-
-
-/* API v2 */
-
-typedef DM_AVPGRP DM_OBJ;
-
-uint32_t dm_expect_any(DM_OBJ *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *size) __attribute__((nonnull (1,2,3,4,5)));
-uint32_t dm_expect_object(DM_OBJ *grp, DM_OBJ **obj) __attribute__((nonnull (1,2)));
-uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, void **data, size_t *size) __attribute__((nonnull (1,4,5)));
-uint32_t dm_expect_string_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, char **value) __attribute__((nonnull (1,4)));
-uint32_t dm_expect_uint32_type(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value) __attribute__((nonnull (1,4)));
 
 #endif /* __DMCONFIG_H */
