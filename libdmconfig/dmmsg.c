@@ -299,13 +299,13 @@ dm_avpgrp_add_uint32_string(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
 int
 dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t len) {
 	if(*(uint16_t *)src == htons(IANA_INET)) {
-		if (len != sizeof(struct in_addr) || size < sizeof(struct in_addr))
+		if (len < sizeof(struct in_addr) + 2 || size < sizeof(struct in_addr))
 			return 1;
 		*af = AF_INET;
 		*(struct in_addr *)addr = *(struct in_addr *)(((uint8_t *)src) + 2);
 		return sizeof(struct in_addr);
 	} else if(*(uint16_t *)src == htons(IANA_INET6)) {
-		if (len != sizeof(struct in6_addr) || size < sizeof(struct in6_addr))
+		if (len < sizeof(struct in6_addr) + 2 || size < sizeof(struct in6_addr))
 			return 1;
 		*af = AF_INET6;
 		*(struct in6_addr *)addr = *(struct in6_addr *)(((uint8_t *)src) + 2);

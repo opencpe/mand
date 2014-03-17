@@ -1800,8 +1800,7 @@ uint32_t dm_expect_any(DM_OBJ *grp, uint32_t *code, uint32_t *vendor_id, void **
 	assert(data != NULL);
 	assert(size != NULL);
 
-	if (dm_avpgrp_get_avp(grp, code, &flags, vendor_id, data, size) != RC_OK
-	    || *size <= 0)
+	if (dm_avpgrp_get_avp(grp, code, &flags, vendor_id, data, size) != RC_OK)
 		return RC_ERR_MISC;
 
 	return RC_OK;
@@ -1818,8 +1817,7 @@ uint32_t dm_expect_object(DM_OBJ *grp, DM_OBJ **obj)
 	assert(obj != NULL);
 
 	if (dm_expect_any(grp, &code, &vendor_id, &data, &len) != RC_OK
-	    || code != AVP_CONTAINER
-	    || len <= 0)
+	    || code != AVP_CONTAINER)
 		return RC_ERR_MISC;
 
 	if (!(*obj = dm_decode_avpgrp(grp, data, len)))
@@ -1839,8 +1837,7 @@ uint32_t dm_expect_raw(DM_OBJ *grp, uint32_t exp_code, uint32_t exp_vendor_id, v
 
 	if (dm_expect_any(grp, &code, &vendor_id, data, size) != RC_OK
 	    || code != exp_code
-	    || vendor_id != exp_vendor_id
-	    || *size <= 0)
+	    || vendor_id != exp_vendor_id)
 		return RC_ERR_MISC;
 
 	return RC_OK;
