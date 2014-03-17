@@ -25,4 +25,35 @@ module opencpe-actions {
         ocpe-action:action "dm_dns";
     }
 
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:ip" {
+        ocpe-action:action "dm_if_ip";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:prefix-length" {
+        ocpe-action:action "dm_if_ip";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:ip" {
+        ocpe-action:action "dm_if_ip";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:prefix-length" {
+        ocpe-action:action "dm_if_ip";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:ip" {
+        ocpe-action:action "dm_if_neigh";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:link-layer-address" {
+        ocpe-action:action "dm_if_neigh";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:ip" {
+        ocpe-action:action "dm_if_neigh";
+    }
+
+    ocpe-action:annotate "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:link-layer-address" {
+        ocpe-action:action "dm_if_neigh";
+    }
 }
