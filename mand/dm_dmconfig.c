@@ -1155,8 +1155,7 @@ processRequest(SOCKCONTEXT *sockCtx, COMMSTATUS status)
 				}
 			} else {
 				/* system */
-				if (!dm_walk_by_selector_cb((dm_selector) {dm__system, 0},
-							       list_ctx.max_level, &list_ctx, dmconfig_list_cb)) {
+				if (!dm_walk_table_cb(list_ctx.max_level, &list_ctx, dmconfig_list_cb, &dm_root, dm_value_store)) {
 					code = RC_ERR_MISC;
 					break;
 				}
