@@ -150,7 +150,7 @@ def emit_tree(modules, fd):
 #mapping of the yang types to c types 
 c_types = {'string':'T_STR', 'enumeration':'T_ENUM', 'uint8':'T_UINT', 'uint16':'T_UINT', 'uint32':'T_UINT', 'uint64':'T_UINT',
            'int8':'T_INT', 'int16':'T_INT', 'int32':'T_INT', 'int64':'T_INT', 'boolean':'T_BOOL', 'bits':'T_BINARY',
-           'binary':'T_BINARY', 'identityref':'T_STR', 'leafref':'T_SELECTOR', 'inet:ipv4-address':'T_IPADDR4', 'inet:ipv6-address':'T_IPADDR6',
+           'binary':'T_BASE64', 'identityref':'T_STR', 'leafref':'T_SELECTOR', 'inet:ipv4-address':'T_IPADDR4', 'inet:ipv6-address':'T_IPADDR6',
             'empty':'T_BINARY', 'inet:host':'T_STR', 'inet:ip-address':'T_STR'}
 
 #this dict states which types in the yang model are directly supported in the c model
