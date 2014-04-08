@@ -39,6 +39,7 @@
 #include <ev.h>
 
 #include <sys/tree.h>
+#include <sys/queue.h>
 
 #ifdef LIBDMCONFIG_DEBUG
 #include "libdmconfig/debug.h"
@@ -51,6 +52,7 @@
 #endif
 
 #include "libdmconfig/dmconfig.h"
+#include "libdmconfig/dmcontext.h"
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/codes.h"
 
@@ -61,7 +63,6 @@
 #include "dm_index.h"
 #include "dm_cache.h"
 #include "dm_serialize.h"
-#include "dm_cfgsessions.h"
 #include "dm_strings.h"
 #include "dm_cfg_bkrst.h"
 #include "dm_notify.h"
@@ -69,7 +70,9 @@
 #include "dm_validate.h"
 #include "utils/binary.h"
 
-#include "dm_dmconfig_rpc_skel.h"
+#include "libdmconfig/dm_dmconfig_rpc_skel.h"
+#include "libdmconfig/dm_dmconfig_rpc_impl.h"
+#include "libdmconfig/dm_dmclient_rpc_stub.h"
 
 #define SDEBUG
 #include "debug.h"
@@ -78,1269 +81,1179 @@
 #define dm_ENTER(sid) dm_debug(sid, "%s", "enter")
 #define dm_EXIT(sid) dm_debug(sid, "%s, %d", "exit", __LINE__)
 
-static int init_libdmconfig_socket(int type);
+int libdmconfigSocketType;
+uint32_t cfg_session_id;
 
-static void session_times_out(int fd __attribute__((unused)),
-			      short type __attribute__((unused)), void *param);
-static void requested_session_timeout(int fd __attribute__((unused)),
-				      short type __attribute__((unused)), void *param);
+static DMCONTEXT *accept_socket;
 
-static void freeSockCtx(SOCKCONTEXT *sockCtx);
-static void async_free_sockCtx(EV_P __attribute__((unused)),
-			       ev_async *w, int revents __attribute__((unused)));
-static void disableSockCtx(SOCKCONTEXT *sockCtx);
-static inline void threadDerefSockCtx(SOCKCONTEXT *sockCtx);
+static TAILQ_HEAD(socket_list, sockContext) socket_head = TAILQ_HEAD_INITIALIZER(socket_head);
 
-static void acceptEvent(int sfd __attribute__((unused)),
-			short event __attribute__((unused)),
-			void *arg __attribute__((unused)));
-static void readEvent(int fd, short event, void *arg);
-static inline int process_data(SOCKCONTEXT *sockCtx, COMMSTATUS status);
-static inline int process_packet(SOCKCONTEXT *sockCtx, OBJ_GROUP *obj);
-static void writeEvent(int fd, short event, void *arg);
+static uint32_t session_counter;
 
-static int register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
-			   uint32_t rc, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx);
-static int register_packet(DM_REQUEST *packet, SOCKCONTEXT *sockCtx);
+static uint32_t req_hopid;
+static uint32_t req_endid;
 
-static int reset_writeEvent(SOCKCONTEXT *sockCtx);
-static void async_reset_writeEvent(EV_P __attribute__((unused)),
-				   ev_async *w, int revents __attribute__((unused)));
-
-static uint32_t process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags,
-				      uint32_t hopid, struct timeval timeout);
-static uint32_t process_switch_session(SOCKCONTEXT *sockCtx, uint32_t flags,
-				       uint32_t hopid, SESSION *le, struct timeval timeout);
-
-		/* session handling: session list and misc. variables  */
-
-			/* libdmconfig clients get sessionIds in the range of 1 to MAX_INT */
-static uint32_t			session_counter;
-uint32_t			cfg_sessionid = 0;	/* 0 means there's no (libdmconfig) configure session */
-
-static int			accept_socket;
-static struct event_base	*evbase;
-
-static SESSION			*session_head = NULL;
-static REQUESTED_SESSION	*reqsession_head = NULL;
-static SOCKCONTEXT		*socket_head = NULL;
-
-static struct event		clientConnection;
-int				libdmconfigSocketType;
-
-static uint32_t			req_hopid;
-static uint32_t			req_endid;
-
-		/* static as only one of these operations is running at once */
-
-static pthread_mutex_t		dmconfig_mutex = PTHREAD_MUTEX_INITIALIZER; /* generic dmconfig mutex */
-
-static pthread_t		main_thread;
-
-SESSION *
-lookup_session(uint32_t sessionid)
+static void
+end_session(SOCKCONTEXT *ctx)
 {
-	SESSION *ret;
+	// TODO: more stuff todo....
 
-	dm_ENTER(sessionid);
+	if (ev_is_active(&ctx->session_timer_ev))
+		ev_timer_stop(ctx->socket->ev, &ctx->session_timer_ev);
 
-	if (!sessionid) {
-		dm_EXIT(sessionid);
-		return NULL;
+	dm_context_shutdown(ctx->socket, DMCONFIG_OK);
+	dm_context_release(ctx->socket);
+
+	if (ctx->notify_slot)
+		free_slot(ctx->notify_slot);
+
+	if (cfg_session_id == ctx->id) {
+		cfg_session_id = 0;
+		cache_reset();
 	}
 
-	for (ret = session_head->next;
-			ret && ret->sessionid != sessionid; ret = ret->next);
+	TAILQ_REMOVE(&socket_head, ctx, list);
+	talloc_free(ctx);
 
-	dm_EXIT(sessionid);
-	return ret;
-}
-
-static int
-init_libdmconfig_socket(int type)
-{
-	int fd;
-
-	ENTER();
-
-			/* binding and listening cannot block */
-
-	if (type == AF_UNIX) {
-		static struct sockaddr_un sockaddr;
-
-		if ((fd = socket(PF_UNIX, SOCK_STREAM, 0)) == -1) {
-			EXIT();
-			return -1;
-		}
-
-		memset(&sockaddr, 0, sizeof(sockaddr));
-
-		sockaddr.sun_family = AF_UNIX;
-		strncpy(sockaddr.sun_path + 1, SERVER_LOCAL,
-			sizeof(sockaddr.sun_path) - 1);
-
-		if (bind(fd, &sockaddr, sizeof(struct sockaddr_un))) {
-			close(fd);
-			EXIT();
-			return -1;
-		}
-	} else { /* AF_INET */
-		static struct sockaddr_in sockaddr;
-		static int flag = 1;
-
-		if ((fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-			EXIT();
-			return -1;
-		}
-
-		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag))) {
-			close(fd);
-			EXIT();
-			return -1;
-		}
-
-		memset(&sockaddr, 0, sizeof(sockaddr));
-
-		sockaddr.sin_family = AF_INET;
-		sockaddr.sin_port = htons(SERVER_PORT);
-		sockaddr.sin_addr.s_addr = htonl(ACCEPT_IP);
-
-		if (bind(fd, &sockaddr, sizeof(struct sockaddr_in))) {
-			close(fd);
-			EXIT();
-			return -1;
-		}
-	}
-
-	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-
-	if (listen(fd, MAX_CONNECTIONS)) {
-		close(fd);
-		EXIT();
-		return -1;
-	}
-
-	EXIT();
-	return fd;
-}
-
-uint8_t
-init_libdmconfig_server(struct event_base *base)
-{
-	SOCKCONTEXT *old_socket_head = socket_head; /* required since this function may be called
-						       for cleanup purposes even if threads still depend on some sockCtx
-						       in this case we don't want to allocate socket_head or free it after 'abort:' */
-
-	ENTER();
-
-	evbase = base;
-	main_thread = pthread_self();
-
-	if ((accept_socket = init_libdmconfig_socket(libdmconfigSocketType)) == -1) {
-		EXIT();
-		return 1;
-	}
-
-	/* initiate session counter & hop2hop/end2end ids (random value between 1 and MAX_INT) */
-
-	srand((unsigned int)time(NULL));
-	session_counter = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
-	req_hopid = req_endid = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
-
-	/* init the list heads / talloc contexts */
-
-	if (!(session_head = talloc(NULL, SESSION)) ||
-	    !(reqsession_head = talloc(NULL, REQUESTED_SESSION)) ||
-	    (!old_socket_head && !(socket_head = talloc(NULL, SOCKCONTEXT))))
-		goto abort;
-
-	memset(session_head, 0, sizeof(SESSION));
-	memset(reqsession_head, 0, sizeof(REQUESTED_SESSION));
-	memset(socket_head, 0, sizeof(SOCKCONTEXT));
-
-	event_set(&clientConnection, accept_socket, EV_READ | EV_PERSIST,
-		  acceptEvent, NULL);
-	event_base_set(evbase, &clientConnection);
-
-	if (event_add(&clientConnection, NULL)) /* it listens the whole time, so no timeout */
-		goto abort;
-
-	EXIT();
-	return 0;
-
-abort:
-
-	talloc_free(session_head);
-	talloc_free(reqsession_head);
-	if (!old_socket_head)
-		talloc_free(socket_head);
-
-	close(accept_socket);
-	EXIT();
-	return 1;
+	exec_actions_pre();
+	exec_actions();
+	exec_pending_notifications();
 }
 
 static void
-acceptEvent(int sfd __attribute__((unused)), short event __attribute__((unused)),
-	    void *arg __attribute__((unused)))
+sessionTimeoutEvent(struct ev_loop *loop __attribute__((unused)), ev_io *w, int revents __attribute__((unused)))
 {
-	int			fd, flags;
+	SOCKCONTEXT *ctx = w->data;
 
-	SOCKCONTEXT		*sockCtx;
-	COMMCONTEXT		*readCtx, *writeCtx;
-
-	ENTER();
-
-	if ((fd = accept(accept_socket, NULL, NULL)) == -1) {
-		EXIT();
-		return;
-	}
-
-	flags = 1;
-	/* NOTE: this will fail if the socket is not a TCP socket, but that's nothing to worry */
-	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flags, sizeof(flags));
-
-	if ((flags = fcntl(fd, F_GETFL)) == -1 ||
-	    fcntl(fd, F_SETFL, flags | O_NONBLOCK)) {
-		close(fd);
-		EXIT();
-		return;
-	}
-
-	if (!(sockCtx = talloc(socket_head, SOCKCONTEXT))) {
-		close(fd);
-		EXIT();
-		return;
-	}
-	memset(sockCtx, 0, sizeof(SOCKCONTEXT));
-
-	sockCtx->refcnt = 1;
-	sockCtx->fd = fd;
-
-	readCtx = &sockCtx->readCtx;
-	writeCtx = &sockCtx->writeCtx;
-
-	event_set(&readCtx->event, fd, EV_READ | EV_PERSIST, readEvent, sockCtx);
-	event_base_set(evbase, &readCtx->event);
-
-	event_set(&writeCtx->event, fd, EV_WRITE | EV_PERSIST, writeEvent, sockCtx);
-	event_base_set(evbase, &writeCtx->event);
-
-	if (pthread_mutex_init(&sockCtx->lock, NULL) ||
-	    event_add(&readCtx->event, NULL)) {	/* currently, no read timeouts */
-		talloc_free(sockCtx);		/* unless a request was partially read */
-		close(fd);
-		EXIT();
-		return;
-	}
-
-	ev_async_init(&sockCtx->sync, async_reset_writeEvent);
-	ev_async_start((struct ev_loop *)evbase, &sockCtx->sync);
-
-	ev_async_init(&sockCtx->free, async_free_sockCtx);
-	ev_async_start((struct ev_loop *)evbase, &sockCtx->free);
-	sockCtx->free.data = sockCtx;
-
-	LD_INSERT(socket_head, sockCtx);
-
-	EXIT();
+	end_session(ctx);
 }
 
-/*
- * "garbage collect" a sockCtx
- */
-
-static void
-freeSockCtx(SOCKCONTEXT *sockCtx)
+static uint32_t
+accept_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata __attribute__((unused)))
 {
-	ENTER();
+	SOCKCONTEXT *ctx;
 
-	pthread_mutex_destroy(&sockCtx->lock);
+	if (event != DMCONFIG_ACCEPTED)
+		return RC_OK;
 
-	ev_async_stop((struct ev_loop *)evbase, &sockCtx->sync);
-	ev_async_stop((struct ev_loop *)evbase, &sockCtx->free);
+	if (!(ctx = talloc_zero(NULL, SOCKCONTEXT)))
+		return RC_ERR_ALLOC;
 
-	talloc_free(sockCtx->readCtx.req);
+	dm_context_set_userdata(socket, ctx);
+	ctx->socket = socket;
 
-	L_FOREACH(REQUESTED_SESSION, cur, reqsession_head)
-		if (cur->sockCtx == sockCtx) {
-			REQUESTED_SESSION *prev = cur->prev;
+	ev_timer_init(&ctx->session_timer_ev, sessionTimeoutEvent, 0., 0.);
+	ctx->session_timer_ev.data = ctx;
 
-			if ((prev->next = cur->next))
-				cur->next->prev = prev;
+	/* ev_timer_start(socket->ev, &ctx->session_timer_ev); */
 
-			event_del(&cur->timeout);
-			talloc_free(cur);
+	TAILQ_INSERT_TAIL(&socket_head, ctx, list);
 
-			cur = prev;
-		}
-
-	shutdown(sockCtx->fd, SHUT_RDWR);
-	close(sockCtx->fd);
-
-	if (sockCtx->notifySession)
-		unsubscribeNotify(sockCtx->notifySession);
-
-	LD_FREE(sockCtx); /* also frees the answer list & outgoing requests and
-			     removes sockCtx from the sockets list */
-
-	EXIT();
+	return RC_OK;
 }
 
 static void
-async_free_sockCtx(EV_P __attribute__((unused)),
-		   ev_async *w, int revents __attribute__((unused)))
+request_cb(DMCONTEXT *socket, DM_PACKET *pkt, DM2_AVPGRP *grp, void *userdata)
 {
-	freeSockCtx((SOCKCONTEXT*)w->data);
-}
-
-/*
- * called from the main thread in case of CONNRESETs and related errors
- * to derefernce & possibly "garbage collect" a sockCtx.
- */
-
-static void
-disableSockCtx(SOCKCONTEXT *sockCtx)
-{
-	ENTER();
-
-	pthread_mutex_lock(&sockCtx->lock);
-
-			/* don't bother us with read/write callbacks again */
-	event_del(&sockCtx->readCtx.event);
-	event_del(&sockCtx->writeCtx.event);
-
-			/* "deinitialize" so threads won't add events again */
-	memset(&sockCtx->readCtx.event, 0, sizeof(struct event));
-	memset(&sockCtx->writeCtx.event, 0, sizeof(struct event));
-
-	if (!--sockCtx->refcnt) {
-		pthread_mutex_unlock(&sockCtx->lock);
-		freeSockCtx(sockCtx);
-	} else
-		pthread_mutex_unlock(&sockCtx->lock);
-
-	EXIT();
-}
-
-/*
- * called from non-main threads to derefernce & possibly "garbage collect" a sockCtx.
- * don't care about events since "garbage collection" is only done when the main
- * thread dereferenced the sockCtx and thus already deleted them
- */
-
-static inline void
-threadDerefSockCtx(SOCKCONTEXT *sockCtx)
-{
-	pthread_mutex_lock(&sockCtx->lock);
-
-	if (!--sockCtx->refcnt) {
-		pthread_mutex_unlock(&sockCtx->lock);
-		ev_async_send((struct ev_loop *)evbase, &sockCtx->free);
-	} else
-		pthread_mutex_unlock(&sockCtx->lock);
-}
-
-void
-unsubscribeNotify(SESSION *le)
-{
-	free_slot(le->notify.slot);
-	le->notify.clientSockCtx->notifySession = NULL;
-	memset(&le->notify, 0, sizeof(NOTIFY_INFO));
-}
-
-static void
-readEvent(int fd, short event, void *arg)
-{
-	SOCKCONTEXT	*sockCtx = arg;
-
-	COMMSTATUS	status;
-	uint8_t		alreadyRead = 0;
-
-	debug("(): [%d]: %d", fd, event);
-
-	do {
-				/* NOTE: theoretically locking shouldn't be necessary here
-				 * since readCtx is only accessed in the main thread and
-				 * the read request is a root talloc context
-				 */
-		pthread_mutex_lock(&sockCtx->lock);
-		event_aux_dmRead(fd, event, &sockCtx->readCtx, &alreadyRead, &status);
-		pthread_mutex_unlock(&sockCtx->lock);
-
-		debug(": alreadyRead: %d, status: %d", alreadyRead, status);
-	} while (process_data(sockCtx, status));
-
-	EXIT();
-}
-
-/*
- * TODO: split processRequest into inline functions (the switch statement) and
- * maybe merge the rest with 'readEvent'
- */
-
-static inline int
-process_data(SOCKCONTEXT *sockCtx, COMMSTATUS status)
-{
-	COMMCONTEXT		*ctx;
-
-	char			*path = NULL;
-	char			*dum = NULL;
-	char			*buf = NULL;
-
-	OBJ_GROUP		obj;
-	struct timeval		timeout;
-
-	memset(&obj, 0, sizeof(obj));
-
-	pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking not necessary here */
-
-	debug("(): [%d]: %d", sockCtx->fd, status);
-	ctx = &sockCtx->readCtx;
-	obj.req = ctx->req;
-
-	pthread_mutex_unlock(&sockCtx->lock);
-
-	switch (status) {
-	case CONNRESET:
-		goto reaccept;
-	case INCOMPLETE:
-		timeout.tv_sec = TIMEOUT_CHUNKS;
-		timeout.tv_usec = 0;
-
-		pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking not necessary here */
-		if (event_add(&ctx->event, &timeout)) {	/* reduce readEvent's timeout */
-			pthread_mutex_unlock(&sockCtx->lock);
-			goto server_err;
-		}
-		pthread_mutex_unlock(&sockCtx->lock);
-
-		EXIT();
-		return 0;
-	case NOTHING:
-		EXIT();
-		return 0;
-	case COMPLETE:
-		break;
-	default:	/* ERROR */
-		goto server_err;
-	}
-
-	switch (process_packet(sockCtx, &obj)) {
-
-	case RC_OK:
-		pthread_mutex_lock(&sockCtx->lock); /* NOTE: locking unnecessary here */
-						/* currently, no read timeouts */
-						/* unless a request was partially read */
-		if (event_add(&ctx->event, NULL)) {	/* reset readEvent's timeout */
-			pthread_mutex_unlock(&sockCtx->lock);
-			goto server_err;
-		}
-		pthread_mutex_unlock(&sockCtx->lock);
-
-		EXIT();
-		return 1;
-
-	case RC_ERR_ALLOC:
-
-server_err:
-		/* critical error: deallocate everything properly */
-
-		L_FOREACH(SESSION, cur, session_head) {
-			if (cur->notify.slot)
-				unsubscribeNotify(cur);
-			event_del(&cur->timeout);
-		}
-		talloc_free(session_head);
-		session_head = NULL;
-
-		L_FOREACH(REQUESTED_SESSION, cur, reqsession_head)
-			event_del(&cur->timeout);
-		talloc_free(reqsession_head);
-		reqsession_head = NULL;
-
-		L_FOREACH(SOCKCONTEXT, cur, socket_head)
-			disableSockCtx(cur);
-		/* at least try to free the socket_head if no threads depend on any sockCtx */
-		if (!socket_head->next) {
-			talloc_free(socket_head);
-			socket_head = NULL;
-		}
-
-		free(dum);
-		free(path);
-		free(buf);
-
-		event_del(&clientConnection);
-		shutdown(accept_socket, SHUT_RDWR);
-		close(accept_socket);
-
-		/* restart server */
-
-		init_libdmconfig_server(evbase);
-
-		EXIT();
-		return 0;
-
-
-	default:
-reaccept:
-		/* protocol/communication errors (including terminated peer connections) */
-		/* there's no need to reset everything */
-
-		disableSockCtx(sockCtx);
-
-		EXIT();
-		return 0;
-	}
-}
-
-static inline int
-process_packet(SOCKCONTEXT *sockCtx, OBJ_GROUP *obj)
-{
+	SOCKCONTEXT *ctx = userdata;
 	DMC_REQUEST req;
-	DM2_AVPGRP grp;
-	DM_OBJ *answer = NULL;
-	int r;
-	uint32_t rc = RC_OK;
+	DM2_REQUEST *answer = NULL;
 
-	/* request read successfully */
-
-	dm_init_packet(&obj->req->packet, &grp);
-
-	req.hop2hop = dm_hop2hop_id(&obj->req->packet);
-	req.end2end = dm_end2end_id(&obj->req->packet);
-	req.code = dm_packet_code(&obj->req->packet);
+	req.hop2hop = dm_hop2hop_id(pkt);
+	req.end2end = dm_end2end_id(pkt);
+	req.code = dm_packet_code(pkt);
 
 #ifdef LIBDMCONFIG_DEBUG
 	fprintf(stderr, "Received %s:\n",
-		dm_packet_flags(obj->req->packet) & CMD_FLAG_REQUEST ?
-							"request" : "answer");
-	dump_dm_packet(obj->req);
-	dm_request_reset_avp(obj->req);
+		dm_packet_flags(pkt) & CMD_FLAG_REQUEST ? "request" : "answer");
+	dump_dm_packet(pkt);
 #endif
 
-	/* don't accept client answers currently */
-	if (!(dm_packet_flags(&obj->req->packet) & CMD_FLAG_REQUEST)) {
-		debug("(): error, not a request");
-		return RC_ERR_CONNECTION;
+	if (ev_is_active(&ctx->session_timer_ev))
+		ev_timer_again(socket->ev, &ctx->session_timer_ev);
+
+	if ((rpc_dmconfig_switch(ctx, &req, grp, &answer)) == RC_ERR_ALLOC) {
+		end_session(ctx);
+		return;
 	}
 
-	if ((r = dm_expect_uint32_type(&grp, AVP_SESSIONID, VP_TRAVELPING, &req.sessionid)) != RC_OK)
-		return r;
+	if (answer)
+		dm_enqueue(socket, answer, REPLY, NULL, NULL);
+}
 
-	dm_debug(req.sessionid, "session");
+uint32_t
+init_libdmconfig_server(struct ev_loop *base)
+{
+	uint32_t rc;
 
-	/* TODO: cleanup, WTF is used for....*/
-	if (req.code != CMD_GET_PASSIVE_NOTIFICATIONS && req.sessionid &&	/* reset_timeout_obj validates the sessionId, too */
-	    reset_timeout_obj(req.sessionid)) {					/* except for POLLs because they don't reset the timeout */
-		rc = RC_ERR_INVALID_SESSIONID;
-		debug("(): error, invalid session id");
-	} else
-		rc = rpc_dmconfig_switch(sockCtx, &req, &grp, &answer);
+	if (accept_socket)
+		return RC_OK;
 
-	if (rc != RC_ERR_ALLOC)
-		/* the command evaluation has to set "code" and "answer"
-		   (or leave it preinitialized to RC_OK, NULL) */
-		if (register_answer(req.code, req.hop2hop, req.end2end, rc, answer, sockCtx))
-			return RC_ERR_ALLOC;
+	if (!(accept_socket = dm_context_new()))
+		return RC_ERR_ALLOC;
+	dm_context_init(accept_socket, base, libdmconfigSocketType, NULL, accept_cb, request_cb);
 
+	/* initiate session counter & hop2hop/end2end ids (random value between 1 and MAX_INT) */
+	srand((unsigned int)time(NULL));
+	session_counter = 1;
+	req_hopid = req_endid = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
+
+	/* accept */
+	if ((rc = dm_accept_async(accept_socket)) != RC_OK)
+		goto abort;
+
+	return RC_OK;
+
+ abort:
+	dm_context_shutdown(accept_socket, DMCONFIG_ERROR_ACCEPTING);
 	return rc;
 }
 
-uint32_t
-process_request_session(struct event_base *base, SOCKCONTEXT *sockCtx,
-			uint32_t dm_code, uint32_t hopid, uint32_t sessionid,
-			DM2_AVPGRP *grp)
+/*
+ * RPC Helpers
+ */
+
+struct list_ctx {
+	DM2_REQUEST	*req;
+
+	int		level;
+	int		max_level;
+	int		firstone;
+};
+
+static inline uint32_t avp_type_map(unsigned short type)
 {
-	uint32_t	rc;
-	uint32_t	code;
-	uint8_t		header_flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
+	switch (type) {
+	case T_ENUM:		return AVP_ENUM;
+	case T_COUNTER:		return AVP_COUNTER;
+	case T_INT:		return AVP_INT32;
+	case T_UINT:		return AVP_UINT32;
+	case T_INT64:		return AVP_INT64;
+	case T_UINT64:		return AVP_UINT64;
+	case T_STR:		return AVP_STRING;
+	case T_BINARY:		return AVP_BINARY;
+	case T_BASE64:		return AVP_BINARY;
+	case T_IPADDR4:		return AVP_ADDRESS;
+	case T_IPADDR6:		return AVP_ADDRESS;
+	case T_BOOL:		return AVP_BOOL;
+	case T_DATE:		return AVP_DATE;
+	case T_SELECTOR:	return AVP_PATH;
+	case T_TICKS:		return AVP_TICKS;
+	}
+	return AVP_UNKNOWN;
+}
 
-	uint32_t	flags;
-	SESSION		*le;
 
-	struct timeval	timeout_session;
+static uint32_t
+dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, const DM_VALUE val)
+{
+	switch (elem->type) {
+	case T_ENUM:
+		debug(": [Answer: %s (%d)]\n", dm_int2enum(&elem->u.e, DM_ENUM(val)), DM_ENUM(val));
+		return dm_add_string(req, AVP_ENUM, VP_TRAVELPING, dm_int2enum(&elem->u.e, DM_ENUM(val)));
 
-	dm_ENTER(sessionid);
+	case T_COUNTER:
+		debug(": [Answer: %u]\n", DM_UINT(val));
+		return dm_add_uint32(req, AVP_COUNTER, VP_TRAVELPING, DM_UINT(val));
 
-	switch (dm_code) {
-	case CMD_SWITCHSESSION:
-		if (!(le = lookup_session(sessionid))) {
-			dm_EXIT(sessionid);
-			return register_answer(CMD_SWITCHSESSION, hopid,
-					       hopid, RC_ERR_INVALID_SESSIONID,
-					       NULL, sockCtx) ? RC_ERR_ALLOC : RC_OK;
-		}
-		break;
-	case CMD_STARTSESSION:
-		if (sessionid) {
-			dm_EXIT(sessionid);
-			return register_answer(CMD_STARTSESSION, hopid,
-					       hopid, RC_ERR_INVALID_SESSIONID,
-					       NULL, sockCtx) ? RC_ERR_ALLOC : RC_OK;
-		}
+	case T_INT:
+		debug(": [Answer: %d]\n", DM_INT(val));
+		return dm_add_int32(req, AVP_INT32, VP_TRAVELPING, DM_INT(val));
 
-		le = NULL;
+	case T_UINT:
+		debug(": [Answer: %u]\n", DM_UINT(val));
+		return dm_add_uint32(req, AVP_UINT32, VP_TRAVELPING, DM_UINT(val));
+
+	case T_INT64:
+		debug(": [Answer: %" PRIi64 "]\n", DM_INT64(val));
+		return dm_add_int64(req, AVP_INT64, VP_TRAVELPING, DM_INT64(val));
+
+	case T_UINT64:
+		debug(": [Answer: %" PRIu64 " ]\n", DM_UINT64(val));
+		return dm_add_uint64(req, AVP_UINT64, VP_TRAVELPING, DM_UINT64(val));
+
+	case T_STR:
+		debug(": [Answer: \"%s\"]\n", DM_STRING(val) ? : "");
+		return dm_add_string(req, AVP_STRING, VP_TRAVELPING, DM_STRING(val) ? : "");
+
+	case T_BINARY:
+	case T_BASE64:
+		debug(": [Answer: \"binay data....\"]\n"); /* FIXME */
+		return dm_add_raw(req, AVP_BINARY, VP_TRAVELPING,
+				  DM_BINARY(val) ? DM_BINARY(val)->data : "",
+				  DM_BINARY(val) ? DM_BINARY(val)->len : 0);
+
+	case T_IPADDR4:
+		debug(": [Answer: %s]\n", inet_ntoa(DM_IP4(val)));
+		return dm_add_address(req, AVP_ADDRESS, VP_TRAVELPING, AF_INET, DM_IP4_REF(val));
+
+	case T_IPADDR6:
+		/* debug(": [Answer: %s]\n", inet_ntoa(DM_IP6(val))); */
+		return dm_add_address(req, AVP_ADDRESS, VP_TRAVELPING, AF_INET6, DM_IP6_REF(val));
+
+	case T_BOOL:
+		debug(": [Answer: %s (%d)]\n", DM_BOOL(val) ? "true" : "false", DM_BOOL(val));
+		return dm_add_uint8(req, AVP_BOOL, VP_TRAVELPING, (uint8_t) DM_BOOL(val));
+
+	case T_DATE:
+		debug(": [Answer: (%d) %s", (int)DM_TIME(val), ctime(DM_TIME_REF(val)));
+		return dm_add_time(req, AVP_DATE, VP_TRAVELPING, DM_TIME(val));
+
+	case T_SELECTOR: {
+		char buffer[MAX_PARAM_NAME_LEN];
+		char *name;
+
+		if (!DM_SELECTOR(val))
+			name = "";
+		else if (!(name = dm_sel2name(*DM_SELECTOR(val), buffer, sizeof(buffer))))
+			return DM_INVALID_VALUE;
+
+		debug(": [Answer: \"%s\"]\n", name);
+		return dm_add_string(req, AVP_PATH, VP_TRAVELPING, name);
 	}
 
-	if ((rc = dm_expect_uint32_type(grp, AVP_UINT32, VP_TRAVELPING, &flags)) != RC_OK)
-		return rc;
+	case T_TICKS: {
+		uint32_t type = elem->flags & F_DATETIME ? AVP_ABSTICKS : AVP_RELTICKS;
+		ticks_t t = type == AVP_ABSTICKS ? ticks2realtime(DM_TICKS(val)) : DM_TICKS(val);
 
-	timeout_session.tv_sec = SESSIONCTX_DEFAULT_TIMEOUT;
-	timeout_session.tv_usec = 0;
+		debug(": [Answer: %" PRItick "]\n", t);
+		return dm_add_int64(req, type, VP_TRAVELPING, t);
+	}
 
-	while ((rc = dm_expect_avp(grp, &code, &vendor_id, &data, &len)) == RC_OK) {
-		if (len != sizeof(DM_TIMEVAL)) {
-			dm_EXIT(sessionid);
-			return RC_ERR_MISC;
-		}
+	default:
+		return RC_ERR_INVALID_AVP_TYPE;
+	}
 
-		switch (code) {
-		case AVP_TIMEOUT_SESSION:
-			timeout_session = dm_get_timeval_avp(data);
+	/* never reached */
+	return RC_OK;
+}
 
-			if ((!timeout_session.tv_sec && !timeout_session.tv_usec) ||
-			    timeout_session.tv_sec > SESSIONCTX_MAX_TIMEOUT) {
-				timeout_session.tv_sec = SESSIONCTX_MAX_TIMEOUT;
-				timeout_session.tv_usec = 0;
+static DM_RESULT
+dmconfig_avp2value(const struct dm2_avp *avp, const struct dm_element *elem, DM_VALUE *value)
+{
+	char		*dum = NULL;
+	DM_RESULT	r = DM_OK;
+
+	if (!elem)
+		return DM_VALUE_NOT_FOUND;
+
+	memset(value, 0, sizeof(DM_VALUE));
+
+	if (avp->code == AVP_UNKNOWN) {
+		if (!(dum = strndup(avp->data, avp->size)))
+			return DM_OOM;
+
+		switch (elem->type) {
+		case T_BASE64:
+		case T_BINARY: {	/* dm_string2value cannot be used since it treats T_BASE64 and T_BINARY differently */
+			unsigned int len;
+			binary_t *n;
+
+			/* this is going to waste some bytes.... */
+			len = ((avp->size + 4) * 3) / 4;
+
+			n = malloc(sizeof(binary_t) + len);
+			if (!n) {
+				r = DM_OOM;
+				break;
 			}
+
+			debug(": base64 string: %d, buffer: %u", (int)avp->size, len);
+			n->len = dm_from64((unsigned char *)dum, (unsigned char *)n->data);
+			debug(": base64 result: %d", n->len);
+			r = dm_set_binary_value(value, n);
+			free(n);
 
 			break;
-
-		case AVP_TIMEOUT_REQUEST: {
-			REQUESTED_SESSION	*session;
-			struct timeval		timeout_delay;
-
-			if (!(flags & CMD_FLAG_CONFIGURE) ||
-			    getCfgSessionStatus() == CFGSESSION_INACTIVE)
-				break;
-
-			timeout_delay = dm_get_timeval_avp(data);
-
-					/* maximum timeout, don't allow an indefinite delay */
-			if ((!timeout_delay.tv_sec && !timeout_delay.tv_usec) ||
-			    timeout_delay.tv_sec > SESSIONCTX_MAX_TIMEOUT) {
-				timeout_delay.tv_sec = SESSIONCTX_MAX_TIMEOUT;
-				timeout_delay.tv_usec = 0;
-			}
-
-			if (!(session = talloc(reqsession_head,
-					       REQUESTED_SESSION))) {
-				dm_EXIT(sessionid);
-				return RC_ERR_ALLOC;
-			}
-
-			LD_INSERT(reqsession_head, session);
-
-			session->flags = flags;
-			session->hopid = hopid;
-			session->code = dm_code;
-			session->sockCtx = sockCtx;
-			session->session = le;
-
-			memcpy(&session->timeout_session, &timeout_session,
-			       sizeof(struct timeval));
-
-			evtimer_set(&session->timeout, requested_session_timeout,
-				    session);
-			event_base_set(base, &session->timeout);
-			evtimer_add(&session->timeout, &timeout_delay);
-
-			dm_debug(sessionid, "CMD: %s (requested)\n",
-			      le ? "SWITCH SESSION" : "START SESSION");
-
-			dm_EXIT(sessionid);
-			return RC_OK;
 		}
 
 		default:
-			dm_EXIT(sessionid);
-			return RC_ERR_MISC;
-		}
-	}
-
-	if (flags & CMD_FLAG_CONFIGURE &&
-	    getCfgSessionStatus() != CFGSESSION_INACTIVE) {	/* a config session is already open */
-		dm_EXIT(sessionid);
-		return register_answer(dm_code, hopid, hopid,
-				       RC_ERR_CANNOT_OPEN_CFGSESSION, NULL,
-				       sockCtx) ? RC_ERR_ALLOC : RC_OK;
-	}
-
-	if (le) {	/* switch sessions only */
-		if (flags & CMD_FLAG_CONFIGURE)
-			dm_debug(sessionid, "CMD: SWITCH SESSION (r/w to cfg) (id = %08X)\n", le->sessionid);
-		else if (le->sessionid == cfg_sessionid)
-			dm_debug(sessionid, "CMD: SWITCH SESSION (cfg to r/w) (id = %08X)\n", le->sessionid);
-		else {
-			dm_EXIT(sessionid);
-			return register_answer(CMD_SWITCHSESSION, hopid,
-					       hopid, RC_ERR_REQUIRES_CFGSESSION,
-					       NULL, sockCtx) ? RC_ERR_ALLOC : RC_OK;
-		}
-
-		dm_EXIT(sessionid);
-		return process_switch_session(sockCtx, flags, hopid, le, timeout_session);
-	}
-
-	debug(": CMD: START SESSION (id = %08X)\n", session_counter);
-
-	dm_EXIT(sessionid);
-	return process_start_session(sockCtx, flags, hopid, timeout_session);
-}
-
-static uint32_t
-process_start_session(SOCKCONTEXT *sockCtx, uint32_t flags, uint32_t hopid,
-		      struct timeval timeout)
-{
-	SESSION		*le;
-	DM_AVPGRP	*answer;
-
-	uint32_t	rc;
-
-	dm_ENTER(session_counter);
-
-	if (!(le = talloc(session_head, SESSION))) {
-		dm_EXIT(session_counter);
-		return RC_ERR_ALLOC;
-	}
-	memset(le, 0, sizeof(SESSION));
-
-	LS_INSERT(session_head, le);
-
-	le->sockCtx = sockCtx;
-	le->sessionid = session_counter;
-	le->flags = flags;
-
-	evtimer_set(&le->timeout, session_times_out, le);
-	event_base_set(evbase, &le->timeout);
-
-	memcpy(&le->timeout_session, &timeout, sizeof(struct timeval));
-	evtimer_add(&le->timeout, &le->timeout_session);
-
-	if (!(answer = new_dm_avpgrp(NULL)) ||
-	    dm_avpgrp_add_uint32(NULL, &answer, AVP_SESSIONID, 0,
-				   VP_TRAVELPING, session_counter)) {
-		talloc_free(answer);
-		dm_EXIT(session_counter);
-		return RC_ERR_ALLOC;
-	}
-
-	rc = register_answer(CMD_STARTSESSION, hopid, hopid, RC_OK, answer, sockCtx);
-	talloc_free(answer);
-	if (rc) {
-		dm_EXIT(session_counter);
-		return RC_ERR_ALLOC;
-	}
-
-	if (flags & CMD_FLAG_CONFIGURE) {
-		cfg_sessionid = session_counter;
-		setCfgSessionStatus(CFGSESSION_ACTIVE_LIBDMCONFIG);
-	}
-
-	if (session_counter == MAX_INT)
-		session_counter = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
-	else
-		session_counter++;
-
-	dm_EXIT(le->sessionid);
-	return RC_OK;
-}
-
-static uint32_t
-process_switch_session(SOCKCONTEXT *sockCtx, uint32_t flags,
-		       uint32_t hopid, SESSION *le, struct timeval timeout)
-{
-	dm_ENTER(le->sessionid);
-
-	if (flags & CMD_FLAG_CONFIGURE) {
-		cfg_sessionid = le->sessionid;
-		setCfgSessionStatus(CFGSESSION_ACTIVE_LIBDMCONFIG);
-	} else {
-		cfg_sessionid = 0;
-		setCfgSessionStatus(CFGSESSION_INACTIVE);
-	}
-
-	le->flags = flags;
-
-	memcpy(&le->timeout_session, &timeout, sizeof(struct timeval));
-	evtimer_add(&le->timeout, &le->timeout_session);
-
-	dm_EXIT(le->sessionid);
-	return register_answer(CMD_SWITCHSESSION, hopid, hopid, RC_OK,
-			       NULL, sockCtx) ? RC_ERR_ALLOC : RC_OK;
-}
-
-		/* processes another pending config session request or resets the status */
-
-void
-processRequestedSessions(void)
-{
-	REQUESTED_SESSION *session;
-
-	ENTER();
-
-	if (!reqsession_head) {	/* server was not yet initiated */
-		EXIT();
-		return;
-	}
-
-	if (!(session = reqsession_head->next)) {
-		cfg_sessionid = 0;
-		EXIT();
-		return;
-	}
-
-	if (session->session) {
-		dm_debug(session->session->sessionid, "CFGSESSION TERMINATED: %s", "SWITCH SESSION (r/w to cfg)");
-
-		if (process_switch_session(session->sockCtx, session->flags,
-					   session->hopid, session->session,
-					   session->timeout_session)) {
-			/* fatal error, restart libdmconfig */
-			EXIT();
-			return;
+			debug(": = %s\n", dum);
+			r = dm_string2value(elem, dum, 0, value);
 		}
 	} else {
-		dm_debug(session_counter, "CFGSESSION TERMINATED: %s", "START SESSION");
-
-		if (process_start_session(session->sockCtx, session->flags,
-					  session->hopid, session->timeout_session)) {
-			/* fatal error, restart libdmconfig */
-			EXIT();
-			return;
-		}
-	}
-
-	event_del(&session->timeout);
-
-	if ((reqsession_head->next = session->next))
-		session->next->prev = reqsession_head;
-
-	EXIT();
-}
-
-		/* called by CMD_ENDSESSION requests and by timeout events */
-uint32_t
-process_end_session(uint32_t sessionid) {
-	SESSION *cur, *le;
-
-	dm_ENTER(sessionid);
-
-			/* find predecessor of session with sessionid */
-	for (cur = session_head;
-		cur->next && cur->next->sessionid != sessionid; cur = cur->next);
-	le = cur->next;
-
-	if (!le) {
-		dm_EXIT(sessionid);
-		return RC_ERR_MISC;
-	}
-			/* remove from session list */
-	cur->next = le->next;
-
-			/* also take care of the pending timeout event */
-	evtimer_del(&le->timeout);
-
-	if (le->notify.slot)
-		unsubscribeNotify(le);
-
-	talloc_free(le);
-
-	if (sessionid == cfg_sessionid)
-		setCfgSessionStatus(CFGSESSION_INACTIVE);
-	else {
-		exec_actions_pre();
-		exec_actions();
-		exec_pending_notifications();
-	}
-
-	dm_EXIT(sessionid);
-	return RC_OK;
-}
-
-static int
-register_answer(uint32_t code, uint32_t hopid, uint32_t endid,
-		uint32_t rc, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
-{
-	DM_AVPGRP	*completegrp;
-	DM_REQUEST	*answer;
-	int		r;
-
-	ENTER();
-
-	pthread_mutex_lock(&sockCtx->lock);
-
-	debug(": [%d]: %d, rc = %u", sockCtx->fd, code, rc);
-
-	if (!(answer = new_dm_request(sockCtx, code, 0, APP_ID, hopid, endid)) ||
-	    !(completegrp = new_dm_avpgrp(answer)) ||
-	    dm_avpgrp_add_uint32(answer, &completegrp, AVP_RC, 0,
-	    			   VP_TRAVELPING, rc) ||
-	    (avps && dm_avpgrp_add_avpgrp(answer, &completegrp, AVP_CONTAINER,
-	    				    0, VP_TRAVELPING, avps)) ||
-	    build_dm_request(sockCtx, &answer, completegrp)) {
-		talloc_free(answer);
-		pthread_mutex_unlock(&sockCtx->lock);
-		EXIT();
-		return 1;
-	}
-
-	talloc_free(completegrp);
-
-#ifdef LIBDMCONFIG_DEBUG
-	fprintf(stderr, "Send answer:\n");
-	dump_dm_packet(answer);
-	dm_request_reset_avp(answer);
-#endif
-
-	if ((r = register_packet(answer, sockCtx)))
-		talloc_free(answer);
-
-	pthread_mutex_unlock(&sockCtx->lock);
-
-	EXIT();
-	return r;
-}
-
-int
-register_request(uint32_t code, DM_AVPGRP *avps, SOCKCONTEXT *sockCtx)
-{
-	DM_REQUEST	*request;
-	int		r;
-
-	ENTER();
-
-	pthread_mutex_lock(&sockCtx->lock);
-	pthread_mutex_lock(&dmconfig_mutex);
-
-	if (req_hopid == MAX_INT)
-		req_hopid = req_endid = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
-	else
-		req_hopid = ++req_endid;
-
-	r = !(request = new_dm_request(sockCtx, code, CMD_FLAG_REQUEST,
-					 APP_ID, req_hopid, req_endid)) ||
-	    build_dm_request(sockCtx, &request, avps);
-	pthread_mutex_unlock(&dmconfig_mutex);
-	if (r) {
-		talloc_free(request);
-		pthread_mutex_unlock(&sockCtx->lock);
-		EXIT();
-		return 1;
-	}
-
-#ifdef LIBDMCONFIG_DEBUG
-	fprintf(stderr, "Send request:\n");
-	dump_dm_packet(request);
-	dm_request_reset_avp(request);
-#endif
-
-	if ((r = register_packet(request, sockCtx)))
-		talloc_free(request);
-
-	pthread_mutex_unlock(&sockCtx->lock);
-
-	EXIT();
-	return r;
-}
-
-		/* sockCtx->lock always locked when register_packet is called */
-static int
-register_packet(DM_REQUEST *packet, SOCKCONTEXT *sockCtx)
-{
-	int r = 0;
-
-	debug(": [%d]: %p", sockCtx->fd, packet);
-
-	packet->info.next = NULL;
-
-	if (!sockCtx->send_queue.tail) {
-		/* queue is empty */
-		sockCtx->send_queue.head = sockCtx->send_queue.tail = packet;
-	} else {
-		sockCtx->send_queue.tail->info.next = packet;
-		sockCtx->send_queue.tail = packet;
-	}
-
-	if (pthread_equal(pthread_self(), main_thread))
-		r = reset_writeEvent(sockCtx);
-	else
-		ev_async_send((struct ev_loop *)evbase, &sockCtx->sync);
-
-	EXIT();
-	return r;
-}
-
-static int
-reset_writeEvent(SOCKCONTEXT *sockCtx)
-{
-	COMMCONTEXT	*ctx = &sockCtx->writeCtx;
-	int		r = 0;
-
-	ENTER();
-
-	if (event_initialized(&ctx->event) &&				/* don't add the event if it was deleted due to a CONNRESET/reaccept */
-	    !event_pending(&ctx->event, EV_WRITE | EV_PERSIST, NULL)) {	/* ensures that we don't overwrite its current timeout */
-		struct timeval timeout = {
-			.tv_sec = TIMEOUT_WRITE_REQUESTS,
-			.tv_usec = 0
-		};
-
-		r = event_add(&ctx->event, &timeout);
-	}
-
-	EXIT();
-	return r;
-}
-
-static void
-async_reset_writeEvent(EV_P __attribute__((unused)),
-		       ev_async *w, int revents __attribute__((unused)))
-{
-	SOCKCONTEXT *sockCtx = (SOCKCONTEXT *)w;
-
-			/* NOTE: theoretically locking shouldn't be necessary here
-			 * since the write event is only accessed in the main thread
-			 */
-	pthread_mutex_lock(&sockCtx->lock);
-	reset_writeEvent(sockCtx);
-	pthread_mutex_unlock(&sockCtx->lock);
-}
-
-static void
-writeEvent(int fd, short event, void *arg)
-{
-	SOCKCONTEXT	*sockCtx = arg;
-	COMMCONTEXT	*ctx;
-	COMMSTATUS	status = COMPLETE;
-
-	struct timeval	timeout;
-
-	debug(": [%d]: %d", fd, event);
-
-	pthread_mutex_lock(&sockCtx->lock);
-
-	ctx = &sockCtx->writeCtx;
-
-	for (;;) {
-		if (!ctx->req) {
-			ctx->req = sockCtx->send_queue.head;
-			if (!ctx->req) {
-				/* queue was empty */
-				pthread_mutex_unlock(&sockCtx->lock);
-				EXIT();	/* FIXME (and below): more extensive cleanup */
-				return;
+		switch (elem->type) {
+		case T_STR:	/* FIXME: strndup could be avoided by introducing a new dm_set_lstring_value... */
+			if (avp->code != AVP_STRING)
+				r = DM_INVALID_TYPE;
+			else if (!(dum = strndup(avp->data, avp->size)))
+				r = DM_OOM;
+			else {
+				debug(": = \"%s\"\n", dum);
+				r = dm_set_string_value(value, dum);
 			}
 
-			sockCtx->send_queue.head = ctx->req->info.next;
-			ctx->req->info.next = NULL;
+			break;
 
-			if (!sockCtx->send_queue.head)
-				/* queue is now empty, we dequeued the tail packet */
-				sockCtx->send_queue.tail = NULL;
-		}
-
-		debug(": [%d]: %p", fd, ctx->req);
-		event_aux_dmWrite(fd, event, ctx, &status);
-		debug(": [%d]: status: %d", fd, status);
-
-		switch (status) {
-		case COMPLETE: {
-			talloc_free(ctx->req);
-			ctx->req = NULL;
-			ctx->buffer = NULL;
-
-			if (!sockCtx->send_queue.head) {
-				event_del(&ctx->event);
-				pthread_mutex_unlock(&sockCtx->lock);
-				EXIT();
-				return;
+		case T_BINARY:
+		case T_BASE64:
+			if (avp->code != AVP_BINARY)
+				r = DM_INVALID_TYPE;
+			else {
+				debug(": = binary data...\n"); /* FIXME: hex dump for instance... */
+				r = dm_set_binary_data(value, avp->size, avp->data);
 			}
 
-			timeout.tv_sec = TIMEOUT_WRITE_REQUESTS;
-			timeout.tv_usec = 0;
+			break;
 
-			if (event_add(&ctx->event, &timeout)) {	/* increase writeEvent's timeout */
-				pthread_mutex_unlock(&sockCtx->lock);
-				EXIT();
-				return;
+		case T_SELECTOR:
+			if (avp->code != AVP_PATH)
+				r = DM_INVALID_TYPE;
+			else if (!(dum = strndup(avp->data, avp->size)))
+				r = DM_OOM;
+			else {
+				dm_selector sel;
+
+				debug(": = \"%s\"\n", dum);
+
+				if (*dum) {
+					if (!dm_name2sel(dum, &sel)) {
+						r = DM_INVALID_VALUE;
+						break;
+					}
+				} else
+					memset(&sel, 0, sizeof(dm_selector));
+
+				r = dm_set_selector_value(value, sel);
+			}
+
+			break;
+
+		case T_IPADDR4: {
+			int		af;
+			struct in_addr	addr;
+
+			if (avp->code != AVP_ADDRESS)
+				r = DM_INVALID_TYPE;
+			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), avp->data, avp->size) ||
+				af != AF_INET)
+				r = DM_INVALID_VALUE;
+			else {
+				debug(": = %s\n", inet_ntoa(addr));
+
+				set_DM_IP4(*value, addr);
 			}
 
 			break;
 		}
-		case INCOMPLETE:
-			timeout.tv_sec = TIMEOUT_CHUNKS;
-			timeout.tv_usec = 0;
 
-			event_add(&ctx->event, &timeout);	/* reduce writeEvent's timeout */
-		case NOTHING:
-			pthread_mutex_unlock(&sockCtx->lock);
-			EXIT();
-			return;
-		default:	/* connection reset or error */
-			pthread_mutex_unlock(&sockCtx->lock);
-			disableSockCtx(sockCtx);
+		case T_IPADDR6: {
+			int		af;
+			struct in6_addr addr;
 
-			if (status == ERROR) {
-				debug(": [%d]: error", fd);
-				event_del(&clientConnection);
-				shutdown(accept_socket, SHUT_RDWR);
-				close(accept_socket);
+			if (avp->code != AVP_ADDRESS)
+				r = DM_INVALID_TYPE;
+			else if (!dm_get_address_avp(&af, &addr, sizeof(addr), avp->data, avp->size) ||
+				af != AF_INET6)
+				r = DM_INVALID_VALUE;
+			else {
+				/* debug(": = %s\n", inet_ntoa(addr)); */
 
-				/* this is almost certainly wrong */
-				init_libdmconfig_server(evbase);
+				set_DM_IP6(*value, addr);
 			}
 
-			EXIT();
-			return;
+			break;
+		}
+
+		case T_ENUM: {
+			int enumid;
+
+			switch (avp->code) {
+			case AVP_ENUM:
+				if (!(dum = strndup(avp->data, avp->size)))
+					r = DM_OOM;
+				else if ((enumid = dm_enum2int(&elem->u.e,
+								  dum)) == -1)
+					r = DM_INVALID_VALUE;
+				else {
+					debug(": = %s (%d)\n", dum, enumid);
+					set_DM_ENUM(*value, enumid);
+				}
+
+				break;
+			case AVP_ENUMID:
+				enumid = dm_get_int32_avp(avp->data);
+				if (enumid < 0 || enumid >= elem->u.e.cnt) {
+					r = DM_INVALID_VALUE;
+				} else {
+					debug(": = %s (%d)\n",
+					      dm_int2enum(&elem->u.e, enumid),
+					      enumid);
+					set_DM_ENUM(*value, enumid);
+				}
+
+				break;
+			default:
+				r = DM_INVALID_TYPE;
+			}
+
+			break;
+		}
+
+		case T_INT:
+			if (avp->code != AVP_INT32)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_INT(*value,
+					   dm_get_int32_avp(avp->data));
+				debug(": = %d\n", DM_INT(*value));
+			}
+
+			break;
+
+		case T_UINT:
+			if (avp->code != AVP_UINT32)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_UINT(*value,
+					    dm_get_uint32_avp(avp->data));
+				debug(": = %u\n", DM_UINT(*value));
+			}
+
+			break;
+
+		case T_INT64:
+			if (avp->code != AVP_INT64)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_INT64(*value,
+					     dm_get_int64_avp(avp->data));
+				debug(": = %" PRIi64 "\n", DM_INT64(*value));
+			}
+
+			break;
+
+		case T_UINT64:
+			if (avp->code != AVP_UINT64)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_UINT64(*value,
+					      dm_get_uint64_avp(avp->data));
+				debug(": = %" PRIu64 "\n", DM_UINT64(*value));
+			}
+
+			break;
+
+		case T_BOOL:
+			if (avp->code != AVP_BOOL)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_BOOL(*value,
+					    dm_get_uint8_avp(avp->data));
+				debug(": = %d\n", DM_BOOL(*value));
+			}
+
+			break;
+
+		case T_DATE:
+			if (avp->code != AVP_DATE)
+				r = DM_INVALID_TYPE;
+			else {
+				set_DM_TIME(*value,
+					    dm_get_time_avp(avp->data));
+				debug(": = (%d) %s", (int)DM_TIME(*value),
+				      ctime(DM_TIME_REF(*value)));
+			}
+
+			break;
+
+		case T_TICKS:
+			switch (avp->code) {
+			case AVP_ABSTICKS: /* FIXME: has to be converted? */
+			case AVP_RELTICKS:
+				set_DM_TICKS(*value,
+					     dm_get_int64_avp(avp->data));
+				debug(": = %" PRItick "\n", DM_TICKS(*value));
+				break;
+			default:
+				r = DM_INVALID_TYPE;
+			}
+
+			break;
+
+		default:		/* includes T_COUNTER which is non-writable */
+			r = DM_INVALID_TYPE;
 		}
 	}
 
-	/* shouldn't be reached */
-	EXIT();
+	free(dum);
+
+	return r;
 }
 
-/*
-	session timeout cb function
-*/
 
-static void
-session_times_out(int fd __attribute__((unused)),
-		  short type __attribute__((unused)), void *param)
+static DM_RESULT
+dmconfig_set_cb(void *data, const dm_selector sel,
+		const struct dm_element *elem,
+		struct dm_value_table *base,
+		const void *v, DM_VALUE *st)
 {
-	SESSION *le = param;
-	uint32_t sessionid = le->sessionid;
+	SOCKCONTEXT *ctx = data;
+	struct dm2_avp *value = (struct dm2_avp *)v;
+	DM_VALUE new_value;
+	DM_RESULT r;
 
-	dm_ENTER(sessionid);
-	dm_debug(sessionid, "SESSION TIMEOUT: END SESSION");
+	if ((r = dmconfig_avp2value(value, elem, &new_value)) != DM_OK)
+		return r;
 
-			/* ignore return value - if the sessionId was already invalid,
-			   it's unnecessary to terminate it */
-	process_end_session(sessionid);
-
-	dm_EXIT(sessionid);
-}
-
-static void
-requested_session_timeout(int fd __attribute__((unused)),
-			  short type __attribute__((unused)), void *param)
-{
-	REQUESTED_SESSION *session = param;
-
-	ENTER();
-
-	debug(": %s SESSION (requested) timed out\n",
-	      session->session ? "SWITCH" : "START");
-
-	if (register_answer(session->code, session->hopid, session->hopid,
-			    RC_ERR_CANNOT_OPEN_CFGSESSION, NULL, session->sockCtx)) {
-		EXIT();
-		return;
+	if (ctx->flags & CMD_FLAG_CONFIGURE) {
+		st->flags |= DV_UPDATE_PENDING;
+		DM_parity_update(*st);
+		cache_add(sel, "", elem, base, st, new_value, 0, NULL);
+	} else {
+		new_value.flags |= DV_UPDATED;
+		DM_parity_update(new_value);
+		r = dm_overwrite_any_value_by_selector(sel, elem->type, new_value, ctx->notify_slot ? : -1);
 	}
 
-	LD_FREE(session);
-
-	EXIT();
+	return r;
 }
 
-int
-reset_timeout_obj(uint32_t sessionid)
+static DM_RESULT
+dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
+		const struct dm_element *elem, const DM_VALUE val)
 {
-	SESSION *le;
+	DM2_REQUEST *req = data;
+	uint32_t rc;
 
-	dm_ENTER(sessionid);
+	if (!elem)
+		return DM_VALUE_NOT_FOUND;
 
-	if (!(le = lookup_session(sessionid))) {
-		EXIT();
+	if ((rc = dm_add_avp(req, elem, val)) != RC_OK)
+		return DM_OOM;
+
+	return DM_OK;
+}
+
+static int
+dmconfig_list_cb(void *data, CB_type type, dm_id id, const struct dm_element *elem, const DM_VALUE value)
+{
+	struct list_ctx	*ctx = data;
+
+	if (!elem->key)
+		return 0;
+
+	if (ctx->firstone) {		/* hack that prevents the first element from being processed */
+		ctx->firstone = 0;	/* later dm_walk_by_name might be modified or reimplemented */
 		return 1;
 	}
 
-	evtimer_add(&le->timeout, &le->timeout_session);
+	switch (type) {
+	case CB_object_end:
+	case CB_table_end:
+	case CB_object_instance_end:
+		if (ctx->level && ctx->level < ctx->max_level) {
+			if (dm_finalize_group(ctx->req) != RC_OK)
+				return 0;
+		}
+		ctx->level--;
 
-	dm_EXIT(sessionid);
-	return 0;
+		return 1;
+	case CB_object_start:
+		if ((dm_new_group(ctx->req, AVP_TABLE, VP_TRAVELPING)) != RC_OK
+		    || (dm_add_string(ctx->req, AVP_NAME, VP_TRAVELPING, elem->key)) != RC_OK)
+			return 0;
+
+		ctx->level++;
+		break;
+
+	case CB_object_instance_start:
+		if ((dm_new_group(ctx->req, AVP_INSTANCE, VP_TRAVELPING)) != RC_OK
+		    || (dm_add_uint16(ctx->req, AVP_NAME, VP_TRAVELPING, id)) != RC_OK)
+			return 0;
+		ctx->level++;
+		break;
+
+	case CB_table_start:
+		if ((dm_new_group(ctx->req, AVP_OBJECT, VP_TRAVELPING)) != RC_OK
+		    || (dm_add_string(ctx->req, AVP_NAME, VP_TRAVELPING, elem->key)) != RC_OK)
+			return 0;
+		ctx->level++;
+		break;
+
+	case CB_element:
+		if ((dm_new_group(ctx->req, AVP_ELEMENT, VP_TRAVELPING)) != RC_OK
+		    || (dm_add_string(ctx->req, AVP_NAME, VP_TRAVELPING, elem->key)) != RC_OK
+		    || (dm_add_uint32(ctx->req, AVP_TYPE, VP_TRAVELPING, avp_type_map(elem->type))) != RC_OK)
+			return 0;
+
+		dm_add_avp(ctx->req, elem, value);
+
+		if (dm_finalize_group(ctx->req) != RC_OK)
+			return 0;
+
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 1;
 }
 
-void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
+static DM_RESULT
+dmconfig_retrieve_enums_cb(void *data,
+			   const dm_selector sb __attribute__((unused)),
+			   const struct dm_element *elem,
+			   const DM_VALUE val __attribute__((unused)))
 {
-	static const uint32_t event_types[] = {
-		[DM_ADD]    = EVENT_INSTANCE_CREATED,
-		[DM_CHANGE] = EVENT_INSTANCE_DELETED,
-		[DM_DEL]    = EVENT_PARAMETER_CHANGED
-	};
-	DM_AVPGRP	*grp, *dummy;
-	char		*path;
-	char		buffer[MAX_PARAM_NAME_LEN];
-	SESSION		*sess;
-	int		r;
+	DM2_REQUEST *req = data;
+	const struct dm_enum *enumer;
+	char *ptr;
+	int i;
 
-	ENTER();
+	if (!elem)
+		return DM_VALUE_NOT_FOUND;
 
-	if (!(path = dm_sel2name(sel, buffer, sizeof(buffer))) ||
-	    !(grp = new_dm_avpgrp(NULL))) {
-		talloc_free(grp);
-		EXIT();
-		return;
-	}
-	debug("(): event broadcast: %s, type: %d\n", path, type);
+	enumer = &elem->u.e;
+	for (ptr = enumer->data, i = enumer->cnt; i; i--, ptr += strlen(ptr) + 1)
+		if (dm_add_string(req, AVP_STRING, VP_TRAVELPING, ptr) != RC_OK)
+			return DM_OOM;
 
-	if (dm_avpgrp_add_uint32(grp, &grp, AVP_EVENT_TYPE, 0, VP_TRAVELPING, event_types[type]) ||
-	    dm_avpgrp_add_string(grp, &grp, AVP_PATH, 0, VP_TRAVELPING, path)) {
-		talloc_free(grp);
-		EXIT();
-		return;
-	}
+	return DM_OK;
+}
 
-	if (!(dummy = new_dm_avpgrp(NULL))) {
-		talloc_free(grp);
-		return;
-	}
+static uint32_t
+build_notify_events(struct notify_queue *queue, int level, DM2_REQUEST *notify)
+{
+	uint32_t rc;
+	struct notify_item *next;
 
-	r = dm_avpgrp_add_avpgrp(NULL, &dummy, AVP_CONTAINER, 0,
-				   VP_TRAVELPING, grp);
-	talloc_free(grp);
-	if (r) {
-		talloc_free(dummy);
-		return;
-	}
+	for (struct notify_item *item = RB_MIN(notify_queue, queue); item; item = next) {
+		char buffer[MAX_PARAM_NAME_LEN];
+		char *path;
 
-	for (sess = session_head->next; sess; sess = sess->next) {
-		if (!sess->sockCtx)
+		next = RB_NEXT(notify_queue, queue, item);
+
+		if (item->level != level)
 			continue;
 
-		register_request(CMD_CLIENT_EVENT_BROADCAST, dummy, sess->sockCtx);
+		/* active notification */
+
+		if (!(path = dm_sel2name(item->sb, buffer, sizeof(buffer))))
+			return RC_ERR_ALLOC;
+
+		if ((rc = dm_add_object(notify) != RC_OK))
+			return rc;
+
+		switch (item->type) {
+		case NOTIFY_ADD:
+			debug(": instance added: %s", path);
+
+			if (((rc = dm_add_uint32(notify, AVP_NOTIFY_TYPE, VP_TRAVELPING, NOTIFY_INSTANCE_CREATED)) != RC_OK)
+			    || (rc = dm_add_string(notify, AVP_PATH, VP_TRAVELPING, path)) != RC_OK)
+				return rc;
+			break;
+
+		case NOTIFY_DEL:
+			debug(": instance removed: %s", path);
+
+			if ((rc = dm_add_uint32(notify, AVP_NOTIFY_TYPE, VP_TRAVELPING, NOTIFY_INSTANCE_DELETED)) != RC_OK
+			    || (rc = dm_add_string(notify, AVP_PATH, VP_TRAVELPING, path)) != RC_OK)
+				return rc;
+			break;
+
+		case NOTIFY_CHANGE: {
+			struct dm_element *elem;
+
+			debug(": parameter changed: %s", path);
+
+			if (dm_get_element_by_selector(item->sb, &elem) == T_NONE)
+				/* this should never, ever, ever happen....*/
+				return RC_ERR_MISC;
+
+			if ((rc = dm_add_uint32(notify, AVP_NOTIFY_TYPE, VP_TRAVELPING, NOTIFY_PARAMETER_CHANGED)) != RC_OK
+			    || (rc = dm_add_string(notify, AVP_PATH, VP_TRAVELPING, path)) != RC_OK
+			    || (rc = dm_add_uint32(notify, AVP_TYPE, VP_TRAVELPING, avp_type_map(elem->type))) != RC_OK
+			    || (rc = dm_add_avp(notify, elem, item->value)) != RC_OK)
+				return rc;
+		}
+		}
+
+		if ((rc = dm_finalize_group(notify)) != RC_OK)
+			return rc;
+
+		RB_REMOVE(notify_queue, queue, item);
+		free(item);
 	}
 
-	talloc_free(dummy);
-	EXIT();
+	return RC_OK;
 }
 
-/* API v2 */
-
-uint32_t dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value)
+/* FIXME: this really would belong to dm_dmclient_rpc_stub, but
+ *        it uses build_notify_events, which is only available here
+ */
+static void
+dmconfig_notify_cb(void *data, struct notify_queue *queue)
 {
-	size_t size;
-	void *data;
-	char path[1024];
-	uint32_t r;
+	SOCKCONTEXT *ctx = data;
+	DM2_REQUEST *notify;
 
-	assert(grp != NULL);
-	assert(value != NULL);
+	if (!(notify = dm_new_request(ctx, CMD_CLIENT_ACTIVE_NOTIFY, CMD_FLAG_REQUEST, 0, 0))
+	    || build_notify_events(queue, ACTIVE_NOTIFY, notify) != RC_OK)
+		return;
 
-	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size)) != RC_OK)
-		return r;
+	dm_enqueue(ctx->socket, notify, ONE_WAY, NULL, NULL);
+}
 
-	if (size >= sizeof(path))
-		return RC_ERR_MISC;
+/*
+ * RPC implementations
+ */
 
-	strncpy(path, data, size);
-	if (!dm_name2sel(path, value))
+uint32_t
+rpc_startsession(void *data, uint32_t flags, int32_t timeout, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	if (ctx->id)
+		return RC_ERR_INVALID_SESSIONID;
+
+	if (flags & CMD_FLAG_CONFIGURE) {
+		if (cfg_session_id)
+			/* there is already an active config session */
+			return RC_ERR_CANNOT_OPEN_CFGSESSION;
+
+		cfg_session_id = session_counter;
+	}
+
+	/* start the session */
+	ctx->id = session_counter;
+	ctx->flags = flags;
+	dm_debug(ctx->id, "CMD: START SESSION");
+
+	session_counter++;
+	if (session_counter == 0)
+		session_counter++;
+
+	if (timeout > 0) {
+		ctx->session_timer_ev.repeat = timeout;
+		ev_timer_again(ctx->socket->ev, &ctx->session_timer_ev);
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_switchsession(void *data, uint32_t flags, int32_t timeout, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	if (!ctx->id)
+		return RC_ERR_INVALID_SESSIONID;
+
+	if (flags & CMD_FLAG_CONFIGURE) {
+		if (cfg_session_id && cfg_session_id != ctx->id)
+			/* there is already an active config session */
+			return RC_ERR_CANNOT_OPEN_CFGSESSION;
+
+		cfg_session_id = ctx->id;
+		dm_debug(ctx->id, "CMD: SWITCH SESSION (r/w to cfg)");
+	}
+	else if (cfg_session_id == ctx->id) {
+		cfg_session_id = 0;
+		cache_reset();
+		dm_debug(ctx->id, "CMD: SWITCH SESSION (cfg to r/w)");
+	}
+
+	ctx->flags = flags;
+
+	if (timeout > 0) {
+		ctx->session_timer_ev.repeat = timeout;
+		ev_timer_again(ctx->socket->ev, &ctx->session_timer_ev);
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_endsession(void *data)
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s... ", "END SESSION");
+
+	end_session(ctx);
+
+	return RC_OK;
+
+}
+
+uint32_t
+rpc_sessioninfo(void *data, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s... ", "GET SESSION INFO");
+
+	return dm_add_uint32(answer, AVP_UINT32, VP_TRAVELPING, ctx->flags);
+}
+
+uint32_t
+rpc_cfgsessioninfo(void *data __attribute__((unused)), DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+
+	SOCKCONTEXT *srch;
+	uint32_t rc;
+
+	dm_debug(ctx->id, "CMD: %s... ", "GET CONFIGURE SESSION INFO");
+
+	TAILQ_FOREACH(srch, &socket_head, list)
+		if (srch->id == cfg_session_id)
+			break;
+
+	if (!srch)
+		return RC_ERR_INVALID_SESSIONID;
+
+
+	if ((rc = dm_add_uint32(answer, AVP_SESSIONID, VP_TRAVELPING, cfg_session_id)) != RC_OK
+	    || (rc = dm_add_uint32(answer, AVP_UINT32, VP_TRAVELPING, srch->flags)) != RC_OK)
+		return rc;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_subscribe_notify(void *data, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s... ", "SUBSCRIBE NOTIFY");
+
+	if (ctx->notify_slot || (ctx->notify_slot = alloc_slot(dmconfig_notify_cb, ctx)) == -1)
+		return RC_ERR_CANNOT_SUBSCRIBE_NOTIFY;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_unsubscribe_notify(void *data, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: UNSUBSCRIBE NOTIFY... ");
+
+	if (!ctx->notify_slot)
+		return RC_ERR_REQUIRES_NOTIFY;
+
+	free_slot(ctx->notify_slot);
+	return RC_OK;
+}
+
+uint32_t
+rpc_param_notify(void *data, uint32_t notify, int pcnt, dm_selector *path, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+	int i;
+
+	dm_debug(ctx->id, "CMD: %s... ", "PARAM NOTIFY");
+
+	if (!ctx->notify_slot)
+		return RC_ERR_REQUIRES_NOTIFY;
+
+	notify = notify ? ACTIVE_NOTIFY : PASSIVE_NOTIFY;
+
+	for (i = 0; i < pcnt; i++) {
+		char b1[128];
+		dm_debug(ctx->id, "CMD: %s \"%s\" (%s)", "PARAM NOTIFY", sel2str(b1, path[i]), notify == ACTIVE_NOTIFY ? "active" : "passive");
+
+		if (dm_set_notify_by_selector(path[i], ctx->notify_slot, notify) != DM_OK)
+			return RC_ERR_MISC;
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_recursive_param_notify(void *data, uint32_t notify, dm_selector path, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+        char b1[128];
+
+	dm_debug(ctx->id, "CMD: %s \"%s\"... ", "RECURSIVE PARAM NOTIFY", sel2str(b1, path));
+
+
+	if (!ctx->notify_slot)
+		return RC_ERR_REQUIRES_NOTIFY;
+
+	if (dm_set_notify_by_selector_recursive(path, ctx->notify_slot, notify) != DM_OK)
 		return RC_ERR_MISC;
 
 	return RC_OK;
+}
+
+uint32_t
+rpc_get_passive_notifications(void *data, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx = data;
+	struct notify_queue *queue;
+
+	dm_debug(ctx->id, "CMD: %s... ", "GET PASSIVE NOTIFICATIONS");
+
+	if (!ctx->notify_slot)
+		return RC_ERR_REQUIRES_NOTIFY;
+
+	queue = get_notify_queue(ctx->notify_slot);
+	return build_notify_events(queue, PASSIVE_NOTIFY, answer);
+}
+
+uint32_t
+rpc_db_addinstance(void *data __attribute__((unused)), dm_selector path, dm_id id, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+        char b1[128];
+	uint32_t rc;
+
+	dm_debug(ctx->id, "CMD: %s", "DB ADD INSTANCE");
+	dm_debug(ctx->id, "CMD: %s \"%s\"", "DB ADD INSTANCE", sel2str(b1, path));
+	dm_debug(ctx->id, "CMD: %s id = 0x%hX", "DB ADD INSTANCE", id);
+
+	if (!dm_add_instance_by_selector(path, &id))
+		return RC_ERR_MISC;
+
+	if ((rc = dm_add_uint16(answer, AVP_UINT16, VP_TRAVELPING, id)) != RC_OK)
+		return rc;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_delinstance(void *data __attribute__((unused)), dm_selector path, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+        char b1[128];
+
+	/* improvised: check whether this is a table */
+	dm_debug(ctx->id, "CMD: %s \"%s\"", "DB DELETE INSTANCE", sel2str(b1, path));
+
+	if (!dm_del_table_by_selector(path))
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_set(void *data, int pvcnt, struct rpc_db_set_path_value *values, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+	int i, rc;
+
+	dm_debug(ctx->id, "CMD: %s", "DB SET");
+
+	for (i = 0; i < pvcnt; i++) {
+		if ((rc = dm_get_value_ref_by_selector_cb(values[i].path, &values[i].value, ctx, dmconfig_set_cb)) == DM_OOM)
+			return RC_ERR_ALLOC;
+		if (rc != DM_OK)
+			return RC_ERR_MISC;
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_get(void *data, int pcnt, dm_selector *values, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx = data;
+	GET_BY_SELECTOR_CB get_value;
+	int i;
+
+	get_value = cfg_session_id && ctx->id == cfg_session_id ? dm_cache_get_value_by_selector_cb : dm_get_value_by_selector_cb;
+
+	for (i = 0; i < pcnt; i++) {
+		char b1[128];
+
+		dm_debug(ctx->id, "CMD: %s \"%s\"", "DB GET", sel2str(b1, values[i]));
+
+		switch (get_value(values[i], T_ANY, answer, dmconfig_get_cb)) {
+		case DM_OK:
+			continue;
+		case DM_OOM:
+			return RC_ERR_ALLOC;
+		default:
+			return RC_ERR_MISC;
+		}
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_list(void *data __attribute__((unused)), int level, dm_selector path, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	struct list_ctx list_ctx;
+
+	dm_debug(ctx->id, "CMD: %s", "DB LIST");
+
+	memset(&list_ctx, 0, sizeof(struct list_ctx));
+	list_ctx.req = answer;
+	list_ctx.max_level = level ? : DM_SELECTOR_LEN;
+
+	if (!dm_walk_by_selector_cb(path, level ? level + 1 : DM_SELECTOR_LEN, &list_ctx, dmconfig_list_cb))
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_retrieve_enum(void *data, dm_selector path, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+        char b1[128];
+
+	dm_debug(ctx->id, "CMD: %s \"%s\"", "DB RETRIEVE ENUMS", sel2str(b1, path));
+
+	switch (dm_get_value_by_selector_cb(path, T_ENUM, answer, dmconfig_retrieve_enums_cb)) {
+	case DM_OK:
+		return RC_OK;
+	case DM_OOM:
+		return RC_ERR_ALLOC;
+	default:
+		return RC_ERR_MISC;
+	}
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_dump(void *data, char *path, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	char *buf;
+	long tsize;
+	size_t r = 0;
+	FILE *tf;
+
+	dm_debug(ctx->id, "CMD: %s \"%s\"", "DB DUMP", path);
+
+	tf = tmpfile();
+	if (!tf)
+		return RC_ERR_MISC;
+
+	if (path && *path)
+		dm_serialize_element(tf, path, S_ALL);
+	else
+		dm_serialize_store(tf, S_ALL);
+
+	tsize = ftell(tf);
+	fseek(tf, 0, SEEK_SET);
+
+	if (!tsize) {
+		fclose(tf);
+		return RC_ERR_MISC;
+	}
+
+	buf = malloc(tsize);
+	if (buf)
+		r = fread(buf, tsize, 1, tf);
+	fclose(tf);
+	if (r != 1) {
+		free(buf);
+		return RC_ERR_MISC;
+	}
+
+	if (dm_add_raw(answer, AVP_STRING, VP_TRAVELPING, buf, tsize))
+		return RC_ERR_ALLOC;
+
+	free(buf);
+	return RC_OK;
+}
+
+/* saves running config to persistent storage */
+uint32_t
+rpc_db_save(void *data, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s", "DB SAVE");
+
+	if (ctx->id == cfg_session_id && !cache_is_empty())		/* cache not empty */
+		return RC_ERR_MISC;
+
+	dm_save();
+	return RC_OK;
+}
+
+/* commits cache to running config and tries to apply changes */
+uint32_t
+rpc_db_commit(void *data, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s", "DB COMMIT");
+
+	if (ctx->id != cfg_session_id)
+		return RC_ERR_REQUIRES_CFGSESSION;
+
+	if (cache_validate()) {
+		exec_actions_pre();
+		cache_apply(ctx->notify_slot ? : -1);
+		exec_actions();
+		exec_pending_notifications();
+	} else
+		return RC_ERR_MISC;
+
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_cancel(void *data, DM2_REQUEST *answer __attribute__((unused)))
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s", "DB CANCEL");
+
+	if (ctx->id != cfg_session_id)
+		return RC_ERR_REQUIRES_CFGSESSION;
+
+	cache_reset();
+	return RC_OK;
+}
+
+uint32_t
+rpc_db_findinstance(void *data __attribute__((unused)), const dm_selector path, const struct dm_bin *name, const struct dm2_avp *search, DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	const struct dm_table *kw;
+	dm_id param;
+	struct dm_instance_node *inst;
+	DM_VALUE value;
+
+	dm_debug(ctx->id, "CMD: %s", "DB FINDINSTANCE");
+
+	/* find table structure */
+	if (!(kw = dm_get_object_table_by_selector(path)))
+		return RC_ERR_MISC;
+
+	if ((param = dm_get_element_id_by_name(name->data, name->size, kw)) == DM_ERR)
+		return RC_ERR_MISC;
+
+	dm_debug(ctx->id, "CMD: %s: parameter id: %u", "DB FINDINSTANCE", param);
+
+	dm_debug(ctx->id, "CMD: %s: value", "DB FINDINSTANCE");
+	switch (dmconfig_avp2value(search, kw->table + param - 1, &value)) {
+	case DM_OOM:
+		return RC_ERR_ALLOC;
+	case DM_OK:
+		break;
+	default:
+		return RC_ERR_MISC;
+	}
+
+	inst = find_instance_by_selector(path, param, kw->table[param - 1].type, &value);
+	dm_free_any_value(kw->table + param - 1, &value);
+	if (!inst)
+		return RC_ERR_MISC;
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "DB FINDINSTANCE", inst->instance);
+
+	if (dm_add_uint16(answer, AVP_UINT16, VP_TRAVELPING, inst->instance))
+		return RC_ERR_ALLOC;
+
+	return RC_OK;
+}
+
+void dm_event_broadcast(const dm_selector sel __attribute__((unused)), enum dm_action_type type __attribute__((unused)))
+{
+	/* TODO: implement */
 }

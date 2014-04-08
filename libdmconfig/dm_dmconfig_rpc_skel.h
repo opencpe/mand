@@ -2,19 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+/** RPC's from the client for the server
+ *
+ * prototypes for the main request handler switch
+ */
+
 #ifndef DM_DMCONFIG_RPC_SKEL_H
 #define DM_DMCONFIG_RPC_SKEL_H
 
-struct rpc_db_set_path_value {
-	dm_selector path;
-	struct dm2_avp value;
-};
+#include "libdmconfig/dmmsg.h"
+#include "libdmconfig/dmconfig.h"
 
-struct path_type {
-	uint32_t type;
-	dm_selector path;
-};
-
-uint32_t rpc_dmconfig_switch(SOCKCONTEXT *sockCtx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM_OBJ **answer);
+uint32_t rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQUEST **answer);
 
 #endif

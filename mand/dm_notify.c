@@ -20,7 +20,7 @@
 #include "dm_store_priv.h"
 #include "dm_index.h"
 #include "dm_notify.h"
-#include "dm_cfgsessions.h"
+#include "dm_dmconfig.h"
 
 //#define SDEBUG
 #include "debug.h"
@@ -425,7 +425,7 @@ static ev_prepare notify_ev;
 static void notify_prepare_cb(EV_P __attribute__ ((unused)), ev_prepare *w __attribute__ ((unused)),
 			      int revents __attribute__ ((unused)))
 {
-        if (getCfgSessionStatus() == CFGSESSION_INACTIVE) {
+        if (!cfg_session_id) {
 		debug(": exec_pending_notifications");
                 exec_pending_notifications();
 	}

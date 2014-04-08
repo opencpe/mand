@@ -23,11 +23,12 @@
 #include <time.h>
 
 #include <sys/time.h>
-#include <event.h>
+#include <ev.h>
 
 #include "dmctrl.h"
 
 #include "libdmconfig/dmconfig.h"
+#include "libdmconfig/dm_dmconfig_rpc_stub.h"
 
 static void usage(void);
 
@@ -38,11 +39,6 @@ CTRL_COMMAND		command = DMCTRL_UNDEF;
 char			*what = "";
 
 #define RETRY_CONN_DELAY 10 /* in seconds */
-
-static struct timeval	timeout = {	/* custom libdmconfig session timeout */
-	.tv_sec = 30,
-	.tv_usec = 0
-};
 
 #define chomp(s) ({ \
         char *c = (s) + strlen((s)) - 1; \
@@ -135,129 +131,142 @@ void parse_commandline(int argc, char **argv)
     }
 }
 
-int dmctrl(int argc, char **argv)
+uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata __attribute__((unused)))
 {
-	uint32_t		rc;
-	DMCONTEXT		ctx;
-	DM_AVPGRP		*grp;
-	DM_AVPGRP		*ret_grp;
+	uint32_t rc;
+	DM2_AVPGRP *answer;
 
-	struct event_base	*base;
+	if (event != DMCONFIG_CONNECTED)
+		return RC_OK;
 
-	parse_commandline(argc, argv);
+	if (!(answer = talloc_zero(socket, DM2_AVPGRP)))
+		return RC_ERR_ALLOC;
 
-	if (!(base = event_init()))
-		return EXCODE_FAILURE;
+	if ((rc = rpc_startsession(socket, CMD_FLAG_READWRITE, 10, answer)) != RC_OK) {
+		ev_break(socket->ev, EVBREAK_ONE);
 
-	dm_context_init(&ctx, base);
-
-	if (dm_init_socket(&ctx, stype))
-		goto abort;
-
-	if (dm_send_start_session(&ctx, CMD_FLAG_READWRITE, &timeout, NULL))
-		goto abort;
+		return rc;
+	}
 
 	switch(command) {
 		case DMCTRL_DUMP: {
 			char *dump;
 
-			if (dm_send_cmd_dump(&ctx, what, &dump))
-				goto abort;
+			if ((rpc_db_dump(socket, what, answer) != RC_OK)
+			    || dm_expect_string_type(answer, AVP_STRING, VP_TRAVELPING, &dump) != RC_OK)
+				break;
+
 			printf("%s", dump);
-			free(dump);
+			talloc_free(dump);
 
 			break;
 		}
 		case DMCTRL_GET: {
-			uint32_t	type, vendor_id;
-			uint8_t		flags;
-			void		*data;
-			size_t		len;
+			uint32_t code;
+			uint32_t vendor_id;
+			void *data;
+			size_t size;
+			char *result;
 
-			char		*result;
+			if (rpc_db_get(socket, 1, (const char **)&what, answer) != RC_OK)
+				break;
 
-			if (!(grp = dm_grp_new()))
-				goto abort;
-			if (dm_grp_get_unknown(&grp, what) ||
-			    dm_send_packet_get(&ctx, grp, &ret_grp) ||
-			    dm_avpgrp_get_avp(ret_grp, &type, &flags, &vendor_id,
-	     			  		&data, &len) ||
-			    dm_decode_unknown_as_string(type, data, len, &result)) {
-				dm_grp_free(grp);
-				goto abort;
-			}
+			if (dm_expect_avp(answer, &code, &vendor_id, &data, &size) != RC_OK
+			    || vendor_id != VP_TRAVELPING
+			    || dm_expect_group_end(answer) != RC_OK
+			    || dm_decode_unknown_as_string(code, data, size, &result) != RC_OK)
+				break;
+
 			printf("%s", result);
 			free(result);
 
-			dm_grp_free(grp);
-
 			break;
 		}
+
 		case DMCTRL_SET: {
 			char *p;
+			struct rpc_db_set_path_value set_value = {
+				.path  = what,
+				.value = {
+					.code = AVP_UNKNOWN,
+					.vendor_id = VP_TRAVELPING,
+				},
+			};
 
-			if (!(grp = dm_grp_new()))
-				goto abort;
 			if ((p = strchr(what, '=')))
 				*p++ = '\0';
-			if (dm_grp_set_unknown(&grp, what, p ? : "") ||
-			    dm_send_packet_set(&ctx, grp)) {
-				dm_grp_free(grp);
-				goto abort;
-			}
-			dm_grp_free(grp);
+
+			set_value.value.data = p ? : "";
+			set_value.value.size = strlen(set_value.value.data);
+
+			if (rpc_db_set(socket, 1, &set_value, answer) != RC_OK)
+				break;
 
 			break;
 		}
 		case DMCTRL_ADD: {
 			uint16_t instance = DM_ADD_INSTANCE_AUTO;
 
-			if (dm_send_add_instance(&ctx, what, &instance) == 0) {
+			if (rpc_db_addinstance(socket, what, instance, answer) == RC_OK &&
+			    dm_expect_uint16_type(answer, AVP_UINT16, VP_TRAVELPING, &instance) == RC_OK) {
 				printf("new instance: %s.%u\n", what, instance);
 			} else
 				printf("failed\n");
+
 			break;
 		}
 		case DMCTRL_DEL:
-			if (dm_send_del_instance(&ctx, what) == 0) {
+			if (rpc_db_delinstance(socket, what, answer) == RC_OK) {
 				printf("success\n");
 			} else
 				printf("failed\n");
 			break;
-		case DMCTRL_COMMIT:	/* backwards compatibility */
-			if (dm_send_save(&ctx))
-				goto abort;
-			break;
-		case DMCTRL_CONFSAVE:
-			if (dm_send_cmd_conf_save(&ctx, what))
-				goto abort;
-			break;
-		case DMCTRL_CONFRESTORE:
-			if (dm_send_cmd_conf_restore(&ctx, what))
-				goto abort;
+
+		case DMCTRL_COMMIT:
+			if (rpc_db_commit(socket, answer) == RC_OK) {
+				printf("success\n");
+			} else
+				printf("failed\n");
 			break;
 
 		default:
 			/* XXX NEVER REACHED */
 			fprintf(stderr, "Oops\n");
-			goto abort;
+			break;
 	}
 
-	rc = dm_send_end_session(&ctx);
+	rpc_endsession(socket);
 
-	dm_shutdown_socket(&ctx);
-	event_base_free(base);
+	ev_break(socket->ev, EVBREAK_ONE);
 
-	return rc ? EXCODE_FAILURE : EXCODE_SUCCESS;
+	return  RC_OK;
+}
 
-abort:
+int dmctrl(int argc, char **argv)
+{
+	struct ev_loop *loop = EV_DEFAULT;
+	uint32_t rc;
+	DMCONTEXT *ctx;
 
-	if (dm_context_get_sessionid(&ctx))
-		dm_send_end_session(&ctx);
-	dm_shutdown_socket(&ctx);
-	event_base_free(base);
+	parse_commandline(argc, argv);
 
-	return EXCODE_FAILURE;
+	if (!(ctx = dm_context_new()))
+		return RC_ERR_ALLOC;
+
+	dm_context_init(ctx, loop, stype, NULL, dmctrl_connect_cb, NULL);
+
+	/* connect */
+	if ((rc = dm_connect_async(ctx)) != RC_OK)
+		goto abort;
+
+	ev_run(loop, 0);
+
+ abort:
+	dm_context_shutdown(ctx, DMCONFIG_ERROR_CONNECTING);
+	dm_context_release(ctx);
+	ev_loop_destroy(loop);
+
+	return rc;
 }
 
 int main(int argc, char **argv)

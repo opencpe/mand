@@ -130,18 +130,6 @@ if test x$enable_libdmconfig_debug = xyes; then
 fi
 AM_CONDITIONAL(LIBDMCONFIG_DEBUG, test x$enable_libdmconfig_debug = xyes)
 
-AC_ARG_ENABLE(libdmconfig-luawrapper,
-	AC_HELP_STRING([--enable-libdmconfig-luawrapper],
-		       [Include abstract Lua interface in libdmconfig [[default=yes]]]), ,
-	[enable_libdmconfig_luawrapper=yes])
-if test x$enable_libdmconfig_luawrapper = xyes; then
-	if test x$LUAC = x; then
-		AC_MSG_ERROR([Lua 5.1 compiler not found!])
-	fi
-	AC_DEFINE(LIBDMCONFIG_LUAWRAPPER, , [Include abstract Lua interface in libdmconfig])
-fi
-AM_CONDITIONAL(LIBDMCONFIG_LUAWRAPPER, test x$enable_libdmconfig_luawrapper = xyes)
-
 AC_ARG_ENABLE(luacstrip,
 	AC_HELP_STRING([--enable-luacstrip], [Tells the Lua compiler to strip debugging information from compiled Lua code [[default=yes]]]),
 [case "${enableval}" in

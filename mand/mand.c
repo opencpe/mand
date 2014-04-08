@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	ev_signal signal_watcher;
 	ev_signal sigusr2_watcher;
 
-	int run_daemon = 1;
+	int run_daemon = 0;
 	int c;
 	FILE *fin;
 
@@ -153,15 +153,15 @@ int main(int argc, char *argv[])
 	logx_open(basename(argv[0]), LOG_CONS | LOG_PID | LOG_PERROR, LOG_DAEMON);
 	logx_level = LOG_DEBUG;
 
-	while (-1 != (c = getopt(argc, argv, "hf"))) {
+	while (-1 != (c = getopt(argc, argv, "dh"))) {
 		switch(c) {
+			case 'd':
+				run_daemon = 1;
+				break;
+
 			case 'h':
 				usage();
 				exit(1);
-				break;
-
-			case 'f':
-				run_daemon = 0;
 				break;
 
 			default:
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
-	signal(SIGINT, SIG_IGN);
+	// signal(SIGINT, SIG_IGN);
 
 	ev_signal_init(&signal_watcher, sigterm_cb, SIGTERM);
 	ev_signal_start(EV_DEFAULT_UC_ &signal_watcher);

@@ -193,6 +193,7 @@
 			<enum name="RC-Err-Timeout"                 code="16"/>
 			<enum name="RC-Err-Operation-In-Progress"   code="17"/>
 			<enum name="RC-Err-Hostname-Resolution"     code="18"/>
+			<enum name="RC-Err-Invalid-AVP-Type"        code="19"/>
 		</avp>
 
 		<avp name="SessionId" code="1013" vendor-id="18681">
@@ -262,21 +263,28 @@
 		<!-- REQUEST SPECIFIC AVPS -->
 
 		<!-- AVP_CONTAINERs returned by a LIST request contain the following AVPs -->
-		<avp name="Node-Name" code="1030" vendor-id="18681">
+		<avp name="Table" code="1030" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Instance" code="1031" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Object" code="1032" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Element" code="1033" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Name" code="1034" vendor-id="18681">
 			<type type-name="ASCIIString"/>
-		</avp>
-		<avp name="Node-Type" code="1031" vendor-id="18681">
-			<type type-name="Enumerated"/>
-
-			<enum name="Node-Object"    code="1"/>
-			<enum name="Node-Table"     code="2"/>
-			<enum name="Node-Parameter" code="3"/>
-		</avp>
-		<avp name="Node-DataType" code="1032" vendor-id="18681">
-			<type type-name="Type"/>
-		</avp>
-		<avp name="Node-Size" code="1033" vendor-id="18681">
-			<type type-name="Unsigned32"/>
 		</avp>
 
 		<!-- start and switch session requests may contain two timeval AVPs -->
@@ -320,6 +328,13 @@
 		</avp>
 		<avp name="UInt64" code="2207" vendor-id="18681">
 			<type type-name="Unsigned64"/>
+		</avp>
+
+		<avp name="Ticks" code="2208" vendor-id="18681">
+			<type type-name="Integer64"/>
+		</avp>
+		<avp name="Type" code="2209" vendor-id="18681">
+			<type type-name="Integer32"/>
 		</avp>
 	</base>
 

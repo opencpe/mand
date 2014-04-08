@@ -5,7 +5,7 @@
 AM_CFLAGS = -g -funit-at-a-time \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/include/compat \
-    -I$(top_builddir)
+	-I$(top_builddir)
 
 SUBDIRS = snmp tests
 
@@ -16,26 +16,25 @@ noinst_LTLIBRARIES = libdm.la libdmstore.la
 
 dmctrl_SOURCES = dmctrl.c
 dmctrl_LDADD = $(top_builddir)/utils/libdmutils.la \
-		  $(top_builddir)/libdmconfig/libdmconfig.la
+	       $(top_builddir)/libdmconfig/libdmconfig.la \
+	       $(top_builddir)/libdmconfig/libdm_dmclient.la
 
 libdmstore_la_SOURCES = dm_store.c dm_index.c dm_notify.c dm_cache.c \
 			dm_serialize.c dm_deserialize.c dm_signature.c \
 			dm_strings.c dm_action.c \
-			dm_cfgsessions.c dm_cfgversion.c \
+			dm_cfgversion.c \
 			dm_cfg_bkrst.c dm_validate.c \
 			p_table.c dm_assert.c
 libdmstore_la_LIBADD = $(LIBM) $(DMLIBS) $(top_builddir)/utils/libdmutils.la
 
 libdm_la_SOURCES = \
 		dm_dmconfig.c \
-		dm_dmconfig_rpc_impl.c \
-		dm_dmconfig_rpc_skel.c \
 		process.c \
 		inet_helper.c \
 		dm_luaif.c
 
 BUILT_SOURCES = p_table.c p_table.h dm_action_table.c dm_action_table.h
-CLEANFILES = p_table.c p_table.h dm_action_table.c dm_action_table.h
+CLEANFILES = p_table.c p_table.h
 
 DISTCLEANFILES = *xml *.log *~
 
@@ -55,7 +54,7 @@ if NET_SNMP
 mand_SOURCES += net-snmpd.c
 endif
 
-mand_LDADD = libdm.la
+mand_LDADD = libdm.la $(top_builddir)/libdmconfig/libdm_dmconfig.la
 
 p_table.c p_table.h dm_action_table.c dm_action_table.h: $(top_srcdir)/yang/specs/*yang
 	$(PYANG) --plugindir $(top_srcdir)/yang/pyang_plugin/ -p $(top_srcdir)/yang/specs -f OpenCPE $(top_srcdir)/yang/specs/*.yang
