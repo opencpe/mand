@@ -218,7 +218,6 @@ struct list_ctx {
 
 	int		level;
 	int		max_level;
-	int		firstone;
 };
 
 static inline uint32_t avp_type_map(unsigned short type)
@@ -632,11 +631,6 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id, const struct dm_element *el
 
 	if (!elem->key)
 		return 0;
-
-	if (ctx->firstone) {		/* hack that prevents the first element from being processed */
-		ctx->firstone = 0;	/* later dm_walk_by_name might be modified or reimplemented */
-		return 1;
-	}
 
 	switch (type) {
 	case CB_object_end:
