@@ -707,6 +707,8 @@ dmconfig_retrieve_enums_cb(void *data,
 	return DM_OK;
 }
 
+/* Note: this kind of encoding should normally got into dm_dmclient_rpc_stub
+ */
 static uint32_t
 build_notify_events(struct notify_queue *queue, int level, DM2_REQUEST *notify)
 {
@@ -774,20 +776,20 @@ build_notify_events(struct notify_queue *queue, int level, DM2_REQUEST *notify)
 	return RC_OK;
 }
 
-/* FIXME: this really would belong to dm_dmclient_rpc_stub, but
- *        it uses build_notify_events, which is only available here
+/* Note: this kind of encoding should normally got into dm_dmclient_rpc_stub
  */
 static void
 dmconfig_notify_cb(void *data, struct notify_queue *queue)
 {
 	SOCKCONTEXT *ctx = data;
-	DM2_REQUEST *notify;
+	DM2_REQUEST *req;
 
-	if (!(notify = dm_new_request(ctx, CMD_CLIENT_ACTIVE_NOTIFY, CMD_FLAG_REQUEST, 0, 0))
-	    || build_notify_events(queue, ACTIVE_NOTIFY, notify) != RC_OK)
+	if (!(req = dm_new_request(ctx, CMD_CLIENT_ACTIVE_NOTIFY, CMD_FLAG_REQUEST, 0, 0))
+	    || build_notify_events(queue, ACTIVE_NOTIFY, req) != RC_OK
+	    || dm_finalize_packet(req) != RC_OK)
 		return;
 
-	dm_enqueue(ctx->socket, notify, ONE_WAY, NULL, NULL);
+	dm_enqueue(ctx->socket, req, ONE_WAY, NULL, NULL);
 }
 
 /*
@@ -1247,7 +1249,15 @@ rpc_db_findinstance(void *data __attribute__((unused)), const dm_selector path, 
 	return RC_OK;
 }
 
-void dm_event_broadcast(const dm_selector sel __attribute__((unused)), enum dm_action_type type __attribute__((unused)))
+void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 {
-	/* TODO: implement */
+	char buffer[MAX_PARAM_NAME_LEN];
+	char *path;
+	SOCKCONTEXT *ctx;
+
+	if (!(path = dm_sel2name(sel, buffer, sizeof(buffer))))
+		return;
+
+	TAILQ_FOREACH(ctx, &socket_head, list)
+		rpc_event_broadcast(ctx->socket, path, type);
 }

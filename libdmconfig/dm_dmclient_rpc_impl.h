@@ -16,4 +16,7 @@
 #include "libdmconfig/dmconfig.h"
 #include "libdmconfig/dm_dmclient_rpc_skel.h"
 
+uint32_t rpc_client_active_notify(void *ctx, DM2_AVPGRP *obj);
+uint32_t rpc_client_event_broadcast(void *ctx, const char *path, uint32_t type);
+
 #endif

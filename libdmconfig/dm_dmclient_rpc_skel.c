@@ -29,6 +29,27 @@
 #include "libdmconfig/dmcontext.h"
 #include "libdmconfig/codes.h"
 
+static inline uint32_t
+rpc_client_active_notify_skel(void *ctx, DM2_AVPGRP *obj)
+{
+	return rpc_client_active_notify(ctx, obj);
+}
+
+static inline uint32_t
+rpc_client_event_broadcast_skel(void *ctx, DM2_AVPGRP *obj)
+{
+	uint32_t rc;
+	char *path;
+	uint32_t type;
+
+	if ((rc = dm_expect_string_type(obj, AVP_PATH, VP_TRAVELPING, &path)) != RC_OK
+	    || (rc = dm_expect_uint32_type(obj, AVP_EVENT_TYPE, VP_TRAVELPING, &type)) != RC_OK
+	    || (rc = dm_expect_end(obj)) != RC_OK)
+		return rc;
+
+	return rpc_client_event_broadcast(ctx, path, type);
+}
+
 uint32_t
 rpc_dmclient_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj __attribute__((unused)), DM2_REQUEST **answer)
 {
@@ -37,6 +58,10 @@ rpc_dmclient_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj __attribu
 
 	/* one way requests */
 	switch (req->code) {
+	case CMD_CLIENT_ACTIVE_NOTIFY:
+		return rpc_client_active_notify_skel(ctx, obj);
+	case CMD_CLIENT_EVENT_BROADCAST:
+		return rpc_client_event_broadcast_skel(ctx, obj);
 	}
 
 	if (!(*answer = dm_new_request(ctx, req->code, 0, req->hop2hop, req->end2end)))

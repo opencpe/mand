@@ -12,4 +12,9 @@
 
 #include "libdmconfig/dmcontext.h"
 
+#include "mand/dm_token.h"
+#include "mand/dm_notify.h"
+
+uint32_t rpc_event_broadcast(DMCONTEXT *ctx, const char *path, uint32_t type);
+
 #endif

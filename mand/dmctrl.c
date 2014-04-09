@@ -29,6 +29,7 @@
 
 #include "libdmconfig/dmconfig.h"
 #include "libdmconfig/dm_dmconfig_rpc_stub.h"
+#include "libdmconfig/dm_dmclient_rpc_impl.h"
 
 static void usage(void);
 

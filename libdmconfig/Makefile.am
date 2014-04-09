@@ -26,6 +26,7 @@ libdm_dmconfig_la_SOURCES = \
 
 libdm_dmclient_la_SOURCES = \
 		dm_dmclient_rpc_skel.c \
+		dm_dmclient_rpc_impl.c \
 		dm_dmconfig_rpc_stub.c
 
 if LIBDMCONFIG_DEBUG
