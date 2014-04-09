@@ -22,8 +22,6 @@
 #include <stdarg.h>
 #include <syslog.h>
 
-#include <event.h>
-
 #include <features.h>
 #include "dm.h"
 

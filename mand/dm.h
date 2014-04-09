@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#include <event.h>
 
 void dm_startup(void);
 void dm_shutdown(void);

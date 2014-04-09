@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <sys/queue.h>
 #include <ev.h>
-#include <event.h>
 
 #ifdef HAVE_TALLOC_TALLOC_H
 # include <talloc/talloc.h>

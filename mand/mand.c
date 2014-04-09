@@ -21,7 +21,6 @@
 #include <sys/resource.h>
 
 #include <ev.h>
-#include <event.h>
 
 #include "expat.h"
 #include "dm_token.h"

@@ -8,7 +8,6 @@
 #include <stdint.h>
 
 #include <pthread.h>
-#include <event.h>
 #include <ev.h>
 #include "libdmconfig/dmconfig.h"
 #include "libdmconfig/dmcontext.h"

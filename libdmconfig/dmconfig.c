@@ -29,7 +29,6 @@
 #include <sys/socket.h>
 #include <poll.h>
 #include <fcntl.h>
-#include <event.h>
 #include <syslog.h>
 #include <signal.h>
 #include <sys/queue.h>

@@ -35,7 +35,6 @@
 #include <netdb.h>
 
 #include <sys/time.h>
-#include <event.h>
 #include <ev.h>
 
 #include <sys/tree.h>

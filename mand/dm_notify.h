@@ -6,6 +6,7 @@
 #define __DM_NOTIFY_H
 
 #include <sys/tree.h>
+#include <ev.h>
 
 #include "dm_token.h"
 
