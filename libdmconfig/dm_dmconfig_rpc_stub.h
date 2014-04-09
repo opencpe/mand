@@ -28,7 +28,7 @@ uint32_t rpc_unsubscribe_notify_async(DMCONTEXT *ctx, DMRESULT_CB cb, void *data
 uint32_t rpc_param_notify_async(DMCONTEXT *ctx, uint32_t notify, int pcnt, const char **paths, DMRESULT_CB cb, void *data);
 uint32_t rpc_recursive_param_notify_async(DMCONTEXT *ctx, uint32_t notify, const char *path, DMRESULT_CB cb, void *data);
 uint32_t rpc_get_passive_notifications_async(DMCONTEXT *ctx, DMRESULT_CB cb, void *data);
-uint32_t rpc_db_addinstance_async(DMCONTEXT *ctx, const char *path, dm_id id, DMRESULT_CB cb, void *data);
+uint32_t rpc_db_addinstance_async(DMCONTEXT *ctx, const char *path, uint16_t id, DMRESULT_CB cb, void *data);
 uint32_t rpc_db_delinstance_async(DMCONTEXT *ctx, const char *path, DMRESULT_CB cb, void *data);
 uint32_t rpc_db_set_async(DMCONTEXT *ctx, int pvcnt, struct rpc_db_set_path_value *values, DMRESULT_CB cb, void *data);
 uint32_t rpc_db_get_async(DMCONTEXT *ctx, int pcnt, const char **paths, DMRESULT_CB cb, void *data);
@@ -52,7 +52,7 @@ uint32_t rpc_unsubscribe_notify(DMCONTEXT *ctx, DM2_AVPGRP *grp);
 uint32_t rpc_param_notify(DMCONTEXT *ctx, uint32_t notify, int pcnt, const char **paths, DM2_AVPGRP *grp);
 uint32_t rpc_recursive_param_notify(DMCONTEXT *ctx, uint32_t notify, const char *path, DM2_AVPGRP *grp);
 uint32_t rpc_get_passive_notifications(DMCONTEXT *ctx, DM2_AVPGRP *grp);
-uint32_t rpc_db_addinstance(DMCONTEXT *ctx, const char *path, dm_id id, DM2_AVPGRP *grp);
+uint32_t rpc_db_addinstance(DMCONTEXT *ctx, const char *path, uint16_t id, DM2_AVPGRP *grp);
 uint32_t rpc_db_delinstance(DMCONTEXT *ctx, const char *path, DM2_AVPGRP *grp);
 uint32_t rpc_db_set(DMCONTEXT *ctx, int pvcnt, struct rpc_db_set_path_value *values, DM2_AVPGRP *grp);
 uint32_t rpc_db_get(DMCONTEXT *ctx, int pcnt, const char **paths, DM2_AVPGRP *grp);

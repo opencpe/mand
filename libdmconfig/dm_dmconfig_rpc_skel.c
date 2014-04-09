@@ -30,9 +30,26 @@
 #include "libdmconfig/dmcontext.h"
 #include "libdmconfig/codes.h"
 
+#include <mand/dm_token.h>
 #include "mand/dm_strings.h"
 
 #define BLOCK_ALLOC 16
+
+static uint32_t
+dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value)
+{
+	uint32_t r = RC_OK;
+	char *s;
+
+	if ((r = dm_expect_string_type(grp, exp_code, exp_vendor_id, &s)) != RC_OK)
+		return r;
+
+	if (!dm_name2sel(s, value))
+		r = RC_ERR_MISC;
+
+	talloc_free(s);
+	return r;
+}
 
 static inline uint32_t
 rpc_startsession_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)

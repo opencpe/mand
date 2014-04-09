@@ -28,9 +28,6 @@
 
 #include "dm_dmconfig_rpc_stub.h"
 
-#include "mand/dm_token.h"
-#include "mand/dm_strings.h"
-
 uint32_t rpc_startsession_async(DMCONTEXT *ctx, uint32_t flags, int32_t timeout, DMRESULT_CB cb, void *data)
 {
 	uint32_t rc;
@@ -187,7 +184,7 @@ uint32_t rpc_get_passive_notifications_async(DMCONTEXT *ctx, DMRESULT_CB cb, voi
 	return dm_enqueue_request(ctx, req, cb, data);
 }
 
-uint32_t rpc_db_addinstance_async(DMCONTEXT *ctx, const char *path, dm_id id, DMRESULT_CB cb, void *data)
+uint32_t rpc_db_addinstance_async(DMCONTEXT *ctx, const char *path, uint16_t id, DMRESULT_CB cb, void *data)
 {
 	uint32_t rc;
 	DM2_REQUEST *req;
@@ -467,7 +464,7 @@ uint32_t rpc_get_passive_notifications(DMCONTEXT *ctx, DM2_AVPGRP *answer)
 	return reply.rc;
 }
 
-uint32_t rpc_db_addinstance(DMCONTEXT *ctx, const char *path, dm_id id, DM2_AVPGRP *answer)
+uint32_t rpc_db_addinstance(DMCONTEXT *ctx, const char *path, uint16_t id, DM2_AVPGRP *answer)
 {
 	struct async_reply reply = {.rc = RC_OK, .answer = answer };
 

@@ -310,21 +310,6 @@ uint32_t dm_expect_int32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_v
 	return RC_OK;
 }
 
-uint32_t dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value)
-{
-	uint32_t r = RC_OK;
-	char *s;
-
-	if ((r = dm_expect_string_type(grp, exp_code, exp_vendor_id, &s)) != RC_OK)
-		return r;
-
-	if (!dm_name2sel(s, value))
-		r = RC_ERR_MISC;
-
-	talloc_free(s);
-	return r;
-}
-
 uint32_t
 dm_expect_group(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, DM2_AVPGRP *obj)
 {
@@ -364,14 +349,4 @@ DM2_REQUEST *dm_new_request(void *ctx, uint32_t code, uint8_t flags, uint32_t ho
 	}
 
 	return req;
-}
-
-/*
- * work arround for refering to dm_name2sel from libdmconfig
- */
-dm_selector *dm_name2sel(const char *, dm_selector *) __attribute__ ((weak, alias ("dummy_dm_name2sel")));
-
-dm_selector *dummy_dm_name2sel(const char *c __attribute__((unused)), dm_selector *s __attribute__((unused)))
-{
-	return NULL;
 }

@@ -29,9 +29,6 @@
 # include <talloc.h>
 #endif
 
-#include <mand/dm_token.h>
-/* #include <mand/dm_strings.h> */
-
 #include "dmmsg.h"
 #include "libdmconfig/codes.h"
 #include "libdmconfig/dmcontext.h"
@@ -87,7 +84,6 @@ uint32_t dm_expect_uint32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_
 uint32_t dm_expect_int8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int8_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int16_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int32_t *value) __attribute__((nonnull (1,4)));
-uint32_t dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, dm_selector *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_group(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, DM2_AVPGRP *obj) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_group_end(DM2_AVPGRP *grp) __attribute__((nonnull (1)));
 
