@@ -8,7 +8,9 @@ BUILT_SOURCES = codes.h
 CLEANFILES = codes.h
 
 libdmconfigincdir = $(includedir)/libdmconfig
-libdmconfiginc_HEADERS = dmmsg.h dmconfig.h dmcontext.h codes.h
+libdmconfiginc_HEADERS = dmmsg.h dmconfig.h dmcontext.h codes.h \
+			 dm_dmclient_rpc_impl.h \
+			 dm_dmconfig_rpc_stub.h
 
 dmconfigdatadir = $(datadir)/dmd
 dmconfigdata_DATA = dmconfig.xml
