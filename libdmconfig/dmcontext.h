@@ -171,8 +171,10 @@ static inline struct ev_loop *dm_context_get_event_base(DMCONTEXT *dmCtx);
 static inline void dm_context_set_ev_loop(DMCONTEXT *dmCtx, struct ev_loop *loop);
 static inline struct ev_loop *dm_context_get_ev_loop(DMCONTEXT *dmCtx);
 
-uint32_t dm_connect_async(DMCONTEXT *sock);
+uint32_t dm_connect_async(DMCONTEXT *socket);
 uint32_t dm_accept_async(DMCONTEXT *socket);
+
+uint32_t dm_connect(DMCONTEXT *socket);
 
 void dm_context_shutdown(DMCONTEXT *sock, DMCONFIG_EVENT event);
 

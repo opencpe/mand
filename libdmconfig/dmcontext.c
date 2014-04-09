@@ -627,9 +627,6 @@ dm_connect_async(DMCONTEXT *sock)
  * completes (either with success or error)
  *
  * @param [in] dmCtx       Pointer to socket context to work on
- * @param [in] type        Type of socket (AF_INET or AF_UNIX)
- * @param [in] callback    Callback function to invoke
- * @param [in] userdata    Pointer to userdata that will be passed to the callback funtions
  *
  * @retval RC_OK                Callback was installed
  * @retval RC_ERR_CONNECTION    Underlying socket was closed or blocking
@@ -683,6 +680,57 @@ dm_accept_async(DMCONTEXT *socket)
 	ev_io_start(socket->ev, &socket->io_socket_ev);
 
 	return RC_OK;
+}
+
+static uint32_t
+dm_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata)
+{
+	uint32_t *rc = (uint32_t *)userdata;
+
+	ev_break(socket->ev, EVBREAK_ONE);
+
+	if (event == DMCONFIG_CONNECTED)
+		*rc = RC_OK;
+	else
+		*rc = RC_ERR_CONNECTION;
+
+	return RC_OK;
+}
+
+/** synchonous connect
+ *
+ * Synchonous connect, return status of underlying socket
+ *
+ * @param [in] socket   k       Pointer to socket context to connect on
+ *
+ * @retval RC_OK                Callback was installed
+ * @retval RC_ERR_CONNECTION    Underlying socket was closed or blocking
+ * @retval RC_ERR_ALLOC         Out of memory
+ *
+ * @ingroup API
+ */
+uint32_t
+dm_connect(DMCONTEXT *socket)
+{
+	uint32_t rc;
+	void *save_userdata;
+	DMCONFIG_CONNECTION_CB save_connection_cb;
+
+	save_connection_cb = socket->connection_cb;
+	socket->connection_cb = dm_connect_cb;
+
+	save_userdata = socket->userdata;
+	socket->userdata = &rc;
+
+	if ((rc = dm_connect_async(socket)) != RC_OK)
+		goto exit;
+
+	ev_run(socket->ev, 0);
+
+ exit:
+	socket->connection_cb = save_connection_cb;
+	socket->userdata = save_userdata;
+	return rc;
 }
 
 /** synchonous accept
