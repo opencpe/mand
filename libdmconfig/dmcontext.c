@@ -332,7 +332,7 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 #ifdef LIBDMCONFIG_DEBUG
 		if (dmconfig_debug_level) {
 			fprintf(stderr, "Recieved %s:\n", dm_packet_flags(ctx->packet) & CMD_FLAG_REQUEST ? "request" : "reply");
-			dump_dm_packet(ctx->buffer);
+			dump_dm_packet(ctx->packet);
 		}
 #endif
 

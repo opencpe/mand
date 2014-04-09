@@ -7,6 +7,6 @@
 
 #include "dmmsg.h"
 
-void dump_dm_packet(DM_REQUEST *req);
+void dump_dm_packet(DM_PACKET *packet);
 
 #endif
