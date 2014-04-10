@@ -34,6 +34,7 @@ class TreePlugin(plugin.PyangPlugin):
         fd.write("#include <limits.h>\n")
         fd.write("#include \"dm.h\"\n")
         fd.write("#include \"dm_token.h\"\n")
+        fd.write("#include \"dm_action.h\"\n")
         fd.write("#include \"p_table.h\"\n")
 
         emit_tree(modules, fd)

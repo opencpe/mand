@@ -5,6 +5,8 @@
 #ifndef __DM_ACTION_H
 #define __DM_ACTION_H
 
+#include "dm_action_table.h"
+
 enum dm_action_type {
 	DM_ADD,
 	DM_CHANGE,

@@ -10,8 +10,6 @@
 #ifndef DM_DMCLIENT_RPC_IMPL_H
 #define DM_DMCLIENT_RPC_IMPL_H
 
-#include "mand/dm_token.h"
-
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/dmconfig.h"
 #include "libdmconfig/dm_dmclient_rpc_skel.h"

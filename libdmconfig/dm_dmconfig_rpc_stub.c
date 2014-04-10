@@ -139,7 +139,7 @@ uint32_t rpc_param_notify_async(DMCONTEXT *ctx, uint32_t notify, int pcnt, const
 	if (!(req = dm_new_request(ctx, CMD_PARAM_NOTIFY, CMD_FLAG_REQUEST, 0, 0)))
 		return RC_ERR_ALLOC;
 
-	if ((rc = dm_add_uint8(req, AVP_BOOL, VP_TRAVELPING, notify)) != RC_OK
+	if ((rc = dm_add_uint8(req, AVP_NOTIFY_LEVEL, VP_TRAVELPING, notify)) != RC_OK
 	    || (rc = dm_add_object(req)) != RC_OK)
 		return rc;
 
@@ -162,7 +162,7 @@ uint32_t rpc_recursive_param_notify_async(DMCONTEXT *ctx, uint32_t notify, const
 	if (!(req = dm_new_request(ctx, CMD_RECURSIVE_PARAM_NOTIFY, CMD_FLAG_REQUEST, 0, 0)))
 		return RC_ERR_ALLOC;
 
-	if ((rc = dm_add_uint8(req, AVP_BOOL, VP_TRAVELPING, notify)) != RC_OK
+	if ((rc = dm_add_uint8(req, AVP_NOTIFY_LEVEL, VP_TRAVELPING, notify)) != RC_OK
 	    || (rc = dm_add_string(req, AVP_PATH, VP_TRAVELPING, path)) != RC_OK
 	    || (rc = dm_finalize_packet(req)) != RC_OK)
 		return rc;

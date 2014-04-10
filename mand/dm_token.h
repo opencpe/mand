@@ -22,7 +22,6 @@
 #include <netinet/ip.h>
 
 #include "dm.h"
-#include "dm_action_table.h"
 
 enum {
 	T_NONE      = 0x00,
@@ -384,7 +383,7 @@ struct dm_element {
 	char *key;
 	unsigned short type;
 	uint16_t flags;
-	enum dm_actions action;
+	uint16_t action;
 	union {
 		const struct dm_value_fkts value;
 		const struct dm_instance_fkts instance;

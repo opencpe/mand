@@ -212,6 +212,14 @@
 			<enum name="Notify-Instance-Created"  code="3"/>
 		</avp>
 
+		<avp name="Notify-Level" code="1022" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<enum name="Notify-None"    code="0"/>
+			<enum name="Notify-Passive" code="1"/>
+			<enum name="Notify-Active"  code="2"/>
+		</avp>
+
 		<!-- SPECIAL "UNKNOWN" TYPE AVP -->
 
 		<!-- it's never *returned* as payload type -->

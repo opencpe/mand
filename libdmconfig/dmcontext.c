@@ -44,9 +44,6 @@
 # include <talloc.h>
 #endif
 
-/* #include "mand/dm_token.h" */
-/* #include "mand/dm_strings.h" */
-
 #include "dmmsg.h"
 #include "codes.h"
 #include "dmcontext.h"
