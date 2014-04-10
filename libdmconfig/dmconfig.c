@@ -258,6 +258,23 @@ uint32_t dm_expect_uint32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_
 	return RC_OK;
 }
 
+uint32_t dm_expect_uint64_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint64_t *value)
+{
+	uint32_t r;
+	size_t size;
+	void *data;
+
+	assert(grp != NULL);
+	assert(value != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size) != RC_OK)
+	    || size != sizeof(*value))
+		return RC_ERR_MISC;
+
+	*value = dm_get_uint64_avp(data);
+	return RC_OK;
+}
+
 uint32_t dm_expect_int8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int8_t *value)
 {
 	uint32_t r;

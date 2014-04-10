@@ -25,6 +25,7 @@
 #include <signal.h>
 
 #include <sys/tree.h>
+#include <net/if.h>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -775,6 +776,17 @@ build_notify_events(struct notify_queue *queue, int level, DM2_REQUEST *notify)
 	return RC_OK;
 }
 
+static SOCKCONTEXT *find_role(const char *role)
+{
+	SOCKCONTEXT *srch;
+
+	TAILQ_FOREACH(srch, &socket_head, list)
+		if (srch->role && strcmp(srch->role, role) == 0)
+			break;
+
+	return srch;
+}
+
 /* Note: this kind of encoding should normally got into dm_dmclient_rpc_stub
  */
 static void
@@ -1248,6 +1260,27 @@ rpc_db_findinstance(void *data __attribute__((unused)), const dm_selector path, 
 	return RC_OK;
 }
 
+uint32_t rpc_register_role(void *data, const char *role)
+{
+	SOCKCONTEXT *ctx = data;
+
+	dm_debug(ctx->id, "CMD: %s %s", "REGISTER_ROLE", role);
+
+	/* check if this ctx already has a role */
+	if (ctx->role)
+		return (strcmp(ctx->role, role) == 0) ? RC_OK : RC_ERR_MISC;
+
+	/* check if someone else has this role */
+	if (find_role(role) != NULL)
+		return RC_ERR_MISC;
+
+	/* add role */
+	ctx->role = talloc_strdup(ctx, role);
+	dm_debug(ctx->id, "CMD: %s %s: success", "REGISTER_ROLE", role);
+
+	return RC_OK;
+}
+
 void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 {
 	char buffer[MAX_PARAM_NAME_LEN];
@@ -1260,3 +1293,112 @@ void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 	TAILQ_FOREACH(ctx, &socket_head, list)
 		rpc_event_broadcast(ctx->socket, path, type);
 }
+
+/* DM getter implementation */
+#define DM_FIXUP 1
+
+static void update_interface_state(struct dm_value_table *tbl)
+{
+	uint32_t rc;
+	SOCKCONTEXT *ctx;
+	const char *name;
+	DM2_AVPGRP answer;
+
+	if (!(ctx = find_role("-state")))
+		return;
+
+	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name + DM_FIXUP);
+	printf("get_ocpe__interfaces_state__interface: %s\n", name);
+
+	memset(&answer, 0, sizeof(answer));
+	if ((rc = rpc_get_interface_state(ctx->socket, name, &answer)) != RC_OK) {
+		printf("get_ocpe__interfaces_state__interface rc=%d\n", rc);
+		return;
+	}
+
+	/* apply values to table */
+	int32_t if_index;
+	uint32_t if_flags;
+	struct dm_bin hwaddr;
+	uint8_t *mac;
+	char macstr[20];
+	uint32_t if_speed;
+	DM2_AVPGRP grp;
+        unsigned long rec_pkt = 0, rec_oct = 0, rec_err = 0, rec_drop = 0;
+        unsigned long snd_pkt = 0, snd_oct = 0, snd_err = 0, snd_drop = 0;
+	ticks_t rt_now = ticks();
+
+	if (dm_expect_int32_type(&answer, AVP_INT32, VP_TRAVELPING, &if_index) != RC_OK
+	    || dm_expect_uint32_type(&answer, AVP_UINT32, VP_TRAVELPING, &if_flags) != RC_OK
+	    || dm_expect_bin(&answer, AVP_BINARY, VP_TRAVELPING, &hwaddr) != RC_OK
+	    || dm_expect_uint32_type(&answer, AVP_UINT32, VP_TRAVELPING, &if_speed) != RC_OK
+	    || dm_expect_object(&answer, &grp) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_oct) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_pkt) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_err) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_drop) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_oct) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_pkt) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_err) != RC_OK
+	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_drop) != RC_OK
+	    || dm_expect_group_end(&grp) != RC_OK)
+		return;
+
+	printf("if_flags: %08x\n", if_flags);
+
+	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange + DM_FIXUP) == 0)
+		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange + DM_FIXUP, rt_now);
+
+	dm_set_int_by_id(tbl, field_ocpe__interfaces_state__interface_ifindex + DM_FIXUP, if_index);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_adminstatus + DM_FIXUP,
+			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_adminstatus_up : field_ocpe__interfaces_state__interface_adminstatus_down);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus + DM_FIXUP,
+			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_operstatus_up : field_ocpe__interfaces_state__interface_operstatus_down);
+
+	mac = hwaddr.data;
+	snprintf(macstr, sizeof(macstr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress + DM_FIXUP, macstr);
+
+	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface_speed + DM_FIXUP, if_speed);
+
+	struct dm_value_table *stats;
+
+	stats = dm_get_table_by_id(tbl, field_ocpe__interfaces_state__interface_statistics + DM_FIXUP);
+
+	if (dm_get_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime) == 0)
+		dm_set_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime, rt_now);
+
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inoctets, rec_oct);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunicastpkts, rec_pkt);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inbroadcastpkts,       );
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inmulticastpkts,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_indiscards, rec_drop);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inerrors, rec_err);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunknownprotos,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outoctets, snd_oct);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outunicastpkts, snd_pkt);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outbroadcastpkts,       );
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outmulticastpkts,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outdiscards, snd_drop);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outerrors, snd_err);
+}
+
+DM_VALUE get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val __attribute__((unused)))
+{
+	ticks_t rt_now = ticks();
+	ticks_t last = 0;
+
+	char buf1[40], buf2[40];
+
+	last = dm_get_ticks_by_id(tbl, 1);
+	ticks2str(buf1, sizeof(buf1), ticks2realtime(last));
+	ticks2str(buf2, sizeof(buf2), ticks2realtime(rt_now));
+
+	printf("get_ocpe__interfaces_state__interface: %s: %s, %s, %" PRItick "\n", e->key, buf1, buf2, rt_now - last);
+	if (rt_now - last > 10)
+		update_interface_state(tbl);
+
+	dm_set_ticks_by_id(tbl, 1, rt_now);
+	return *dm_get_value_ref_by_id(tbl, id);
+}
+

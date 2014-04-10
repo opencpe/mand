@@ -16,5 +16,6 @@
 
 uint32_t rpc_client_active_notify(void *ctx, DM2_AVPGRP *obj);
 uint32_t rpc_client_event_broadcast(void *ctx, const char *path, uint32_t type);
+uint32_t rpc_client_get_interface_state(void *ctx, const char *if_name, DM2_REQUEST *answer);
 
 #endif

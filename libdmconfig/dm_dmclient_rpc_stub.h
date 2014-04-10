@@ -16,5 +16,8 @@
 #include "mand/dm_notify.h"
 
 uint32_t rpc_event_broadcast(DMCONTEXT *ctx, const char *path, uint32_t type);
+uint32_t rpc_get_interface_state_async(DMCONTEXT *ctx, const char *if_name, DMRESULT_CB cb, void *data);
+
+uint32_t rpc_get_interface_state(DMCONTEXT *ctx, const char *if_name, DM2_AVPGRP *answer);
 
 #endif

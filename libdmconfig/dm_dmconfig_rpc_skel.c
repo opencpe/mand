@@ -369,6 +369,20 @@ rpc_db_findinstance_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	return rpc_db_findinstance(ctx, path, &name, &value, answer);
 }
 
+static inline uint32_t
+rpc_register_role_skel(void *ctx, DM2_AVPGRP *obj)
+{
+	uint32_t rc;
+	char *role;
+
+	if ((rc = dm_expect_string_type(obj, AVP_STRING, VP_TRAVELPING, &role)) != RC_OK
+	    || (rc = dm_expect_end(obj)) != RC_OK)
+		return rc;
+
+	return rpc_register_role(ctx, role);
+}
+
+
 uint32_t
 rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQUEST **answer)
 {
@@ -467,6 +481,10 @@ rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQU
 
 	case CMD_DB_FINDINSTANCE:
 		rc = rpc_db_findinstance_skel(ctx, obj, *answer);
+		break;
+
+	case CMD_REGISTER_ROLE:
+		rc = rpc_register_role_skel(ctx, obj);
 		break;
 
 	default:

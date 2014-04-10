@@ -80,6 +80,7 @@ uint32_t dm_expect_string_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_
 uint32_t dm_expect_uint8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint8_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_uint16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint16_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_uint32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint32_t *value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_uint64_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, uint64_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int8_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int16_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int32_t *value) __attribute__((nonnull (1,4)));

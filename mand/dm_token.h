@@ -351,7 +351,7 @@ struct dm_table;
 
 struct dm_value_fkts {
 	int (*validate)(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE, unsigned int *, char **);
-	DM_VALUE (*get)(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);
+	DM_VALUE (*get)(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);
 	int (*set)(struct dm_value_table *,dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);
 };
 

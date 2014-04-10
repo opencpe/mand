@@ -49,6 +49,8 @@ struct sockContext {
 	uint32_t id;
 	uint32_t flags;
 	int notify_slot;
+
+	char *role;
 };
 
 /* headers */

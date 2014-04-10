@@ -78,6 +78,10 @@
 			<!-- TODO -->
 		</command>
 
+		<command name="Register-Role" code="350">
+			<!-- TODO -->
+		</command>
+
 		<!-- a number of possible actions can be achieved by sending empty
 			 dmconfig headers
 			 there's no need in complicating the protocol (except if someday, you want to
@@ -95,6 +99,9 @@
 			<!-- TODO -->
 		</command>
 		<command name="Client-Event-Broadcast" code="1001">
+			<!-- TODO -->
+		</command>
+		<command name="Client-Get-Interface-State" code="1002">
 			<!-- TODO -->
 		</command>
 
