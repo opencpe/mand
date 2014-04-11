@@ -407,6 +407,7 @@ DM_RESULT dm_set_notify_by_selector_recursive(const dm_selector sel, int slot, i
 
 static void dm_notify(void *data __attribute__ ((unused)), struct notify_queue *queue)
 {
+#if defined(SDEBUG) && !defined(NDEBUG)
 	char buf[MAX_PARAM_NAME_LEN];
 	struct notify_item *item;
 
@@ -417,6 +418,8 @@ static void dm_notify(void *data __attribute__ ((unused)), struct notify_queue *
 		debug("() selector: %s, level: %d, type: %d",
 		      s ? : "NULL", item->level, item->type);
 	}
+#endif
+
 	clear_notify_queue(queue);
 }
 

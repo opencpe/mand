@@ -46,6 +46,13 @@
 
 extern int libdmconfigSocketType;
 
+/* support multiple event loops? */
+#if EV_MULTIPLICITY
+#define EV_P_UNUSED_ EV_P __attribute__((unused)),
+#else
+#define EV_P_UNUSED_
+#endif
+
 void dm_save(void)
 {
 	static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -100,7 +107,7 @@ static void sigterm_cb(EV_P_
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 }
 
-static void sigusr2_cb(EV_P_
+static void sigusr2_cb(EV_P_UNUSED_
 		       ev_signal *w __attribute__ ((unused)),
 		       int revents __attribute__ ((unused)))
 {
@@ -172,7 +179,6 @@ int main(int argc, char *argv[])
 
 	EV_DEFAULT;
 
-	event_init();
 	/* events are added to the most recently created event base by default */
 	/* so create a cwmp event base AFTER the libdmconfig event base if necessary */
 

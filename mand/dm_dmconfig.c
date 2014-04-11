@@ -279,7 +279,7 @@ dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, const DM_VALUE val)
 	case T_BASE64:
 		debug(": [Answer: \"binay data....\"]\n"); /* FIXME */
 		return dm_add_raw(req, AVP_BINARY, VP_TRAVELPING,
-				  DM_BINARY(val) ? DM_BINARY(val)->data : "",
+				  DM_BINARY(val) ? DM_BINARY(val)->data : (const uint8_t *)"",
 				  DM_BINARY(val) ? DM_BINARY(val)->len : 0);
 
 	case T_IPADDR4:

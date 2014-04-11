@@ -6,6 +6,7 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
 #include <sys/tree.h>
 
 #define SDEBUG

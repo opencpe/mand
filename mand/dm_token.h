@@ -138,7 +138,7 @@ enum {
 
 typedef struct {
 	unsigned int len;
-	char         data[];
+	uint8_t      data[];
 } binary_t;
 
 #define MAGIC_TYPE unsigned int

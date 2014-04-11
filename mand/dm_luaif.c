@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include <unistd.h>
 
@@ -552,10 +553,10 @@ luaif_tvpair_to_value(lua_State *L, uint32_t type,
 }
 
 static DM_RESULT
-luaif_set_cb(void *data, const dm_selector sel,
+luaif_set_cb(void *data, const dm_selector sel __attribute__((unused)),
 	     const struct dm_element *elem,
-	     struct dm_value_table *base,
-	     const void *value __attribute__((unused)), DM_VALUE *st)
+	     struct dm_value_table *base __attribute__((unused)),
+	     const void *value __attribute__((unused)), DM_VALUE *st __attribute__((unused)))
 {
 	lua_State	*L = data;
 	DM_VALUE	new_value;
@@ -771,7 +772,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 			type = AVP_BINARY;
 		case AVP_BINARY:
 			if (DM_BINARY(val))
-				lua_pushlstring(L, DM_BINARY(val)->data, DM_BINARY(val)->len);
+				lua_pushlstring(L, (const char *)DM_BINARY(val)->data, DM_BINARY(val)->len);
 			else
 				lua_pushstring(L, "");
 
@@ -1043,8 +1044,8 @@ LUA_SIG(retrieve_enums)
  * FIXME: update so it is API-compatible with dmconfig's new recursive list
  */
 static int
-luaif_list_cb(void *data, CB_type type, dm_id id,
-	      const struct dm_element *elem,
+luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((unused)), dm_id id __attribute__((unused)),
+	      const struct dm_element *elem __attribute__((unused)),
 	      const DM_VALUE value __attribute__((unused)))
 {
 #if 0

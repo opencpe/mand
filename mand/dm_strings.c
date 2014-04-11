@@ -143,7 +143,7 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 
 		case T_BINARY:
 			/* FIXME: this is not entirely correct */
-			res = dm_set_binary_data(value, strlen(str), str);
+			res = dm_set_binary_data(value, strlen(str), (const uint8_t *)str);
 			break;
 
 		case T_BASE64: {
@@ -157,8 +157,8 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 			if (!n)
 				return DM_OOM;
 
-			debug(": base64 string: %d, buffer: %d", strlen(str), len);
-			n->len = dm_from64(str, n->data);
+			debug(": base64 string: %zd, buffer: %d", strlen(str), len);
+			n->len = dm_from64((const unsigned char *)str, n->data);
 			debug(": base64 result: %d", n->len);
 			updated = dm_binarycmp(DM_BINARY(*value), n) != 0;
 			res = dm_set_binary_value(value, n);

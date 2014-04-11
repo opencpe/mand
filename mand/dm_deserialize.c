@@ -241,7 +241,7 @@ charElement(void *userData, const XML_Char *s, int len)
 
 static void handleElement(struct XMLstate *state)
 {
-	DM_RESULT res;
+	DM_RESULT res __attribute__ ((unused));
 
 	xml_debug("handling data: %s\n", state->text ? : "NOTHING");
 
@@ -290,7 +290,7 @@ int dm_deserialize_store(FILE *stream, int _flags)
 	int old_flags;
 	int r = 0;
 
-	const struct dm_element element = { .type = T_TOKEN, .u.t.table = &dm_root };
+	const struct dm_element element = { .type = T_TOKEN, .u.t = {.table = &dm_root, .max = 0 }};
 	DM_VALUE dm_value_root;
 
 	struct XMLstate stateStk[10] = { { .base = "", .flags = XML_ROOT },
@@ -315,7 +315,7 @@ int dm_deserialize_store(FILE *stream, int _flags)
 		done = len < sizeof(buf);
 		if (XML_Parse(parser, buf, len, done) == XML_STATUS_ERROR) {
 			fprintf(stderr,
-				"%s at line %d\n",
+				"%s at line %ld\n",
 				XML_ErrorString(XML_GetErrorCode(parser)),
 				XML_GetCurrentLineNumber(parser));
 			r = 1;
