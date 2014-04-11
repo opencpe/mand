@@ -1717,3 +1717,11 @@ void dm_set_ipv4_by_id(struct dm_value_table *ift, dm_id id, struct in_addr val)
 	DM_parity_update(ift->values[id - 1]);
 	__DM_NOTIFY_BY_ID(ift, id);
 }
+
+void dm_set_ipv6_by_id(struct dm_value_table *ift, dm_id id, struct in6_addr val)
+{
+	DM_parity_assert(ift->values[id - 1]);
+	set_DM_IP6(ift->values[id - 1], val);
+	DM_parity_update(ift->values[id - 1]);
+	__DM_NOTIFY_BY_ID(ift, id);
+}

@@ -84,6 +84,7 @@ uint32_t dm_expect_uint64_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_
 uint32_t dm_expect_int8_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int8_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int16_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int16_t *value) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_int32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int32_t *value) __attribute__((nonnull (1,4)));
+uint32_t dm_expect_address_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int *af, struct in_addr *addr, size_t addr_size) __attribute__((nonnull (1,4,5)));
 uint32_t dm_expect_group(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, DM2_AVPGRP *obj) __attribute__((nonnull (1,4)));
 uint32_t dm_expect_group_end(DM2_AVPGRP *grp) __attribute__((nonnull (1)));
 

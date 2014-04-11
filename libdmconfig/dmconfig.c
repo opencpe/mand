@@ -326,6 +326,21 @@ uint32_t dm_expect_int32_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_v
 	return RC_OK;
 }
 
+uint32_t dm_expect_address_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, int *af, struct in_addr *addr, size_t addr_size)
+{
+	uint32_t r;
+	size_t size;
+	void *data;
+
+	assert(grp != NULL);
+
+	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size) != RC_OK))
+		return RC_ERR_MISC;
+
+	dm_get_address_avp(af, addr, addr_size, data, size);
+	return RC_OK;
+}
+
 uint32_t
 dm_expect_group(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, DM2_AVPGRP *obj)
 {

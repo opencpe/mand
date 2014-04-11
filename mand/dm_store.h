@@ -267,6 +267,14 @@ static inline struct in_addr *dm_get_ipv4_ref_by_id(struct dm_value_table *, dm_
 static inline struct in_addr  dm_get_ipv4_by_id(const struct dm_value_table *, dm_id);
 void dm_set_ipv4_by_id(struct dm_value_table *, dm_id, struct in_addr);
 
+/* IPv6 Address */
+static inline struct in6_addr dm_get_ipv6_by_selector(const dm_selector) __attribute__((nonnull (1)));
+static inline int            dm_set_ipv6_by_selector(const dm_selector, struct in6_addr, int) __attribute__((nonnull (1)));
+
+static inline struct in6_addr *dm_get_ipv6_ref_by_id(struct dm_value_table *, dm_id);
+static inline struct in6_addr  dm_get_ipv6_by_id(const struct dm_value_table *, dm_id);
+void dm_set_ipv6_by_id(struct dm_value_table *, dm_id, struct in6_addr);
+
 /* table */
 static inline struct dm_value_table *dm_get_table_by_selector(const dm_selector sel) __attribute__((nonnull (1)));
 static inline struct dm_value_table *dm_get_table_by_id(const struct dm_value_table *, dm_id);
@@ -706,6 +714,30 @@ struct in_addr dm_get_ipv4_by_id(const struct dm_value_table *ift, dm_id id)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	return DM_IP4(ift->values[id - 1]);
+}
+
+/*
+ * IPv6 Address
+ */
+struct in6_addr dm_get_ipv6_by_selector(const dm_selector sel)
+{
+	return DM_IP6(dm_get_any_value_by_selector(sel, T_IPADDR6));
+}
+
+int dm_set_ipv6_by_selector(const dm_selector sel, struct in6_addr i, int flags)
+{
+	return dm_set_any_value_by_selector(sel, T_IPADDR6, init_DM_IP6(i, flags));
+}
+
+struct in6_addr *dm_get_ipv6_ref_by_id(struct dm_value_table *ift, dm_id id)
+{
+	return DM_IP6_REF(ift->values[id - 1]);
+}
+
+struct in6_addr dm_get_ipv6_by_id(const struct dm_value_table *ift, dm_id id)
+{
+	DM_parity_assert(ift->values[id - 1]);
+	return DM_IP6(ift->values[id - 1]);
 }
 
 /*
