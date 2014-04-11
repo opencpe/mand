@@ -1294,9 +1294,6 @@ void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 		rpc_event_broadcast(ctx->socket, path, type);
 }
 
-/* DM getter implementation */
-#define DM_FIXUP 1
-
 static void update_interface_state(struct dm_value_table *tbl)
 {
 	uint32_t rc;
@@ -1307,7 +1304,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 	if (!(ctx = find_role("-state")))
 		return;
 
-	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name + DM_FIXUP);
+	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name);
 	printf("get_ocpe__interfaces_state__interface: %s\n", name);
 
 	memset(&answer, 0, sizeof(answer));
@@ -1346,24 +1343,24 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 	printf("if_flags: %08x\n", if_flags);
 
-	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange + DM_FIXUP) == 0)
-		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange + DM_FIXUP, rt_now);
+	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange) == 0)
+		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange , rt_now);
 
-	dm_set_int_by_id(tbl, field_ocpe__interfaces_state__interface_ifindex + DM_FIXUP, if_index);
-	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_adminstatus + DM_FIXUP,
+	dm_set_int_by_id(tbl, field_ocpe__interfaces_state__interface_ifindex , if_index);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_adminstatus ,
 			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_adminstatus_up : field_ocpe__interfaces_state__interface_adminstatus_down);
-	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus + DM_FIXUP,
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus ,
 			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_operstatus_up : field_ocpe__interfaces_state__interface_operstatus_down);
 
 	mac = hwaddr.data;
 	snprintf(macstr, sizeof(macstr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress + DM_FIXUP, macstr);
+	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress , macstr);
 
-	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface_speed + DM_FIXUP, if_speed);
+	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface_speed , if_speed);
 
 	struct dm_value_table *stats;
 
-	stats = dm_get_table_by_id(tbl, field_ocpe__interfaces_state__interface_statistics + DM_FIXUP);
+	stats = dm_get_table_by_id(tbl, field_ocpe__interfaces_state__interface_statistics);
 
 	if (dm_get_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime) == 0)
 		dm_set_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime, rt_now);
@@ -1383,14 +1380,14 @@ static void update_interface_state(struct dm_value_table *tbl)
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outerrors, snd_err);
 }
 
-DM_VALUE get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val __attribute__((unused)))
+DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val __attribute__((unused)))
 {
 	ticks_t rt_now = ticks();
 	ticks_t last = 0;
 
 	char buf1[40], buf2[40];
 
-	last = dm_get_ticks_by_id(tbl, 1);
+	last = dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastread);
 	ticks2str(buf1, sizeof(buf1), ticks2realtime(last));
 	ticks2str(buf2, sizeof(buf2), ticks2realtime(rt_now));
 
@@ -1398,7 +1395,8 @@ DM_VALUE get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id
 	if (rt_now - last > 10)
 		update_interface_state(tbl);
 
-	dm_set_ticks_by_id(tbl, 1, rt_now);
+	dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastread, rt_now);
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 
+DM_VALUE get_ocpe__interfaces_state__interface_adminstatus(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val) __attribute__ ((alias ("__get_ocpe__interfaces_state__interface")));
