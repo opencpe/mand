@@ -37,6 +37,7 @@ int			stype = AF_INET;
 
 CTRL_COMMAND		command = DMCTRL_UNDEF;
 
+char			*base = "";
 char			*what = "";
 
 #define RETRY_CONN_DELAY 10 /* in seconds */
@@ -115,6 +116,10 @@ void parse_commandline(int argc, char **argv)
     } else if (strcasecmp(*(argv + optind), "del") == 0) {
 	    command = DMCTRL_DEL;
 	    what = *(argv + optind + 1);
+    } else if (strcasecmp(*(argv + optind), "find") == 0) {
+	    command = DMCTRL_FIND;
+	    base = *(argv + optind + 1);
+	    what = *(argv + optind + 2);
     } else if (strcasecmp(*(argv + optind), "dump") == 0) {
 	    command = DMCTRL_DUMP;
 	    what = optind+1 == argc ? "" : *(argv + optind + 1);
@@ -223,6 +228,33 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 				printf("failed\n");
 			break;
 
+		case DMCTRL_FIND: {
+			char *p;
+			struct dm2_avp search = {
+				.code = AVP_UNKNOWN,
+				.vendor_id = VP_TRAVELPING,
+			};
+			uint16_t instance = 0;
+
+			if ((p = strchr(what, '=')))
+				*p++ = '\0';
+
+			search.data = p ? : "";
+			search.size = strlen(search.data);
+
+			if ((rc = rpc_db_findinstance(socket, base, what, &search, answer)) != RC_OK) {
+				fprintf(stderr, "couldn't get instance\n");
+				break;
+			}
+
+			if ((rc = dm_expect_uint16_type(answer, AVP_UINT16, VP_TRAVELPING, &instance)) != RC_OK) {
+				fprintf(stderr, "couldn't get instance\n");
+				break;
+			}
+			printf("Instance: %d, Path: %s.%d\n", instance, base, instance);
+
+			break;
+		}
 		case DMCTRL_COMMIT:
 			if (rpc_db_commit(socket, answer) == RC_OK) {
 				printf("success\n");
