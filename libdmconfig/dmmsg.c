@@ -191,14 +191,15 @@ dm_finalize_group(DM2_REQUEST *req)
 static uint32_t
 dm_packet_ensure_space(DM2_REQUEST *req, size_t len)
 {
-	size_t have = ((req->grp[req->level].pos + DM_BLOCK_ALLOC - 1) % DM_BLOCK_ALLOC);
-	size_t want = ((req->grp[req->level].pos + DM_BLOCK_ALLOC - 1 + len) % DM_BLOCK_ALLOC);
+	size_t have = (req->grp[req->level].pos + DM_BLOCK_ALLOC - 1) / DM_BLOCK_ALLOC;
+	size_t want = (req->grp[req->level].pos + DM_BLOCK_ALLOC - 1 + len) / DM_BLOCK_ALLOC;
 
 	if (have == want)
 		return RC_OK;
 
 	if (!(req->packet = talloc_realloc_size(NULL, req->packet, want * DM_BLOCK_ALLOC)))
 		return RC_ERR_ALLOC;
+	memset((unsigned char *)req->packet + (have * DM_BLOCK_ALLOC), 0, (want - have) * DM_BLOCK_ALLOC);
 
 	return RC_OK;
 }
