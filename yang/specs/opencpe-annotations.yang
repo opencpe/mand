@@ -1,0 +1,69 @@
+module opencpe-annotations {
+
+    namespace "urn:opencpe:annotations";
+    prefix "ocpe-annotation";
+
+    include opencpe-annotations-meta-extensions;
+
+    ocpe-annotation:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:address" {
+        ocpe-annotation:action "dm_ntp";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:port" {
+        ocpe-annotation:action "dm_ntp";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:dns-resolver/sys:server/sys:udp-and-tcp/sys:address" {
+        ocpe-annotation:action "dm_dns";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:dns-resolver/sys:server/sys:udp-and-tcp/sys:port" {
+        ocpe-annotation:action "dm_dns";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:dns-resolver/sys:search" {
+        ocpe-annotation:action "dm_dns";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:ip" {
+        ocpe-annotation:action "dm_if_ip";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:prefix-length" {
+        ocpe-annotation:action "dm_if_ip";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:ip" {
+        ocpe-annotation:action "dm_if_ip";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv6/ip:address/ip:prefix-length" {
+        ocpe-annotation:action "dm_if_ip";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:ip" {
+        ocpe-annotation:action "dm_if_neigh";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:neighbor/ip:link-layer-address" {
+        ocpe-annotation:action "dm_if_neigh";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:ip" {
+        ocpe-annotation:action "dm_if_neigh";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv6/ip:neighbor/ip:link-layer-address" {
+        ocpe-annotation:action "dm_if_neigh";
+    }
+
+    ocpe-annotation:annotate "/if:interfaces-state/if:interface/if:admin-status" {
+        ocpe-annotation:flags "f_read;f_write;f_get";
+        ocpe-annotation:getter true;
+    }
+
+    ocpe-annotation:annotate "/if:interfaces-state/if:interface/ocpemand:last-read" {
+        ocpe-annotation:flags "f_read;f_write;f_internal;f_datetime";
+        ocpe-annotation:type "t_ticks";
+    }
+}

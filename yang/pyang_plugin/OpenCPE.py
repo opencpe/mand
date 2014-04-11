@@ -103,7 +103,7 @@ def emit_tree(modules, fd):
 
     annotations = {}
     for module in modules:
-        module_annotations = module.search(('opencpe-actions', 'annotate'))
+        module_annotations = module.search(('opencpe-annotations', 'annotate'))
         for annotation in module_annotations:
             annotations[annotation.arg] = annotation
 
@@ -152,13 +152,13 @@ def emit_tree(modules, fd):
 c_types = {'string':'T_STR', 'enumeration':'T_ENUM', 'uint8':'T_UINT', 'uint16':'T_UINT', 'uint32':'T_UINT', 'uint64':'T_UINT',
            'int8':'T_INT', 'int16':'T_INT', 'int32':'T_INT', 'int64':'T_INT', 'boolean':'T_BOOL', 'bits':'T_BINARY',
            'binary':'T_BASE64', 'identityref':'T_STR', 'leafref':'T_SELECTOR', 'inet:ipv4-address':'T_IPADDR4', 'inet:ipv6-address':'T_IPADDR6',
-            'empty':'T_BINARY', 'inet:host':'T_STR', 'inet:ip-address':'T_STR'}
+            'empty':'T_BINARY', 'inet:host':'T_STR', 'inet:ip-address':'T_STR', 'yang:date-and-time':'T_TICKS'}
 
 #this dict states which types in the yang model are directly supported in the c model
 builtin_types = ['binary', 'bits', 'boolean', 'decimal64', 'empty', 'enumeration',
                   'identityref', 'instance-identifier', 'int8', 'int16', 'int32',
                     'int64', 'leafref', 'string', 'uint8', 'uint16', 'uint32', 'uint64', 'union',
-                        'inet:ipv4-address', 'inet:ipv6-address', 'inet:ip-address', 'inet:host']
+                        'inet:ipv4-address', 'inet:ipv6-address', 'inet:ip-address', 'inet:host', 'yang:date-and-time']
 
 #used to collect the information for p_table.h
 header_collector = []
@@ -277,9 +277,27 @@ def collect_unions(type, child, builtin_types, typedefs):
 def print_field(fd, child, typedefs, annotations, counter, prefix=''):
 
     #include the annotations if neccassary
-    action = ""
+    action = None
+    flags = None
+    getter = False
+    setter = False
+    annotated_type = None
     if get_xpath(child) in annotations.keys():
-        action = annotations[get_xpath(child)].search_one(('opencpe-actions', 'action')).arg.upper()
+        action = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'action'))
+        flags = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'flags'))
+        getter = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'getter'))
+        setter = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'setter'))
+        annotated_type = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'type'))
+        if action != None:
+            action = action.arg.upper()
+        if flags != None:
+            flags = flags.arg.upper().split(';')
+        if getter != None and getter.arg == 'true':
+            getter = True
+        if setter != None and setter.arg == 'true':
+            setter = True
+        if annotated_type != None:
+            annotated_type = annotated_type.arg.upper()
 
     field_counter = 1
     #-1 for leaf-list
@@ -300,6 +318,8 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
         for i in range(field_counter):
 
             type_i = types[i]
+            if type_i.arg == 'yang:date-and-time' and flags == None:
+                flags = ['F_READ', 'F_WRITE', 'F_DATETIME']
             type = seek_type(type_i, child, builtin_types, typedefs)
             if union_flag:
                 header_key = make_key(type_i, child.arg + '_', keep_hyphens=False)
@@ -317,15 +337,33 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
             fd.write(2*tab + "{\n")
             fd.write(3*tab + "/* " + str(counter) + " */\n")
             fd.write(3*tab + ".key = " + "\"" + hyphen_key + "\"" + ",\n")
-            fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
-            if action == "":
+            if flags == None:
+                fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
+            else:
+                fd.write(3*tab + ".flags = ")
+                for flag in flags[:-1]:
+                    fd.write(flag + " | ")
+                fd.write(flags[-1] + ",\n")
+            if action == None:
                 fd.write(3*tab + ".action = DM_NONE" + ",\n")
             else:
                 fd.write(3*tab + ".action = " + action + ",\n")
             counter += 1
 
+            if getter or setter:
+                fd.write(3*tab + ".fkts.value = {\n")
+                if getter:
+                    fd.write(4*tab + ".get = get_" + name + "_" + header_key + ",\n")
+                    header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+                if setter:
+                    fd.write(4*tab + ".set = set_" + name + "_" + header_key + ",\n")
+                    header_collector.insert(0, "DM_VALUE set_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+                fd.write(3*tab + "},\n")
+
+            if annotated_type != None:
+                fd.write(3*tab + ".type = " + annotated_type + ",\n")
             #for yang standard types
-            if type.arg == 'enumeration':
+            elif type.arg == 'enumeration':
                 print_type(fd, type, "field_" + name + "_" + header_key + "_")
             else:
                 print_type(fd, type)
@@ -339,11 +377,27 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
         fd.write(2*tab + "{\n")
         fd.write(3*tab + "/* " + str(abs(counter)) + " */\n")
         fd.write(3*tab + ".key = " + "\"" + make_key(child, keep_hyphens=True) + "\"" + ",\n")
-        fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
-        if action == "":
+        if flags == None:
+            fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
+        else:
+            fd.write(3*tab + ".flags = ")
+            for flag in flags[:-1]:
+                fd.write(flag + " | ")
+            fd.write(flags[-1] + ",\n")
+        if action == None:
             fd.write(3*tab + ".action = DM_NONE" + ",\n")
         else:
             fd.write(3*tab + ".action = " + action + ",\n")
+
+        if getter or setter:
+            fd.write(3*tab + ".fkts.value = {\n")
+            if getter:
+                fd.write(4*tab + ".get = get_" + hyphen_key + ",\n")
+                header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+            if setter:
+                fd.write(4*tab + ".set = set_" + hyphen_key + ",\n")
+                header_collector.insert(0, "DM_VALUE set_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+            fd.write(3*tab + "},\n")
 
         c_type = ''
         if child.keyword in ['leaf-list', 'list']:
