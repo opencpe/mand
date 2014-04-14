@@ -357,7 +357,7 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
                     header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
                 if setter:
                     fd.write(4*tab + ".set = set_" + name + "_" + header_key + ",\n")
-                    header_collector.insert(0, "DM_VALUE set_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+                    header_collector.insert(0, "int set_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n")
                 fd.write(3*tab + "},\n")
 
             if annotated_type != None:
