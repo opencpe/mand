@@ -143,12 +143,11 @@ rpc_param_notify_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	uint32_t rc;
 	uint8_t notify;
 	DM2_AVPGRP grp;
-	DM2_AVPGRP parms;
 	int pcnt;
 	dm_selector *path = NULL;
 
-	if ((rc = dm_expect_uint8_type(&grp, AVP_NOTIFY_LEVEL, VP_TRAVELPING, &notify)) != RC_OK
-	    || (rc = dm_expect_object(&grp, &parms)) != RC_OK
+	if ((rc = dm_expect_uint8_type(obj, AVP_NOTIFY_LEVEL, VP_TRAVELPING, &notify)) != RC_OK
+	    || (rc = dm_expect_object(obj, &grp)) != RC_OK
 	    || (rc = dm_expect_end(obj)) != RC_OK)
 		return rc;
 
@@ -158,7 +157,7 @@ rpc_param_notify_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 			if (!(path = talloc_realloc(NULL, path, dm_selector, pcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
-		if ((rc = dm_expect_path_type(&parms, AVP_PATH, VP_TRAVELPING, &path[pcnt])) != RC_OK)
+		if ((rc = dm_expect_path_type(&grp, AVP_PATH, VP_TRAVELPING, &path[pcnt])) != RC_OK)
 			break;
 		pcnt++;
 	} while (dm_expect_end(obj) != RC_OK);
