@@ -34,9 +34,7 @@
 #include <signal.h>
 #include <sys/queue.h>
 
-#ifdef LIBDMCONFIG_DEBUG
 #include "debug.h"
-#endif
 
 #ifdef HAVE_TALLOC_TALLOC_H
 # include <talloc/talloc.h>
@@ -149,10 +147,13 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 	rqi->hopid = dm_hop2hop_id(req->packet);
 	TAILQ_INSERT_TAIL(&socket->head, rqi, entries);
 
+	trace(":[%p] ev active on writeCtx.io_ev %d", socket, ev_is_active(&socket->writeCtx.io_ev));
 	if (!ev_is_active(&socket->writeCtx.io_ev)) {
+		trace(":[%p] starting writeCtx.io_ev on %d", socket, socket->socket);
 		ev_io_start(socket->ev, &socket->writeCtx.io_ev);
 
 		socket->writeCtx.timer_ev.repeat = TIMEOUT_WRITE_REQUESTS;
+		trace(":[%p] start event writeCtx.timer_ev %p ", socket, &socket->writeCtx.timer_ev);
 		ev_timer_again(socket->ev, &socket->writeCtx.timer_ev);
 	}
 
@@ -163,6 +164,7 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 static void
 start_socket_events(DMCONTEXT *sock)
 {
+	trace(":[%p]", sock);
 	ev_io_start(sock->ev, &sock->readCtx.io_ev);
 }
 
@@ -173,6 +175,8 @@ connectTimeoutEvent(EV_P_UNUSED_ ev_timer *w, int revents __attribute__((unused)
 {
 	DMCONTEXT *sock = w->data;
 
+	trace(":[%p] on %d, 0x%04x", sock, sock->socket, revents);
+
 	connection_error(sock, DMCONFIG_ERROR_CONNECT_TIMEOUT);
 }
 
@@ -181,6 +185,8 @@ readTimeoutEvent(EV_P_UNUSED_ ev_timer *w, int revents __attribute__((unused)))
 {
 	DMCONTEXT *sock = w->data;
 
+	trace(":[%p] on %d, 0x%04x", sock, sock->socket, revents);
+
 	connection_error(sock, DMCONFIG_ERROR_READ_TIMEOUT);
 }
 
@@ -188,6 +194,8 @@ static void
 writeTimeoutEvent(EV_P_UNUSED_ ev_timer *w, int revents __attribute__((unused)))
 {
 	DMCONTEXT *sock = w->data;
+
+	trace(":[%p] on %d, 0x%04x", sock, sock->socket, revents);
 
 	connection_error(sock, DMCONFIG_ERROR_WRITE_TIMEOUT);
 }
@@ -201,6 +209,8 @@ connectEvent(EV_P_ ev_io *w, int revents)
 	DMCONTEXT *sock = w->data;
 	int rc;
 	socklen_t size = sizeof(rc);
+
+	trace(":[%p] on %d, 0x%04x", sock, w->fd, revents);
 
 	ev_timer_stop(EV_A_ &sock->timer_socket_ev);
 	ev_io_stop(EV_A_ w);
@@ -233,6 +243,8 @@ acceptEvent(EV_P_UNUSED_ ev_io *w, int revents)
 	int rc;
 	socklen_t size = sizeof(rc);
 
+	trace(":[%p] on %d, 0x%04x", acceptSock, w->fd, revents);
+
 	if (w->fd != -1 &&
 	    (!(revents & EV_READ) || getsockopt(w->fd, SOL_SOCKET, SO_ERROR, &rc, &size) || size != sizeof(rc) || rc)) {
 	    	CALLBACK_RC(acceptSock->connection_cb, DMCONFIG_ERROR_ACCEPTING, acceptSock, acceptSock->userdata);
@@ -242,6 +254,7 @@ acceptEvent(EV_P_UNUSED_ ev_io *w, int revents)
 	if (!(sock = talloc_zero(NULL, DMCONTEXT)))
 		return;
 
+	trace(":[%p] new socket [%p]", acceptSock, sock);
 	if (dm_accept(acceptSock, sock) != RC_OK) {
 	    	CALLBACK_RC(acceptSock->connection_cb, DMCONFIG_ERROR_ACCEPTING, acceptSock, acceptSock->userdata);
 		return;
@@ -265,12 +278,18 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 	DM_PACKET buf;
 	ssize_t len;
 
+	trace(":[%p] on %d, 0x%04x", socket, w->fd, revents);
+
 	ctx->timer_ev.repeat = TIMEOUT_CHUNKS;
+	trace(":[%p] start event readCtx.timer_ev %p ", socket, &ctx->timer_ev);
 	ev_timer_again(EV_A_ &ctx->timer_ev);
+
+	trace(":[%p] ctx->left: %zd", socket, ctx->left);
 
  again:
 	if (!ctx->left) {
-		while ((len = recv(w->fd, &buf, sizeof(buf), MSG_PEEK)) == -1)
+		while ((len = recv(w->fd, &buf, sizeof(buf), MSG_PEEK)) == -1) {
+			trace(":[%p] recv result %d (%m), len %zd", socket, errno, len);
 			switch (errno) {
 			case EWOULDBLOCK:
 				return; // not data
@@ -284,24 +303,31 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 				connection_error(socket, DMCONFIG_ERROR_READING);
 				return;
 			}
+		}
 
+		trace(":[%p] recv loop exit %d (%m), len %zd", socket, errno, len);
 		if (len == 0) {
 			connection_error(socket, DMCONFIG_ERROR_READING);
 			return;
 		}
+		trace(":[%p] recv %zd bytes", socket, len);
+		hexdump((void *)&buf, len);
 
 		if (len != sizeof(buf))
 			return;
 
 		ctx->pos = ctx->packet = talloc_size(socket, dm_packet_length(&buf));
 		ctx->left = dm_packet_length(&buf);
+		trace(":[%p] recv ctx->left: %zd", socket, ctx->left);
 	}
 
 	while (ctx->left > 0) {
-		if ((len = read(w->fd, ctx->pos, ctx->left)) < 0)
+		if ((len = read(w->fd, ctx->pos, ctx->left)) < 0) {
+			trace(":[%p] read result %d (%m), len %zd", socket, errno, len);
 			switch (errno) {
 			case EWOULDBLOCK:
 				ctx->timer_ev.repeat = TIMEOUT_CHUNKS;
+				trace(":[%p] start event readCtx.timer_ev %p ", socket, &ctx->timer_ev);
 				ev_timer_again(EV_A_ &ctx->timer_ev);
 				return; // not data
 			case EINTR:
@@ -314,25 +340,30 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 				connection_error(socket, DMCONFIG_ERROR_READING);
 				return;
 			}
+		}
+		trace(":[%p] read loop result %d (%m), len %zd", socket, errno, len);
 		if (len == 0) {
 			connection_error(socket, DMCONFIG_ERROR_READING);
 			return;
 		}
+
+		trace(":[%p] read %zd bytes", socket, len);
+		hexdump(ctx->pos, len);
 
 		ctx->pos += len;
 		ctx->left -= len;
 	};
 
 	if (ctx->left == 0) {
+		trace(":[%p] stop event readCtx.timer_ev %p ", socket, &ctx->timer_ev);
 		ev_timer_stop(EV_A_ &ctx->timer_ev);
 
 #ifdef LIBDMCONFIG_DEBUG
 		if (dmconfig_debug_level) {
-			fprintf(stderr, "Recieved %s:\n", dm_packet_flags(ctx->packet) & CMD_FLAG_REQUEST ? "request" : "reply");
+			trace(":[%p] Recieved %s:", socket, dm_packet_flags(ctx->packet) & CMD_FLAG_REQUEST ? "request" : "reply");
 			dump_dm_packet(ctx->packet);
 		}
 #endif
-
 		dm_context_reference(socket);
 		if (dm_packet_flags(ctx->packet) & CMD_FLAG_REQUEST)
 			process_request(socket, ctx->packet);
@@ -397,16 +428,20 @@ writeEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 	DM2_REQUEST_INFO *req;
 	ssize_t len;
 
+	trace(":[%p] on %d, 0x%04x", socket, w->fd, revents);
+
 	if (TAILQ_EMPTY(&socket->head))
 		return;
 
 	do {
+		trace(":[%p] ctx->packet: %p", socket, ctx->packet);
 		if (!ctx->packet) {
 			TAILQ_FOREACH(req, &socket->head, entries) {
 				if (req->status == REQUEST_SHALL_WRITE)
 					break;
 			}
 
+			trace(":[%p] req: %p", socket, req);
 			if (!req)
 				/* all requests written */
 				break;
@@ -423,27 +458,39 @@ writeEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 				req->status = REQUEST_SHALL_READ;
 		}
 
+		trace(":[%p] ctx->left: %zd", socket, ctx->left);
+		trace(":[%p] w->fd: %d, %d", socket, w->fd, socket->socket);
+
 		while (ctx->left != 0) {
 			if ((len = write(w->fd, ctx->pos, ctx->left)) < 0)
 				switch (errno) {
 				case EAGAIN:
+					trace(":[%p] write errno #1: %m", socket);
 					ctx->timer_ev.repeat = TIMEOUT_CHUNKS;
+					trace(":[%p] start event writeCtx.timer_ev %p ", socket, &ctx->timer_ev);
 					ev_timer_again(EV_A_ &ctx->timer_ev);
 					return;
 				case EPIPE:
 				case ECONNRESET:
+					trace(":[%p] write errno #2: %m", socket);
 					connection_error(socket, DMCONFIG_ERROR_WRITING);
 					return;
 				case EINTR:
+					trace(":[%p] write errno #3: %m", socket);
 					continue;
 				default:
+					trace(":[%p] write errno #4: %m", socket);
 					connection_error(socket, DMCONFIG_ERROR_WRITING);
 					return;
 				}
 
+			trace(":[%p] wrote %zd bytes", socket, len);
+			hexdump(ctx->pos, len);
+
 			ctx->left -= len;
 			ctx->pos += len;
 		}
+		trace(":[%p] loop exit: %zd bytes,ctx->left: %zd ", socket, len, ctx->left);
 
 		if (ctx->left == 0) {
 			talloc_free(ctx->packet);
@@ -454,6 +501,8 @@ writeEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 
 	/* all requests written */
 	ev_io_stop(EV_A_ &ctx->io_ev);
+
+	trace(":[%p] stop event writeCtx.timer_ev %p ", socket, &ctx->timer_ev);
 	ev_timer_stop(EV_A_ &ctx->timer_ev);
 }
 
@@ -481,6 +530,8 @@ dm_free_requests(DMCONTEXT *sock, DMCONFIG_EVENT event)
 static void
 dm_stop_events(DMCONTEXT *sock)
 {
+	trace(":[%p]", sock);
+
 	ev_io_stop(SOCK_EV_(sock) &sock->writeCtx.io_ev);
 	ev_timer_stop(SOCK_EV_(sock) &sock->writeCtx.timer_ev);
 
@@ -837,6 +888,8 @@ dm_async_cb(DMCONTEXT *socket, DMCONFIG_EVENT event, DM2_AVPGRP *grp, void *user
 {
 	uint32_t rc;
 	struct async_reply *reply = userdata;
+
+	trace(":[%p] event: %d", socket, event);
 
 	ev_break(socket->ev, EVBREAK_ONE);
 

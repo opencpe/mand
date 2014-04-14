@@ -150,9 +150,7 @@ void init_code2str(void)
 	qsort(&avp2str, sizeof(avp2str) / sizeof(struct code2str), sizeof(struct code2str), comp_code);
 }
 
-static void hexdump(void *data, int len);
-
-static void
+void
 hexdump(void *data, int len) {
 	for(int i = 0; i < len; i++, data++) {
 		if((i % 16) == 0)

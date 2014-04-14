@@ -17,6 +17,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "debug.h"
+
 #ifdef HAVE_TALLOC_TALLOC_H
 # include <talloc/talloc.h>
 #else
@@ -193,6 +195,9 @@ dm_packet_ensure_space(DM2_REQUEST *req, size_t len)
 {
 	size_t have = (req->grp[req->level].pos + DM_BLOCK_ALLOC - 1) / DM_BLOCK_ALLOC;
 	size_t want = (req->grp[req->level].pos + DM_BLOCK_ALLOC - 1 + len) / DM_BLOCK_ALLOC;
+
+	trace(": pos: %zd, new len: %zd", req->grp[req->level].pos, req->grp[req->level].pos + len);
+	trace(": Want: %zd, Have: %zd", have, want);
 
 	if (have == want)
 		return RC_OK;
