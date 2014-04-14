@@ -1471,6 +1471,101 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 		if_id++;
 	}
+
+	dm_selcpy(sel, tbl->id);
+	sel[3] = field_ocpe__interfaces_state__interface_ipv4;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv4_neighbor;
+	sel[5] = 0;
+
+	dm_sel2name(sel, buffer, sizeof(buffer));
+	printf("interface: %s\n", buffer);
+
+	dm_del_table_by_selector(sel);
+	dm_add_table_by_selector(sel);
+
+	if (dm_expect_object(&answer, &grp) != RC_OK)
+		return;
+
+	printf("IPV4 Neighbor Group\n");
+
+	if_id = 1;
+	while (dm_expect_group_end(&grp) != RC_OK) {
+		DM2_AVPGRP addr;
+		int family;
+		struct in_addr dst;
+		char *lladdr;
+		uint8_t origin;
+
+		printf("IPV4 Neighbor\n");
+
+		if (dm_expect_object(&grp, &addr) != RC_OK
+		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family, &dst, sizeof(dst)) != RC_OK
+		    || dm_expect_string_type(&addr, AVP_STRING, VP_TRAVELPING, &lladdr) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
+		    || dm_expect_group_end(&addr) != RC_OK)
+			return;
+
+		printf("IPV4 Neighbor #1\n");
+
+		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
+			return;
+
+		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_ip, dst);
+		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_linklayeraddress, lladdr);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_origin, origin);
+
+		printf("IPV4 Neighbor %d\n", if_id);
+
+		if_id++;
+	}
+
+	dm_selcpy(sel, tbl->id);
+	sel[3] = field_ocpe__interfaces_state__interface_ipv6;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv6_neighbor;
+	sel[5] = 0;
+
+	dm_sel2name(sel, buffer, sizeof(buffer));
+	printf("interface: %s\n", buffer);
+
+	dm_del_table_by_selector(sel);
+	dm_add_table_by_selector(sel);
+
+	if (dm_expect_object(&answer, &grp) != RC_OK)
+		return;
+
+	printf("IPV6 Neighbor Group\n");
+
+	if_id = 1;
+	while (dm_expect_group_end(&grp) != RC_OK) {
+		DM2_AVPGRP addr;
+		int family;
+		struct in6_addr dst;
+		char *lladdr;
+		uint8_t origin;
+
+		printf("IPV6 Neighbor\n");
+
+		if (dm_expect_object(&grp, &addr) != RC_OK
+		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  (struct in_addr *)&dst, sizeof(dst)) != RC_OK
+		    || dm_expect_string_type(&addr, AVP_STRING, VP_TRAVELPING, &lladdr) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
+		    || dm_expect_group_end(&addr) != RC_OK)
+			return;
+
+		printf("IPV6 Neighbor #1\n");
+
+		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
+			return;
+
+		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_ip, dst);
+		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_linklayeraddress, lladdr);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_origin, origin);
+
+		printf("IPV6 Neighbor %d\n", if_id);
+
+		if_id++;
+	}
+
 }
 
 DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val __attribute__((unused)))
