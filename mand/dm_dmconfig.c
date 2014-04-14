@@ -93,16 +93,13 @@ static uint32_t session_counter;
 static uint32_t req_hopid;
 static uint32_t req_endid;
 
-static void
+void
 end_session(SOCKCONTEXT *ctx)
 {
-	// TODO: more stuff todo....
+	dm_context_set_userdata(ctx->socket, NULL);
 
 	if (ev_is_active(&ctx->session_timer_ev))
 		ev_timer_stop(ctx->socket->ev, &ctx->session_timer_ev);
-
-	dm_context_shutdown(ctx->socket, DMCONFIG_OK);
-	dm_context_release(ctx->socket);
 
 	if (ctx->notify_slot)
 		free_slot(ctx->notify_slot);
@@ -120,21 +117,33 @@ end_session(SOCKCONTEXT *ctx)
 	exec_pending_notifications();
 }
 
+void
+shutdown_session(SOCKCONTEXT *ctx)
+{
+	dm_context_shutdown(ctx->socket, DMCONFIG_OK);
+	dm_context_release(ctx->socket);
+
+	end_session(ctx);
+}
+
 static void
 sessionTimeoutEvent(struct ev_loop *loop __attribute__((unused)), ev_io *w, int revents __attribute__((unused)))
 {
 	SOCKCONTEXT *ctx = w->data;
 
-	end_session(ctx);
+	shutdown_session(ctx);
 }
 
 static uint32_t
-accept_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata __attribute__((unused)))
+accept_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata)
 {
 	SOCKCONTEXT *ctx;
 
-	if (event != DMCONFIG_ACCEPTED)
+	if (event != DMCONFIG_ACCEPTED) {
+		if (userdata)
+			end_session((SOCKCONTEXT *)userdata);
 		return RC_OK;
+	}
 
 	if (!(ctx = talloc_zero(NULL, SOCKCONTEXT)))
 		return RC_ERR_ALLOC;
@@ -173,7 +182,7 @@ request_cb(DMCONTEXT *socket, DM_PACKET *pkt, DM2_AVPGRP *grp, void *userdata)
 		ev_timer_again(socket->ev, &ctx->session_timer_ev);
 
 	if ((rpc_dmconfig_switch(ctx, &req, grp, &answer)) == RC_ERR_ALLOC) {
-		end_session(ctx);
+		shutdown_session(ctx);
 		return;
 	}
 
@@ -879,7 +888,7 @@ rpc_endsession(void *data)
 
 	dm_debug(ctx->id, "CMD: %s... ", "END SESSION");
 
-	end_session(ctx);
+	shutdown_session(ctx);
 
 	return RC_OK;
 
