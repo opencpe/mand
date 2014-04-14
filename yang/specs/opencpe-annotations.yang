@@ -5,6 +5,11 @@ module opencpe-annotations {
 
     include opencpe-annotations-meta-extensions;
 
+    ocpe-annotation:annotate "/sys:system/sys:clock/sys:timezone-utc-offset" {
+        ocpe-annotation:flags "f_read;f_get;f_set;f_system";
+        ocpe-annotation:getter true;
+    }
+
     ocpe-annotation:annotate "/sys:system-state/sys:clock/sys:current-datetime" {
         ocpe-annotation:flags "f_read;f_write;f_get;f_set;f_datetime;f_system";
         ocpe-annotation:getter true;
