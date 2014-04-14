@@ -1439,12 +1439,16 @@ static void update_interface_state(struct dm_value_table *tbl)
 		int family;
 		struct in_addr iaddr;
 		uint8_t prefix_len;
+		uint8_t origin;
+		uint8_t status;
 
 		printf("IPV4 Addr\n");
 
 		if (dm_expect_object(&grp, &addr) != RC_OK
 		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  &iaddr, sizeof(iaddr)) != RC_OK
 		    || dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &status) != RC_OK
 		    || dm_expect_group_end(&addr) != RC_OK)
 			return;
 
@@ -1456,6 +1460,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_ip, iaddr);
 		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_prefixlength, prefix_len);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_origin, origin);
 
 		if_id++;
 	}
@@ -1554,13 +1559,17 @@ static void update_interface_state(struct dm_value_table *tbl)
 		int family;
 		struct in6_addr iaddr;
 		uint8_t prefix_len;
+		uint8_t origin;
+		uint8_t status;
 
 		printf("IPV6 Addr\n");
 
 		if (dm_expect_object(&grp, &addr) != RC_OK
-			|| dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  (struct in_addr *)&iaddr, sizeof(iaddr)) != RC_OK
-			|| dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
-			|| dm_expect_group_end(&addr) != RC_OK)
+		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  (struct in_addr *)&iaddr, sizeof(iaddr)) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
+		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &status) != RC_OK
+		    || dm_expect_group_end(&addr) != RC_OK)
 			return;
 
 		printf("IPV6 Addr #1\n");
@@ -1571,6 +1580,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_ip, iaddr);
 		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_prefixlength, prefix_len);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_origin, origin);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_status, status);
 
 		if_id++;
 	}
