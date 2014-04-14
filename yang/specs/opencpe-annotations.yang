@@ -5,6 +5,12 @@ module opencpe-annotations {
 
     include opencpe-annotations-meta-extensions;
 
+    ocpe-annotation:annotate "/sys:system-state/sys:clock/sys:current-datetime" {
+        ocpe-annotation:flags "f_read;f_write;f_get;f_set;f_datetime;f_system";
+        ocpe-annotation:getter true;
+        ocpe-annotation:setter true;
+    }
+
     ocpe-annotation:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:address" {
         ocpe-annotation:action "dm_ntp";
     }

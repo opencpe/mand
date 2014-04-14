@@ -1577,6 +1577,28 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 }
 
+int set_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
+						  dm_id id __attribute__((unused)),
+						  const struct dm_element *e __attribute__((unused)),
+						  DM_VALUE *st __attribute__((unused)),
+						  DM_VALUE val __attribute__((unused)))
+{
+	*st = val;
+
+	fprintf(stderr, "Set DateTime to %"PRItick"\n", DM_TICKS(*st));
+	return 0;
+}
+
+DM_VALUE get_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
+						       dm_id id __attribute__((unused)),
+						       const struct dm_element *e __attribute__((unused)),
+						       DM_VALUE val __attribute__((unused)))
+{
+	ticks_t rt_now = ticks();
+
+	return init_DM_TICKS(rt_now, 0);
+}
+
 DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val __attribute__((unused)))
 {
 	ticks_t rt_now = ticks();
