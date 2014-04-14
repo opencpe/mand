@@ -123,6 +123,11 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 {
 	DM2_REQUEST_INFO *rqi;
 
+	/* workaround: when the consumer is not keeping the event loop alive,
+	 * i.e. using another event loop and calling only the synced methods,
+	 */
+	ev_now_update(socket->ev);
+
 	if ((flags | REPLY) != REPLY) {
 		/* initialize static hopid */
 		switch (hopid) {		/* one never knows... */
