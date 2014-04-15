@@ -377,6 +377,61 @@ uint32_t rpc_register_role_async(DMCONTEXT *ctx, const char *role, DMRESULT_CB c
 	return dm_enqueue_request(ctx, req, cb, data);
 }
 
+uint32_t rpc_firmware_download_async(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
+				     const char *install_target, uint32_t timeframe, uint8_t retry_count,
+				     uint32_t retry_interval, uint32_t retry_interval_increment,
+				     DMRESULT_CB cb, void *data)
+{
+	uint32_t rc;
+	DM2_REQUEST *req;
+
+	if (!(req = dm_new_request(ctx, CMD_FIRMWARE_DOWNLOAD, CMD_FLAG_REQUEST, 0, 0)))
+		return RC_ERR_ALLOC;
+
+	if ((rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, address)) != RC_OK
+	    || (rc = dm_add_uint8(req, AVP_UINT8, VP_TRAVELPING, credentialstype)) != RC_OK
+	    || (rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, credential)) != RC_OK
+	    || (rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, install_target)) != RC_OK
+	    || (rc = dm_add_uint32(req, AVP_UINT32, VP_TRAVELPING, timeframe)) != RC_OK
+	    || (rc = dm_add_uint8(req, AVP_UINT8, VP_TRAVELPING, retry_count)) != RC_OK
+	    || (rc = dm_add_uint32(req, AVP_UINT32, VP_TRAVELPING, retry_interval)) != RC_OK
+	    || (rc = dm_add_uint32(req, AVP_UINT32, VP_TRAVELPING, retry_interval_increment)) != RC_OK
+	    || (rc = dm_finalize_packet(req)) != RC_OK)
+		return rc;
+
+	return dm_enqueue_request(ctx, req, cb, data);
+}
+
+uint32_t rpc_firmware_commit_async(DMCONTEXT *ctx, int32_t job_id, DMRESULT_CB cb, void *data)
+{
+	uint32_t rc;
+	DM2_REQUEST *req;
+
+	if (!(req = dm_new_request(ctx, CMD_FIRMWARE_COMMIT, CMD_FLAG_REQUEST, 0, 0)))
+		return RC_ERR_ALLOC;
+
+	if ((rc = dm_add_int32(req, AVP_INT32, VP_TRAVELPING, job_id)) != RC_OK
+	    || (rc = dm_finalize_packet(req)) != RC_OK)
+		return rc;
+
+	return dm_enqueue_request(ctx, req, cb, data);
+}
+
+uint32_t rpc_set_boot_order_async(DMCONTEXT *ctx, const char *boot_order, DMRESULT_CB cb, void *data)
+{
+	uint32_t rc;
+	DM2_REQUEST *req;
+
+	if (!(req = dm_new_request(ctx, CMD_SET_BOOT_ORDER, CMD_FLAG_REQUEST, 0, 0)))
+		return RC_ERR_ALLOC;
+
+	if ((rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, boot_order)) != RC_OK
+	    || (rc = dm_finalize_packet(req)) != RC_OK)
+		return rc;
+
+	return dm_enqueue_request(ctx, req, cb, data);
+}
+
 /*
  * sync call wrapper's
  */
@@ -594,6 +649,42 @@ uint32_t rpc_register_role(DMCONTEXT *ctx, const char *role)
 	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
 
 	rpc_register_role_async(ctx, role, dm_async_cb, &reply);
+	ev_run(ctx->ev, 0);
+
+	return reply.rc;
+}
+
+
+uint32_t rpc_firmware_download(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
+			       const char *install_target, uint32_t timeframe, uint8_t retry_count,
+			       uint32_t retry_interval, uint32_t retry_interval_increment,
+			       DM2_AVPGRP *answer)
+{
+	struct async_reply reply = {.rc = RC_OK, .answer = answer };
+
+	rpc_firmware_download_async(ctx, address, credentialstype, credential, install_target,
+				    timeframe, retry_count, retry_interval, retry_interval_increment,
+				    dm_async_cb, &reply);
+	ev_run(ctx->ev, 0);
+
+	return reply.rc;
+}
+
+uint32_t rpc_firmware_commit(DMCONTEXT *ctx, int32_t job_id)
+{
+	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
+
+	rpc_firmware_commit_async(ctx, job_id, dm_async_cb, &reply);
+	ev_run(ctx->ev, 0);
+
+	return reply.rc;
+}
+
+uint32_t rpc_set_boot_order(DMCONTEXT *ctx, const char *boot_order)
+{
+	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
+
+	rpc_set_boot_order_async(ctx, boot_order, dm_async_cb, &reply);
 	ev_run(ctx->ev, 0);
 
 	return reply.rc;

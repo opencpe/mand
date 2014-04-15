@@ -105,6 +105,18 @@
 			<!-- TODO -->
 		</command>
 
+		<!-- OpenCPE Commands -->
+		<command name="Firmware-Download" code="2000">
+			<!-- TODO -->
+		</command>
+		<command name="Firmware-Commit" code="2001">
+			<!-- TODO -->
+		</command>
+		<command name="Set-Boot-Order" code="2002">
+			<!-- TODO -->
+		</command>
+
+
 		<!-- PAYLOAD TYPES -->
 
 		<typedefn type-name="Any"/>
