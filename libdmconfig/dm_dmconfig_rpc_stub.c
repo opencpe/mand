@@ -445,16 +445,20 @@ uint32_t rpc_firmware_commit_async(DMCONTEXT *ctx, int32_t job_id, DMRESULT_CB c
 	return dm_enqueue_request(ctx, req, cb, data);
 }
 
-uint32_t rpc_set_boot_order_async(DMCONTEXT *ctx, const char *boot_order, DMRESULT_CB cb, void *data)
+uint32_t rpc_set_boot_order_async(DMCONTEXT *ctx, int pcnt, const char **boot_order, DMRESULT_CB cb, void *data)
 {
 	uint32_t rc;
 	DM2_REQUEST *req;
+	int i;
 
 	if (!(req = dm_new_request(ctx, CMD_SET_BOOT_ORDER, CMD_FLAG_REQUEST, 0, 0)))
 		return RC_ERR_ALLOC;
 
-	if ((rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, boot_order)) != RC_OK
-	    || (rc = dm_finalize_packet(req)) != RC_OK)
+	for (i = 0; i < pcnt; i++)
+		if ((rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, boot_order[i])) != RC_OK)
+			return rc;
+
+	if ((rc = dm_finalize_packet(req)) != RC_OK)
 		return rc;
 
 	return dm_enqueue_request(ctx, req, cb, data);
@@ -723,11 +727,11 @@ uint32_t rpc_firmware_commit(DMCONTEXT *ctx, int32_t job_id)
 	return reply.rc;
 }
 
-uint32_t rpc_set_boot_order(DMCONTEXT *ctx, const char *boot_order)
+uint32_t rpc_set_boot_order(DMCONTEXT *ctx, int pcnt, const char **boot_order)
 {
 	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
 
-	rpc_set_boot_order_async(ctx, boot_order, dm_async_cb, &reply);
+	rpc_set_boot_order_async(ctx, pcnt, boot_order, dm_async_cb, &reply);
 	ev_run(ctx->ev, 0);
 
 	return reply.rc;

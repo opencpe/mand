@@ -17,7 +17,19 @@
 
 uint32_t rpc_event_broadcast(DMCONTEXT *ctx, const char *path, uint32_t type);
 uint32_t rpc_get_interface_state_async(DMCONTEXT *ctx, const char *if_name, DMRESULT_CB cb, void *data);
+uint32_t rpc_agent_firmware_download_async(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
+					   const char *install_target, uint32_t timeframe, uint8_t retry_count,
+					   uint32_t retry_interval, uint32_t retry_interval_increment,
+					   DMRESULT_CB cb, void *data);
+uint32_t rpc_agent_firmware_commit_async(DMCONTEXT *ctx, int32_t job_id, DMRESULT_CB cb, void *data);
+uint32_t rpc_agent_set_boot_order_async(DMCONTEXT *ctx, int pcnt, const char **boot_order, DMRESULT_CB cb, void *data);
 
 uint32_t rpc_get_interface_state(DMCONTEXT *ctx, const char *if_name, DM2_AVPGRP *answer);
+uint32_t rpc_agent_firmware_download(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
+				     const char *install_target, uint32_t timeframe, uint8_t retry_count,
+				     uint32_t retry_interval, uint32_t retry_interval_increment,
+				     DM2_AVPGRP *grp);
+uint32_t rpc_agent_firmware_commit(DMCONTEXT *ctx, int32_t job_id);
+uint32_t rpc_agent_set_boot_order(DMCONTEXT *ctx, int pcnt, const char **boot_order);
 
 #endif

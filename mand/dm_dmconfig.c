@@ -1305,6 +1305,75 @@ uint32_t rpc_system_shutdown(void *data __attribute__((unused)))
 	return RC_OK;
 }
 
+uint32_t rpc_firmware_download(void *data, char *address, uint8_t credentialstype, char *credential,
+				     char *install_target, uint32_t timeframe, uint8_t retry_count,
+				     uint32_t retry_interval, uint32_t retry_interval_increment,
+				     DM2_REQUEST *answer)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	SOCKCONTEXT *clnt;
+	DM2_AVPGRP clnt_answer;
+	uint32_t rc;
+	int32_t job_id;
+
+	dm_debug(ctx->id, "CMD: %s", "FIRMWARE DOWNLOAD");
+
+	if ((clnt = find_role("-firmware")) == NULL)
+		return RC_ERR_MISC;
+
+	memset(&clnt_answer, 0, sizeof(clnt_answer));
+	if ((rc = rpc_agent_firmware_download(clnt->socket, address, credentialstype, credential,
+					      install_target, timeframe, retry_count,
+					      retry_interval, retry_interval_increment, &clnt_answer)) != RC_OK) {
+		printf("rpc_agent_firmware_download rc=%d\n", rc);
+		return rc;
+	}
+	if ((rc = dm_expect_int32_type(&clnt_answer, AVP_INT32, VP_TRAVELPING, &job_id)) != RC_OK
+	    || (rc = dm_expect_group_end(&clnt_answer)) != RC_OK)
+		return rc;
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "FIRMWARE DOWNLOAD", job_id);
+
+	if (dm_add_int32(answer, AVP_INT32, VP_TRAVELPING, job_id))
+		return RC_ERR_ALLOC;
+
+	return RC_OK;
+}
+
+uint32_t rpc_firmware_commit(void *data, int32_t job_id)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	SOCKCONTEXT *clnt;
+	uint32_t rc;
+
+	dm_debug(ctx->id, "CMD: %s: %u", "FIRMWARE COMMIT", job_id);
+
+	if ((clnt = find_role("-firmware")) == NULL)
+		return RC_ERR_MISC;
+
+	rc = rpc_agent_firmware_commit(clnt->socket, job_id);
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "FIRMWARE COMMIT", rc);
+	return rc;
+}
+
+uint32_t rpc_set_boot_order(void *data, int pcnt, const char **boot_order)
+{
+	SOCKCONTEXT *ctx __attribute__((unused)) = data;
+	SOCKCONTEXT *clnt;
+	uint32_t rc;
+
+	dm_debug(ctx->id, "CMD: %s", "SET BOOT ORDER");
+
+	if ((clnt = find_role("-firmware")) == NULL)
+		return RC_ERR_MISC;
+
+	rc = rpc_agent_set_boot_order(clnt->socket, pcnt, boot_order);
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "SET BOOT ORDER", rc);
+	return rc;
+}
+
 void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 {
 	char buffer[MAX_PARAM_NAME_LEN];
