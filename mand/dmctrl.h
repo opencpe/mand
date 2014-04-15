@@ -18,7 +18,9 @@ typedef enum _ctrl_command {
 	DMCTRL_FIND,
 	DMCTRL_DUMP,
 	DMCTRL_CONFSAVE,
-	DMCTRL_CONFRESTORE
+	DMCTRL_CONFRESTORE,
+	DMCTRL_RESTART,
+	DMCTRL_SHUTDOWN,
 } CTRL_COMMAND;
 
 		/* return codes (considering the ones already "defined"

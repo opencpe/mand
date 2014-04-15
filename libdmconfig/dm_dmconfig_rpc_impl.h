@@ -43,5 +43,7 @@ uint32_t rpc_db_commit(void *ctx, DM2_REQUEST *answer);
 uint32_t rpc_db_cancel(void *ctx, DM2_REQUEST *answer);
 uint32_t rpc_db_findinstance(void *ctx, const dm_selector path, const struct dm_bin *name, const struct dm2_avp *search, DM2_REQUEST *answer);
 uint32_t rpc_register_role(void *ctx, const char *role);
+uint32_t rpc_system_restart(void *ctx);
+uint32_t rpc_system_shutdown(void *ctx);
 
 #endif

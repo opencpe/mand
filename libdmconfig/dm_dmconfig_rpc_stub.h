@@ -40,6 +40,8 @@ uint32_t rpc_db_commit_async(DMCONTEXT *ctx, DMRESULT_CB cb, void *data);
 uint32_t rpc_db_cancel_async(DMCONTEXT *ctx, DMRESULT_CB cb, void *data);
 uint32_t rpc_db_findinstance_async(DMCONTEXT *ctx, const const char *path, const char *name, const struct dm2_avp *search, DMRESULT_CB cb, void *data);
 uint32_t rpc_register_role_async(DMCONTEXT *ctx, const char *role, DMRESULT_CB cb, void *data);
+uint32_t rpc_system_restart_async(DMCONTEXT *ctx);
+uint32_t rpc_system_shutdown_async(DMCONTEXT *ctx);
 uint32_t rpc_firmware_download_async(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
 				     const char *install_target, uint32_t timeframe, uint8_t retry_count,
 				     uint32_t retry_interval, uint32_t retry_interval_increment,
@@ -71,6 +73,8 @@ uint32_t rpc_db_commit(DMCONTEXT *ctx, DM2_AVPGRP *grp);
 uint32_t rpc_db_cancel(DMCONTEXT *ctx, DM2_AVPGRP *grp);
 uint32_t rpc_db_findinstance(DMCONTEXT *ctx, const const char *path, const char *name, const struct dm2_avp *search, DM2_AVPGRP *grp);
 uint32_t rpc_register_role(DMCONTEXT *ctx, const char *role);
+uint32_t rpc_system_restart(DMCONTEXT *ctx);
+uint32_t rpc_system_shutdown(DMCONTEXT *ctx);
 uint32_t rpc_firmware_download(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
 			       const char *install_target, uint32_t timeframe, uint8_t retry_count,
 			       uint32_t retry_interval, uint32_t retry_interval_increment,

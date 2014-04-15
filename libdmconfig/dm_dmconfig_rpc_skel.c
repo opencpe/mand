@@ -381,6 +381,27 @@ rpc_register_role_skel(void *ctx, DM2_AVPGRP *obj)
 	return rpc_register_role(ctx, role);
 }
 
+static inline uint32_t
+rpc_system_restart_skel(void *ctx, DM2_AVPGRP *obj)
+{
+	uint32_t rc;
+
+	if ((rc = dm_expect_end(obj)) != RC_OK)
+		return rc;
+
+	return rpc_system_restart(ctx);
+}
+
+static inline uint32_t
+rpc_system_shutdown_skel(void *ctx, DM2_AVPGRP *obj)
+{
+	uint32_t rc;
+
+	if ((rc = dm_expect_end(obj)) != RC_OK)
+		return rc;
+
+	return rpc_system_shutdown(ctx);
+}
 
 uint32_t
 rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQUEST **answer)
@@ -484,6 +505,14 @@ rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQU
 
 	case CMD_REGISTER_ROLE:
 		rc = rpc_register_role_skel(ctx, obj);
+		break;
+
+	case CMD_SYSTEM_RESTART:
+		rc = rpc_system_restart_skel(ctx, obj);
+		break;
+
+	case CMD_SYSTEM_SHUTDOWN:
+		rc = rpc_system_shutdown_skel(ctx, obj);
 		break;
 
 	default:

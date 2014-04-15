@@ -94,6 +94,13 @@
 			<!-- TODO -->
 		</command>
 
+		<command name="System-Restart" code="400">
+			<!-- TODO -->
+		</command>
+		<command name="System-Shutdown" code="401">
+			<!-- TODO -->
+		</command>
+
 		<!-- command codes accepted by clients -->
 		<command name="Client-Active-Notify" code="1000">
 			<!-- TODO -->

@@ -377,6 +377,34 @@ uint32_t rpc_register_role_async(DMCONTEXT *ctx, const char *role, DMRESULT_CB c
 	return dm_enqueue_request(ctx, req, cb, data);
 }
 
+uint32_t rpc_system_restart_async(DMCONTEXT *ctx)
+{
+	uint32_t rc;
+	DM2_REQUEST *req;
+
+	if (!(req = dm_new_request(ctx, CMD_SYSTEM_RESTART, CMD_FLAG_REQUEST, 0, 0)))
+		return RC_ERR_ALLOC;
+
+	if ((rc = dm_finalize_packet(req)) != RC_OK)
+		return rc;
+
+	return dm_enqueue_request(ctx, req, NULL, NULL);
+}
+
+uint32_t rpc_system_shutdown_async(DMCONTEXT *ctx)
+{
+	uint32_t rc;
+	DM2_REQUEST *req;
+
+	if (!(req = dm_new_request(ctx, CMD_SYSTEM_SHUTDOWN, CMD_FLAG_REQUEST, 0, 0)))
+		return RC_ERR_ALLOC;
+
+	if ((rc = dm_finalize_packet(req)) != RC_OK)
+		return rc;
+
+	return dm_enqueue_request(ctx, req, NULL, NULL);
+}
+
 uint32_t rpc_firmware_download_async(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
 				     const char *install_target, uint32_t timeframe, uint8_t retry_count,
 				     uint32_t retry_interval, uint32_t retry_interval_increment,
@@ -654,6 +682,21 @@ uint32_t rpc_register_role(DMCONTEXT *ctx, const char *role)
 	return reply.rc;
 }
 
+uint32_t rpc_system_restart(DMCONTEXT *ctx)
+{
+	rpc_system_restart_async(ctx);
+	ev_run(ctx->ev, 0);
+
+	return RC_OK;
+}
+
+uint32_t rpc_system_shutdown(DMCONTEXT *ctx)
+{
+	rpc_system_shutdown_async(ctx);
+	ev_run(ctx->ev, 0);
+
+	return RC_OK;
+}
 
 uint32_t rpc_firmware_download(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
 			       const char *install_target, uint32_t timeframe, uint8_t retry_count,

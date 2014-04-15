@@ -129,6 +129,10 @@ void parse_commandline(int argc, char **argv)
     } else if (strcasecmp(*(argv + optind), "restoreconfig") == 0) {
 	    command = DMCTRL_CONFRESTORE;
 	    what = optind+1 == argc ? "" : *(argv + optind + 1);
+    } else if (strcasecmp(*(argv + optind), "restart") == 0) {
+	    command = DMCTRL_RESTART;
+    } else if (strcasecmp(*(argv + optind), "shutdown") == 0) {
+	    command = DMCTRL_SHUTDOWN;
     }
     if (command == DMCTRL_UNDEF) {
 	    fprintf(stderr, "dmctrl: Error: Invalid command \"%s\"\n", *argv);
@@ -257,6 +261,20 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 		}
 		case DMCTRL_COMMIT:
 			if (rpc_db_commit(socket, answer) == RC_OK) {
+				printf("success\n");
+			} else
+				printf("failed\n");
+			break;
+
+		case DMCTRL_SHUTDOWN:
+			if (rpc_system_shutdown(socket) == RC_OK) {
+				printf("success\n");
+			} else
+				printf("failed\n");
+			break;
+
+		case DMCTRL_RESTART:
+			if (rpc_system_restart(socket) == RC_OK) {
 				printf("success\n");
 			} else
 				printf("failed\n");

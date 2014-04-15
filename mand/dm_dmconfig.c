@@ -69,6 +69,7 @@
 #include "dm_dmconfig.h"
 #include "dm_validate.h"
 #include "utils/binary.h"
+#include "process.h"
 
 #include "libdmconfig/dm_dmconfig_rpc_skel.h"
 #include "libdmconfig/dm_dmconfig_rpc_impl.h"
@@ -1286,6 +1287,20 @@ uint32_t rpc_register_role(void *data, const char *role)
 	/* add role */
 	ctx->role = talloc_strdup(ctx, role);
 	dm_debug(ctx->id, "CMD: %s %s: success", "REGISTER_ROLE", role);
+
+	return RC_OK;
+}
+
+uint32_t rpc_system_restart(void *data __attribute__((unused)))
+{
+	vsystem("/sbin/reboot");
+
+	return RC_OK;
+}
+
+uint32_t rpc_system_shutdown(void *data __attribute__((unused)))
+{
+	vsystem("/sbin/poweroff");
 
 	return RC_OK;
 }
