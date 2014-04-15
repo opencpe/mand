@@ -1709,3 +1709,82 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 }
 
 DM_VALUE get_ocpe__interfaces_state__interface_adminstatus(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val) __attribute__ ((alias ("__get_ocpe__interfaces_state__interface")));
+
+static void update_address_netmask(struct dm_value_table *tbl, dm_id read, dm_id update)
+{
+	char buf[INET_ADDRSTRLEN];
+	uint32_t length;
+	struct in_addr mask;
+	length = dm_get_uint_by_id(tbl, read);
+
+	if (length < 32)
+		mask.s_addr = htonl(0xFFFFFFFF << (32 - length));
+	else
+		mask.s_addr = 0xFFFFFFFF;
+
+	inet_ntop(AF_INET, &mask, buf, sizeof(buf));
+	dm_set_string_by_id(tbl, update, buf);
+}
+
+static void update_address_prefixlength(struct dm_value_table *tbl, const char *s, dm_id update)
+{
+	struct in_addr mask;
+	uint32_t length;
+
+	inet_pton(AF_INET, s, &mask);
+	length = 33 - ffs(ntohl(mask.s_addr));
+	dm_set_uint_by_id(tbl, update, length);
+}
+
+int set_ocpe__interfaces__interface__ipv4__address_prefixlength(struct dm_value_table *tbl,
+								dm_id id __attribute__((unused)),
+								const struct dm_element *e __attribute__((unused)),
+								DM_VALUE *st,
+								DM_VALUE val)
+{
+	*st = val;
+	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address_prefixlength,
+			            field_ocpe__interfaces__interface__ipv4__address_netmask);
+	return DM_OK;
+}
+
+int set_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+							   dm_id id __attribute__((unused)),
+							   const struct dm_element *e __attribute__((unused)),
+							   DM_VALUE *st,
+							   DM_VALUE val)
+{
+	int r;
+
+	if (val.type != T_STR)
+		return DM_INVALID_TYPE;
+
+	if ((r = dm_set_string_value(st, DM_STRING(val))) != DM_OK)
+		return r;
+
+	update_address_prefixlength(tbl, DM_STRING(val), field_ocpe__interfaces__interface__ipv4__address_prefixlength);
+	return DM_OK;
+}
+
+DM_VALUE get_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+								dm_id id,
+								const struct dm_element *e __attribute__((unused)),
+								DM_VALUE val)
+{
+	if (DM_STRING(val))
+		return val;
+
+	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address_prefixlength,
+			            field_ocpe__interfaces__interface__ipv4__address_netmask);
+	return *dm_get_value_ref_by_id(tbl, id);
+}
+
+DM_VALUE get_ocpe__interfaces_state__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+								      dm_id id,
+								      const struct dm_element *e __attribute__((unused)),
+								      DM_VALUE val __attribute__((unused)))
+{
+	update_address_netmask(tbl, field_ocpe__interfaces_state__interface__ipv4__address_prefixlength,
+			            field_ocpe__interfaces_state__interface__ipv4__address_netmask);
+	return *dm_get_value_ref_by_id(tbl, id);
+}

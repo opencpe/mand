@@ -40,7 +40,16 @@ module opencpe-annotations {
         ocpe-annotation:action "dm_if_ip";
     }
 
+    ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:netmask" {
+        ocpe-annotation:flags "f_read;f_write;f_get;f_set;f_system";
+        ocpe-annotation:getter true;
+        ocpe-annotation:setter true;
+        ocpe-annotation:action "dm_if_ip";
+    }
+
     ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:prefix-length" {
+        ocpe-annotation:flags "f_read;f_write;f_set";
+        ocpe-annotation:setter true;
         ocpe-annotation:action "dm_if_ip";
     }
 
@@ -77,4 +86,10 @@ module opencpe-annotations {
         ocpe-annotation:flags "f_read;f_write;f_internal;f_datetime";
         ocpe-annotation:type "t_ticks";
     }
+
+    ocpe-annotation:annotate "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:netmask" {
+        ocpe-annotation:flags "f_read;f_get;f_system";
+        ocpe-annotation:getter true;
+    }
+
 }
