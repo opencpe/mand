@@ -405,7 +405,7 @@ def print_field(fd, child, typedefs, annotations, counter, prefix='', write_acce
         fd.write(3*tab + "/* " + str(abs(counter)) + " */\n")
         fd.write(3*tab + ".key = " + "\"" + make_key(child, keep_hyphens=True) + "\"" + ",\n")
 
-        flags = list(set(flags))    # remove duplicates 
+        flags = list(set(flags))    # remove duplicates
         fd.write(3*tab + ".flags = ")
         for flag in flags[:-1]:
             fd.write(flag + " | ")
