@@ -168,7 +168,21 @@ tabsize = 4
 tab = tabsize * " "
 
 
-def print_children(i_children, module, typedefs, groupings, augments, deviations, annotations, fd):
+def get_write_access(parent_write_access, child):
+    child_write_access = child.search_one('config')
+    if child_write_access != None:
+        child_write_access = child_write_access.arg
+    # yang differentiates between 'config true'
+    # and 'config false' for giving write access (or not).
+    # Default is 'config true'.
+    if child_write_access == 'false' or parent_write_access == False:
+        child_write_access = False
+    else:
+        child_write_access = True
+    return child_write_access
+
+
+def print_children(i_children, module, typedefs, groupings, augments, deviations, annotations, fd, write_access=True):
 
     for ch in i_children:
         if ((ch.arg == 'input' or ch.arg == 'output') and
@@ -178,14 +192,15 @@ def print_children(i_children, module, typedefs, groupings, augments, deviations
             pass
         #exclude the deviations with 'not supported'
         elif get_xpath(ch) not in deviations.keys():
-            print_node(ch, module, typedefs, groupings, augments, deviations, annotations, fd)
+            child_write_access = get_write_access(write_access, ch)
+            print_node(ch, module, typedefs, groupings, augments, deviations, annotations, fd, child_write_access)
 
-def print_node(s, module, typedefs, groupings, augments, deviations, annotations, fd):
+def print_node(s, module, typedefs, groupings, augments, deviations, annotations, fd, write_access):
     name = make_name(s)
 
     if hasattr(s, 'i_children'):
         chs = s.i_children
-        print_children(chs, module, typedefs, groupings, augments, deviations, annotations, fd)
+        print_children(chs, module, typedefs, groupings, augments, deviations, annotations, fd, write_access)
 
     if s.keyword in ['container', 'list', 'leaf-list']:
 
@@ -229,26 +244,27 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
 
         counter = 1
         if s.keyword == 'leaf-list':
-            counter = print_field(fd, s, typedefs, annotations, -1) + 1
+            counter = print_field(fd, s, typedefs, annotations, -1, write_access=write_access) + 1
+
 
         #the inner part of one struct
         for child in children:
             if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in deviations.keys():
-                counter += print_field(fd, child, typedefs, annotations, counter)
+                counter += print_field(fd, child, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
             elif child.keyword == 'choice':
                 for substmt in child.substmts:
                     if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                        counter += print_field(fd, substmt, typedefs, annotations, counter)
+                        counter += print_field(fd, substmt, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
                 cases = child.search('case')
                 for case in cases:
                     for substmt in case.substmts:
                         if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                            counter += print_field(fd, substmt, typedefs, annotations, counter)
+                            counter += print_field(fd, substmt, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
             elif child.keyword == 'uses':
                 grouping = groupings[child.i_module.i_prefix + ':' + child.arg]
                 for groupchild in grouping.substmts:
                     if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list', 'choice']:
-                        counter += print_field(fd, groupchild, typedefs, annotations, counter, prefix=make_name(s)+'__')
+                        counter += print_field(fd, groupchild, typedefs, annotations, counter, prefix=make_name(s)+'__', write_access=get_write_access(write_access, child))
 
 
         fd.write(tab + "},\n")
@@ -274,30 +290,38 @@ def collect_unions(type, child, builtin_types, typedefs):
             types.append(new_type)
     return types
 
-def print_field(fd, child, typedefs, annotations, counter, prefix=''):
+def print_field(fd, child, typedefs, annotations, counter, prefix='', write_access=True):
 
     #include the annotations if neccassary
     action = None
-    flags = None
+    flags = ['F_READ']
     getter = False
     setter = False
     annotated_type = None
     if get_xpath(child) in annotations.keys():
         action = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'action'))
-        flags = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'flags'))
+        annotated_flags = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'flags'))
         getter = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'getter'))
         setter = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'setter'))
         annotated_type = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'type'))
         if action != None:
             action = action.arg.upper()
-        if flags != None:
-            flags = flags.arg.upper().split(';')
+        if annotated_flags != None:
+            flags.extend(annotated_flags.arg.upper().split(';'))
         if getter != None and getter.arg == 'true':
             getter = True
         if setter != None and setter.arg == 'true':
             setter = True
         if annotated_type != None:
             annotated_type = annotated_type.arg.upper()
+
+    # set additional flags
+    if write_access == True:
+        flags.append('F_WRITE')
+    if getter:
+        flags.append('F_GET')
+    if setter:
+        flags.append('F_SET')
 
     field_counter = 1
     #-1 for leaf-list
@@ -318,8 +342,12 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
         for i in range(field_counter):
 
             type_i = types[i]
+
+            # set additional flags
             if type_i.arg == 'yang:date-and-time' and flags == None:
-                flags = ['F_READ', 'F_WRITE', 'F_DATETIME']
+                flags.append('F_DATETIME')
+            flags = list(set(flags))    # remove duplicates
+
             type = seek_type(type_i, child, builtin_types, typedefs)
             if union_flag:
                 header_key = make_key(type_i, child.arg + '_', keep_hyphens=False)
@@ -337,13 +365,12 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
             fd.write(2*tab + "{\n")
             fd.write(3*tab + "/* " + str(counter) + " */\n")
             fd.write(3*tab + ".key = " + "\"" + hyphen_key + "\"" + ",\n")
-            if flags == None:
-                fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
-            else:
-                fd.write(3*tab + ".flags = ")
-                for flag in flags[:-1]:
-                    fd.write(flag + " | ")
-                fd.write(flags[-1] + ",\n")
+
+            fd.write(3*tab + ".flags = ")
+            for flag in flags[:-1]:
+                fd.write(flag + " | ")
+            fd.write(flags[-1] + ",\n")
+
             if action == None:
                 fd.write(3*tab + ".action = DM_NONE" + ",\n")
             else:
@@ -352,7 +379,7 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
 
             if getter or setter:
                 fd.write(3*tab + ".fkts.value = {\n")
-                if getter:
+                if write_access or getter:
                     fd.write(4*tab + ".get = get_" + name + "_" + header_key + ",\n")
                     header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
                 if setter:
@@ -377,13 +404,13 @@ def print_field(fd, child, typedefs, annotations, counter, prefix=''):
         fd.write(2*tab + "{\n")
         fd.write(3*tab + "/* " + str(abs(counter)) + " */\n")
         fd.write(3*tab + ".key = " + "\"" + make_key(child, keep_hyphens=True) + "\"" + ",\n")
-        if flags == None:
-            fd.write(3*tab + ".flags = " + "F_READ | F_WRITE" + ",\n")
-        else:
-            fd.write(3*tab + ".flags = ")
-            for flag in flags[:-1]:
-                fd.write(flag + " | ")
-            fd.write(flags[-1] + ",\n")
+
+        flags = list(set(flags))    # remove duplicates 
+        fd.write(3*tab + ".flags = ")
+        for flag in flags[:-1]:
+            fd.write(flag + " | ")
+        fd.write(flags[-1] + ",\n")
+
         if action == None:
             fd.write(3*tab + ".action = DM_NONE" + ",\n")
         else:
