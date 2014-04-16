@@ -1,6 +1,6 @@
 ## libdmconfig Makefile.am
 
-AM_CFLAGS = -g -funit-at-a-time \
+AM_CFLAGS = -g -Werror -funit-at-a-time \
 	-I$(top_srcdir)/include/compat \
         -I$(top_srcdir)
 

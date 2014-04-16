@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-AM_CFLAGS = -g -funit-at-a-time \
+AM_CFLAGS = -g -Werror -funit-at-a-time \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/include/compat \
 	-I$(top_builddir)

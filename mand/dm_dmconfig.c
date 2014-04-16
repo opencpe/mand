@@ -1414,8 +1414,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 	char macstr[20];
 	uint32_t if_speed;
 	DM2_AVPGRP grp;
-        unsigned long rec_pkt = 0, rec_oct = 0, rec_err = 0, rec_drop = 0;
-        unsigned long snd_pkt = 0, snd_oct = 0, snd_err = 0, snd_drop = 0;
+        uint64_t rec_pkt = 0, rec_oct = 0, rec_err = 0, rec_drop = 0;
+        uint64_t snd_pkt = 0, snd_oct = 0, snd_err = 0, snd_drop = 0;
 	ticks_t rt_now = ticks();
 
 	if (dm_expect_int32_type(&answer, AVP_INT32, VP_TRAVELPING, &if_index) != RC_OK
