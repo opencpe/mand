@@ -344,7 +344,7 @@ def print_field(fd, child, typedefs, annotations, counter, prefix='', write_acce
             type_i = types[i]
 
             # set additional flags
-            if type_i.arg == 'yang:date-and-time' and flags == None:
+            if type_i.arg == 'yang:date-and-time':
                 flags.append('F_DATETIME')
             flags = list(set(flags))    # remove duplicates
 
