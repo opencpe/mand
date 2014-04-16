@@ -127,7 +127,7 @@ int str2ticks(const char *s, ticks_t *p)
 DM_RESULT
 dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_update, DM_VALUE *value)
 {
-	uint8_t		updated;
+	uint8_t		updated = 0;
 	DM_RESULT	res = DM_OK;
 
 	if (!elem || !str || !value)
