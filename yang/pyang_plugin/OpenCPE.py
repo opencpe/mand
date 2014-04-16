@@ -379,7 +379,7 @@ def print_field(fd, child, typedefs, annotations, counter, prefix='', write_acce
 
             if getter or setter:
                 fd.write(3*tab + ".fkts.value = {\n")
-                if write_access or getter:
+                if getter:
                     fd.write(4*tab + ".get = get_" + name + "_" + header_key + ",\n")
                     header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
                 if setter:
