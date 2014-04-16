@@ -6,12 +6,12 @@ module opencpe-annotations {
     include opencpe-annotations-meta-extensions;
 
     ocpe-annotation:annotate "/sys:system/sys:clock/sys:timezone-utc-offset" {
-        ocpe-annotation:flags "f_read;f_get;f_set;f_system";
+        ocpe-annotation:flags "f_system";
         ocpe-annotation:getter true;
     }
 
     ocpe-annotation:annotate "/sys:system-state/sys:clock/sys:current-datetime" {
-        ocpe-annotation:flags "f_read;f_write;f_get;f_set;f_datetime;f_system";
+        ocpe-annotation:flags "f_system";
         ocpe-annotation:getter true;
         ocpe-annotation:setter true;
     }
@@ -41,14 +41,13 @@ module opencpe-annotations {
     }
 
     ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:netmask" {
-        ocpe-annotation:flags "f_read;f_write;f_get;f_set;f_system";
+        ocpe-annotation:flags "f_system";
         ocpe-annotation:getter true;
         ocpe-annotation:setter true;
         ocpe-annotation:action "dm_if_ip";
     }
 
     ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:prefix-length" {
-        ocpe-annotation:flags "f_read;f_write;f_set";
         ocpe-annotation:setter true;
         ocpe-annotation:action "dm_if_ip";
     }
@@ -78,7 +77,6 @@ module opencpe-annotations {
     }
 
     ocpe-annotation:annotate "/if:interfaces-state/if:interface/if:admin-status" {
-        ocpe-annotation:flags "f_read;f_write;f_get";
         ocpe-annotation:getter true;
     }
 
@@ -88,7 +86,7 @@ module opencpe-annotations {
     }
 
     ocpe-annotation:annotate "/if:interfaces-state/if:interface/ip:ipv4/ip:address/ip:netmask" {
-        ocpe-annotation:flags "f_read;f_get;f_system";
+        ocpe-annotation:flags "f_system";
         ocpe-annotation:getter true;
     }
 
