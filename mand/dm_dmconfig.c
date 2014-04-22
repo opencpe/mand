@@ -626,12 +626,12 @@ dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 	uint32_t rc;
 
 	if (!elem)
-		return DM_VALUE_NOT_FOUND;
+		return RC_ERR_VALUE_NOT_FOUND;
 
 	if ((rc = dm_add_avp(req, elem, val)) != RC_OK)
-		return DM_OOM;
+		return rc;
 
-	return DM_OK;
+	return RC_OK;
 }
 
 static int
@@ -1058,10 +1058,27 @@ rpc_db_set(void *data, int pvcnt, struct rpc_db_set_path_value *values, DM2_REQU
 	dm_debug(ctx->id, "CMD: %s", "DB SET");
 
 	for (i = 0; i < pvcnt; i++) {
-		if ((rc = dm_get_value_ref_by_selector_cb(values[i].path, &values[i].value, ctx, dmconfig_set_cb)) == DM_OOM)
+		rc = dm_get_value_ref_by_selector_cb(values[i].path, &values[i].value, ctx, dmconfig_set_cb);
+		switch (rc) {
+		case RC_OK:
+			continue;
+
+		case DM_OOM:
 			return RC_ERR_ALLOC;
-		if (rc != DM_OK)
+
+		case DM_INVALID_VALUE:
+		case DM_INVALID_TYPE:
+			return RC_ERR_INVALID_AVP_TYPE;
+
+		case DM_VALUE_NOT_FOUND:
+			return RC_ERR_VALUE_NOT_FOUND;
+
+		case 0x8000 ... 0x8FFF:
+			return rc;
+
+		default:
 			return RC_ERR_MISC;
+		}
 	}
 
 	return RC_OK;
@@ -1070,6 +1087,7 @@ rpc_db_set(void *data, int pvcnt, struct rpc_db_set_path_value *values, DM2_REQU
 uint32_t
 rpc_db_get(void *data, int pcnt, dm_selector *values, DM2_REQUEST *answer)
 {
+	uint32_t rc;
 	SOCKCONTEXT *ctx = data;
 	GET_BY_SELECTOR_CB get_value;
 	int i;
@@ -1081,11 +1099,24 @@ rpc_db_get(void *data, int pcnt, dm_selector *values, DM2_REQUEST *answer)
 
 		dm_debug(ctx->id, "CMD: %s \"%s\"", "DB GET", sel2str(b1, values[i]));
 
-		switch (get_value(values[i], T_ANY, answer, dmconfig_get_cb)) {
-		case DM_OK:
+		rc = get_value(values[i], T_ANY, answer, dmconfig_get_cb);
+		switch (rc) {
+		case RC_OK:
 			continue;
+
 		case DM_OOM:
 			return RC_ERR_ALLOC;
+
+		case DM_INVALID_VALUE:
+		case DM_INVALID_TYPE:
+			return RC_ERR_INVALID_AVP_TYPE;
+
+		case DM_VALUE_NOT_FOUND:
+			return RC_ERR_VALUE_NOT_FOUND;
+
+		case 0x8000 ... 0x8FFF:
+			return rc;
+
 		default:
 			return RC_ERR_MISC;
 		}

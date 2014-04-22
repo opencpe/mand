@@ -178,8 +178,10 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			size_t size;
 			char *result;
 
-			if (rpc_db_get(socket, 1, (const char **)&what, answer) != RC_OK)
+			if ((rc = rpc_db_get(socket, 1, (const char **)&what, answer)) != RC_OK) {
+				printf("failed with rc=%d (0x%08x)\n", rc, rc);
 				break;
+			}
 
 			if (dm_expect_avp(answer, &code, &vendor_id, &data, &size) != RC_OK
 			    || vendor_id != VP_TRAVELPING
@@ -209,8 +211,10 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			set_value.value.data = p ? : "";
 			set_value.value.size = strlen(set_value.value.data);
 
-			if (rpc_db_set(socket, 1, &set_value, answer) != RC_OK)
+			if ((rc = rpc_db_set(socket, 1, &set_value, answer)) != RC_OK) {
+				printf("failed with rc=%d (0x%08x)\n", rc, rc);
 				break;
+			}
 
 			break;
 		}
