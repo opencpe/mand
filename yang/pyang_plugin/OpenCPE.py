@@ -296,7 +296,6 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
     #include the annotations if neccassary
     action = None
     flags = ['F_READ']
-    print keys
     if keys != None:
         for key in keys:
             if child.arg == key.arg:
