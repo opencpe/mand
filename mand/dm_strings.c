@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -69,11 +70,13 @@ int str2ticks(const char *s, ticks_t *p)
 
 		if (*zone == '.') {
 			char *end;
+			double frac;
 
 			errno = 0;
-			tks = strtol(zone + 1, &end, 10);
+			frac = strtod(zone, &end);
 			if (errno != 0)
 				return -1;
+			tks = rint(frac * 10.0);
 			s = end;
 		} else
 			s = zone;
