@@ -211,6 +211,7 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             for augment in augments[get_xpath(s)]:
                 children += augment.i_children
 
+        keys = None
         if s.keyword in ['list', 'leaf-list']:
             keys = s.search('key')
             key_leafs = {}
@@ -244,27 +245,27 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
 
         counter = 1
         if s.keyword == 'leaf-list':
-            counter = print_field(fd, s, typedefs, annotations, -1, write_access=write_access) + 1
+            counter = print_field(fd, s, typedefs, annotations, -1, keys, write_access=write_access) + 1
 
 
         #the inner part of one struct
         for child in children:
             if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in deviations.keys():
-                counter += print_field(fd, child, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
+                counter += print_field(fd, child, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'choice':
                 for substmt in child.substmts:
                     if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                        counter += print_field(fd, substmt, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
+                        counter += print_field(fd, substmt, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
                 cases = child.search('case')
                 for case in cases:
                     for substmt in case.substmts:
                         if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                            counter += print_field(fd, substmt, typedefs, annotations, counter, write_access=get_write_access(write_access, child))
+                            counter += print_field(fd, substmt, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'uses':
                 grouping = groupings[child.i_module.i_prefix + ':' + child.arg]
                 for groupchild in grouping.substmts:
                     if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list', 'choice']:
-                        counter += print_field(fd, groupchild, typedefs, annotations, counter, prefix=make_name(s)+'__', write_access=get_write_access(write_access, child))
+                        counter += print_field(fd, groupchild, typedefs, annotations, counter, keys, prefix=make_name(s)+'__', write_access=get_write_access(write_access, child))
 
 
         fd.write(tab + "},\n")
@@ -290,11 +291,16 @@ def collect_unions(type, child, builtin_types, typedefs):
             types.append(new_type)
     return types
 
-def print_field(fd, child, typedefs, annotations, counter, prefix='', write_access=True):
+def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', write_access=True):
 
     #include the annotations if neccassary
     action = None
     flags = ['F_READ']
+    print keys
+    if keys != None:
+        for key in keys:
+            if child.arg == key.arg:
+                flags.append('F_INDEX')
     getter = False
     setter = False
     annotated_type = None
