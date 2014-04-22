@@ -254,7 +254,7 @@ static inline uint32_t avp_type_map(unsigned short type)
 
 
 static uint32_t
-dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, const DM_VALUE val)
+dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, int st_type, const DM_VALUE val)
 {
 	switch (elem->type) {
 	case T_ENUM:
@@ -328,6 +328,21 @@ dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, const DM_VALUE val)
 		debug(": [Answer: %" PRItick "]\n", t);
 		return dm_add_int64(req, type, VP_TRAVELPING, t);
 	}
+
+	case T_TOKEN:
+		debug(": [Answer: TABLE]\n");
+		return dm_add_uint32(req, AVP_TYPE, VP_TRAVELPING, AVP_TABLE);
+
+	case T_OBJECT:
+		switch (st_type) {
+		case T_OBJECT:
+			debug(": [Answer: OBJECT]\n");
+			return dm_add_uint32(req, AVP_TYPE, VP_TRAVELPING, AVP_OBJECT);
+		case T_INSTANCE:
+			debug(": [Answer: INSTANCE]\n");
+			return dm_add_uint32(req, AVP_TYPE, VP_TRAVELPING, AVP_INSTANCE);
+		}
+		return RC_ERR_INVALID_AVP_TYPE;
 
 	default:
 		return RC_ERR_INVALID_AVP_TYPE;
@@ -620,7 +635,7 @@ dmconfig_set_cb(void *data, const dm_selector sel,
 
 static DM_RESULT
 dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
-		const struct dm_element *elem, const DM_VALUE val)
+		const struct dm_element *elem, int st_type, const DM_VALUE val)
 {
 	DM2_REQUEST *req = data;
 	uint32_t rc;
@@ -628,7 +643,7 @@ dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 	if (!elem)
 		return RC_ERR_VALUE_NOT_FOUND;
 
-	if ((rc = dm_add_avp(req, elem, val)) != RC_OK)
+	if ((rc = dm_add_avp(req, elem, st_type, val)) != RC_OK)
 		return rc;
 
 	return RC_OK;
@@ -681,7 +696,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id, const struct dm_element *el
 		    || (dm_add_uint32(ctx->req, AVP_TYPE, VP_TRAVELPING, avp_type_map(elem->type))) != RC_OK)
 			return 0;
 
-		dm_add_avp(ctx->req, elem, value);
+		dm_add_avp(ctx->req, elem, T_ELEMENT, value);
 
 		if (dm_finalize_group(ctx->req) != RC_OK)
 			return 0;
@@ -699,6 +714,7 @@ static DM_RESULT
 dmconfig_retrieve_enums_cb(void *data,
 			   const dm_selector sb __attribute__((unused)),
 			   const struct dm_element *elem,
+			   int st_type __attribute__((unused)),
 			   const DM_VALUE val __attribute__((unused)))
 {
 	DM2_REQUEST *req = data;
@@ -771,7 +787,7 @@ build_notify_events(struct notify_queue *queue, int level, DM2_REQUEST *notify)
 			if ((rc = dm_add_uint32(notify, AVP_NOTIFY_TYPE, VP_TRAVELPING, NOTIFY_PARAMETER_CHANGED)) != RC_OK
 			    || (rc = dm_add_string(notify, AVP_PATH, VP_TRAVELPING, path)) != RC_OK
 			    || (rc = dm_add_uint32(notify, AVP_TYPE, VP_TRAVELPING, avp_type_map(elem->type))) != RC_OK
-			    || (rc = dm_add_avp(notify, elem, item->value)) != RC_OK)
+			    || (rc = dm_add_avp(notify, elem, T_ELEMENT, item->value)) != RC_OK)
 				return rc;
 		}
 		}

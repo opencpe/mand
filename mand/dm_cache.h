@@ -44,7 +44,7 @@ DM_VALUE dm_cache_get_any_value_by_id(const struct dm_value_table *, dm_id);
 DM_VALUE dm_cache_get_any_value_by_selector(const dm_selector, int) __attribute__((nonnull (1)));
 
 DM_RESULT dm_cache_get_value_by_selector_cb(const dm_selector sel, int type, void *userData,
-					       DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, const DM_VALUE))
+					       DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, int st_type, const DM_VALUE))
 	__attribute__((nonnull (1)));
 
 static inline uint8_t cache_is_empty(void)

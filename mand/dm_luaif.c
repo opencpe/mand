@@ -81,10 +81,12 @@ static DM_RESULT luaif_set_cb(void *data, const dm_selector sel,
 static DM_RESULT luaif_get_cb(void *data,
 			      const dm_selector sb __attribute__((unused)),
 			      const struct dm_element *elem,
+			      int st_type,
 			      const DM_VALUE val);
 static DM_RESULT luaif_retrieve_enums_cb(void *data,
 					 const dm_selector sb __attribute__((unused)),
 					 const struct dm_element *elem,
+					 int st_type,
 					 const DM_VALUE val __attribute__((unused)));
 static int luaif_list_cb(void *data, CB_type type, dm_id id,
 			 const struct dm_element *elem,
@@ -634,7 +636,7 @@ LUA_SIG(set)
 
 static DM_RESULT
 luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
-	     const struct dm_element *elem, const DM_VALUE val)
+	     const struct dm_element *elem, int st_type __attribute__((unused)), const DM_VALUE val)
 {
 	lua_State	*L = data;
 	int 		type = lua_tointeger(L, -4);
@@ -987,6 +989,7 @@ static DM_RESULT
 luaif_retrieve_enums_cb(void *data,
 			const dm_selector sb __attribute__((unused)),
 			const struct dm_element *elem,
+			int st_type __attribute__((unused)),
 			const DM_VALUE val __attribute__((unused)))
 {
 	lua_State		*L = data;

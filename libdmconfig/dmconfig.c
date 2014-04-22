@@ -133,6 +133,17 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 	case AVP_DATE:
 		return asprintf(val, "%u", (uint32_t)dm_get_time_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
+	case AVP_TYPE:
+		switch (dm_get_uint32_avp(data)) {
+		case AVP_TABLE:
+			return (*val = strdup("<<table>>")) ? RC_OK : RC_ERR_ALLOC;
+		case AVP_OBJECT:
+			return (*val = strdup("<<object>>")) ? RC_OK : RC_ERR_ALLOC;
+		case AVP_INSTANCE:
+			return (*val = strdup("<<instance>>")) ? RC_OK : RC_ERR_ALLOC;
+		}
+		return RC_ERR_MISC;
+
 	default:
 		return RC_ERR_MISC;
 	}

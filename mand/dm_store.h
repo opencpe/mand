@@ -43,6 +43,7 @@ typedef DM_RESULT (*GET_BY_SELECTOR_CB)(const dm_selector sel, int type,
 					DM_RESULT (*cb)(void *,
 							const dm_selector,
 							const struct dm_element *,
+							int st_type,
 							const DM_VALUE));
 
 dm_id dm_get_element_id_by_name(const char *name, size_t l, const struct dm_table *kw);
@@ -73,7 +74,7 @@ DM_RESULT dm_set_selector_value(DM_VALUE *st, const dm_selector s);
 int dm_get_value_by_selector(const dm_selector sel, int type, void *value) __attribute__((nonnull (1)));
 
 DM_RESULT dm_get_value_by_selector_cb(const dm_selector sel, int type, void *userData,
-					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, const DM_VALUE))
+					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, int st_type, const DM_VALUE))
 	 __attribute__((nonnull (1)));
 
 DM_RESULT dm_set_value_by_selector(const dm_selector sel, int type, const void *value) __attribute__((nonnull (1)));

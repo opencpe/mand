@@ -882,7 +882,7 @@ int dm_get_value_by_selector(const dm_selector sel, int type, void *value)
 }
 
 DM_RESULT dm_get_value_by_selector_cb(const dm_selector sel, int type, void *userData,
-					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, const DM_VALUE))
+					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, int st_type, const DM_VALUE))
 {
 	struct dm_element_ref ref;
 
@@ -891,7 +891,7 @@ DM_RESULT dm_get_value_by_selector_cb(const dm_selector sel, int type, void *use
 
 	if (dm_get_element_ref(sel, &ref)) {
 		DM_VALUE val = dm_get_element_value(type, &ref);
-		return cb(userData, sel, dm_get_element_from_ref(&ref), val);
+		return cb(userData, sel, dm_get_element_from_ref(&ref), ref.st_type, val);
 	}
 	return DM_VALUE_NOT_FOUND;
 }
