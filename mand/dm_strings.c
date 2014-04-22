@@ -310,14 +310,16 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 			ticks_t	val;
 			char	*endl;
 
-			val = (ticks_t)strtoul(str, &endl, 10);
-			if (*endl)
-				res = DM_INVALID_TYPE;
-			else {
-				updated = DM_TICKS(*value) != val;
-				set_DM_TICKS(*value, val);
+			if (str2ticks(str, &val) < 0) {
+				val = (ticks_t)strtoul(str, &endl, 10);
+				if (*endl) {
+					res = DM_INVALID_TYPE;
+					break;
+				}
 			}
 
+			updated = DM_TICKS(*value) != val;
+			set_DM_TICKS(*value, val);
 			break;
 		}
 		default:	/* unsupported type including T_COUNTER */
