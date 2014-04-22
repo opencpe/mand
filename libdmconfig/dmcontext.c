@@ -114,6 +114,7 @@ dm_context_shutdown(DMCONTEXT *sock, DMCONFIG_EVENT event)
 
 	shutdown(sock->socket, SHUT_RDWR);
 	close(sock->socket);
+	sock->socket = -1;
 }
 
 
@@ -122,6 +123,9 @@ dm_context_shutdown(DMCONTEXT *sock, DMCONFIG_EVENT event)
 uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB cb, void *data)
 {
 	DM2_REQUEST_INFO *rqi;
+
+	if (socket->socket < 0)
+		return RC_ERR_CONNECTION;
 
 	/* workaround: when the consumer is not keeping the event loop alive,
 	 * i.e. using another event loop and calling only the synced methods,
@@ -561,6 +565,7 @@ dm_context_init(DMCONTEXT *sock, struct ev_loop *base, int type,
 	memset(sock, 0, sizeof(DMCONTEXT));
 	sock->_ref = 1;
 	TAILQ_INIT(&sock->head);
+	sock->socket = -1;
 	sock->ev = base;
 	sock->type = type;
 	sock->userdata = userdata;
@@ -634,7 +639,7 @@ dm_connect_async(DMCONTEXT *sock)
 
 	socklen_t sockaddr_len;
 
-	if (!sock->socket)
+	if (sock->socket <= 0)
 		if ((rc = dm_create_socket(sock)) != RC_OK)
 			return rc;
 
@@ -698,7 +703,7 @@ dm_accept_async(DMCONTEXT *socket)
 
 	socklen_t sockaddr_len;
 
-	if (!socket->socket)
+	if (socket->socket <= 0)
 		if ((rc = dm_create_socket(socket)) != RC_OK)
 			return rc;
 
