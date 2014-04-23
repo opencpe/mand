@@ -87,7 +87,7 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 {
 	switch (type) {
 	case AVP_BOOL:
-		return (*val = strdup(dm_get_uint8_avp(data) ? "1" : "0"))
+		return (*val = strdup(dm_get_uint8_avp(data) ? "true" : "false"))
 							? RC_OK : RC_ERR_ALLOC;
 	case AVP_ENUMID:
 	case AVP_INT32:
