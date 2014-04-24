@@ -302,7 +302,7 @@ typedef struct {
 
 #define DM_TABLE(val)           ({ const DM_VALUE _v = (val); DM_type_assert(_v, T_TOKEN); assert_struct_magic_start(_v._v.table, TABLE_MAGIC); _v._v.table; })
 #define DM_TABLE_REF(val)       ({ DM_type_assert(val, T_TOKEN); assert_struct_magic_start((val)._v.table, TABLE_MAGIC); &(val)._v.table; })
-#define set_DM_TABLE(val, t)    { assert_struct_magic_start(t, TABLE_MAGIC); (val)._v.table = t; _set_DM_type(val, T_TOKEN); }
+#define set_DM_TABLE(val, t)    { typeof(t) t_ = (t); assert_struct_magic_start(t_, TABLE_MAGIC); (val)._v.table = t_; _set_DM_type(val, T_TOKEN); }
 
 #define DM_INSTANCE(val)        ({ DM_type_assert(val, T_OBJECT); &(val)._v.instance; })
 #define DM_NODE(val)            ({ DM_type_assert(val, T_INSTANCE); assert_struct_magic((val)._v.node, NODE_MAGIC); (val)._v.node; })
