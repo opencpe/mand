@@ -69,6 +69,40 @@ int dmconfig_debug_level = 1;
 		errno = _errno;						\
 	} while (0)
 
+/** convert a ticks value (1/10th second) to a RFC 3339 timestamp */
+static char* dm_ticks2str(ticks_t n)
+{
+	struct tm T;
+	time_t secs = n / 10;
+	unsigned int tks = n % 10;
+	char buf[128];
+	size_t l;
+
+	if (n < 0) {
+		sprintf(buf, "%" PRItick, n);
+	} else {
+		if (!gmtime_r(&secs, &T))
+			memset(&T, 0, sizeof(T));
+
+		l = strftime(buf, sizeof(buf), "%FT%T", &T);
+		if (tks != 0)
+			l += sprintf(buf + l, ".%d", tks);
+		strcat(buf + l, "Z");
+	}
+	return strdup(buf);
+}
+
+static char* dm_date2str(time_t secs)
+{
+	struct tm T;
+	char buf[128];
+
+	if (!gmtime_r(&secs, &T))
+		memset(&T, 0, sizeof(T));
+
+	strftime(buf, sizeof(buf), "%FT%TZ", &T);
+	return strdup(buf);
+}
 
 /** converts an arbitrary typed AVP data to an ASCII string
  *
@@ -99,6 +133,8 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 							? RC_ERR_ALLOC : RC_OK;
 	case AVP_ABSTICKS:
 	case AVP_RELTICKS:
+		return (*val = dm_ticks2str(dm_get_int64_avp(data))) ? RC_OK : RC_ERR_ALLOC;
+
 	case AVP_INT64:
 		return asprintf(val, "%" PRIi64, dm_get_int64_avp(data)) == -1
 							? RC_ERR_ALLOC : RC_OK;
@@ -131,8 +167,8 @@ dm_decode_unknown_as_string(uint32_t type, void *data, size_t len, char **val)
 		return (*val = strdup(buf)) ? RC_OK : RC_ERR_ALLOC;
 	}
 	case AVP_DATE:
-		return asprintf(val, "%u", (uint32_t)dm_get_time_avp(data)) == -1
-							? RC_ERR_ALLOC : RC_OK;
+		return (*val = dm_date2str(dm_get_time_avp(data))) ? RC_OK : RC_ERR_ALLOC;
+
 	case AVP_TYPE:
 		switch (dm_get_uint32_avp(data)) {
 		case AVP_TABLE:
