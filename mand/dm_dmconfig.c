@@ -223,6 +223,8 @@ init_libdmconfig_server(struct ev_loop *base)
  * RPC Helpers
  */
 
+static uint32_t dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, int st_type, const DM_VALUE val);
+
 struct list_ctx {
 	DM2_REQUEST	*req;
 
@@ -252,6 +254,42 @@ static inline uint32_t avp_type_map(unsigned short type)
 	return AVP_UNKNOWN;
 }
 
+static int
+dm_add_array_avp_cb(void *data, CB_type type, dm_id id __attribute__((unused)), const struct dm_element *elem, const DM_VALUE value)
+{
+	DM2_REQUEST *req = data;
+
+	debug(": %s, type: %d\n", elem->key, type);
+
+	switch (type) {
+	case CB_object_end:
+		if (dm_finalize_group(req) != RC_OK)
+			return 0;
+		break;
+
+	case CB_object_start:
+		if ((dm_new_group(req, AVP_ARRAY, VP_TRAVELPING)) != RC_OK)
+			return 0;
+		break;
+
+	case CB_element:
+		dm_add_avp(req, elem, T_ELEMENT, value);
+		break;
+
+	default:
+		break;
+	}
+
+	return 1;
+}
+
+static uint32_t
+dm_add_array_avp(DM2_REQUEST *req, const struct dm_element *elem, const DM_VALUE val)
+{
+	if (dm_walk_object_cb(16, req, dm_add_array_avp_cb, -1, elem, val))
+		return RC_OK;
+	return RC_ERR_MISC;
+}
 
 static uint32_t
 dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, int st_type, const DM_VALUE val)
@@ -334,6 +372,9 @@ dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, int st_type, const D
 		return dm_add_uint32(req, AVP_TYPE, VP_TRAVELPING, AVP_TABLE);
 
 	case T_OBJECT:
+		if (elem->flags & F_ARRAY)
+			return dm_add_array_avp(req, elem, val);
+
 		switch (st_type) {
 		case T_OBJECT:
 			debug(": [Answer: OBJECT]\n");
@@ -353,6 +394,51 @@ dm_add_avp(DM2_REQUEST *req, const struct dm_element *elem, int st_type, const D
 }
 
 static DM_RESULT
+dmconfig_string2value(char *s, size_t size, const struct dm_element *elem, DM_VALUE *value)
+{
+	char *dum = NULL;
+	DM_RESULT r = DM_OK;
+	int ilen = size;
+
+	debug(": %s: %*s", elem->key, ilen, s);
+
+	if (!(dum = strndup(s, size)))
+		return RC_ERR_ALLOC;
+
+	switch (elem->type) {
+	case T_BASE64:
+	case T_BINARY: {	/* dm_string2value cannot be used since it treats T_BASE64 and T_BINARY differently */
+		unsigned int len;
+		binary_t *n;
+
+		/* this is going to waste some bytes.... */
+		len = ((size + 4) * 3) / 4;
+
+		n = malloc(sizeof(binary_t) + len);
+		if (!n) {
+			r = DM_OOM;
+			break;
+		}
+
+		debug(": base64 string: %d, buffer: %u", (int)size, len);
+		n->len = dm_from64((unsigned char *)dum, (unsigned char *)n->data);
+		debug(": base64 result: %d", n->len);
+		r = dm_set_binary_value(value, n);
+		free(n);
+
+		break;
+	}
+
+	default:
+		debug(": = %s\n", dum);
+		r = dm_string2value(elem, dum, 0, value);
+	}
+
+	free(dum);
+	return r;
+}
+
+static DM_RESULT
 dmconfig_avp2value(const struct dm2_avp *avp, const struct dm_element *elem, DM_VALUE *value)
 {
 	char		*dum = NULL;
@@ -364,37 +450,7 @@ dmconfig_avp2value(const struct dm2_avp *avp, const struct dm_element *elem, DM_
 	memset(value, 0, sizeof(DM_VALUE));
 
 	if (avp->code == AVP_UNKNOWN) {
-		if (!(dum = strndup(avp->data, avp->size)))
-			return DM_OOM;
-
-		switch (elem->type) {
-		case T_BASE64:
-		case T_BINARY: {	/* dm_string2value cannot be used since it treats T_BASE64 and T_BINARY differently */
-			unsigned int len;
-			binary_t *n;
-
-			/* this is going to waste some bytes.... */
-			len = ((avp->size + 4) * 3) / 4;
-
-			n = malloc(sizeof(binary_t) + len);
-			if (!n) {
-				r = DM_OOM;
-				break;
-			}
-
-			debug(": base64 string: %d, buffer: %u", (int)avp->size, len);
-			n->len = dm_from64((unsigned char *)dum, (unsigned char *)n->data);
-			debug(": base64 result: %d", n->len);
-			r = dm_set_binary_value(value, n);
-			free(n);
-
-			break;
-		}
-
-		default:
-			debug(": = %s\n", dum);
-			r = dm_string2value(elem, dum, 0, value);
-		}
+		return dmconfig_string2value(avp->data, avp->size, elem, value);
 	} else {
 		switch (elem->type) {
 		case T_STR:	/* FIXME: strndup could be avoided by introducing a new dm_set_lstring_value... */
@@ -605,6 +661,84 @@ dmconfig_avp2value(const struct dm2_avp *avp, const struct dm_element *elem, DM_
 	return r;
 }
 
+static DM_RESULT
+dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
+		      const dm_selector sel,
+		      const struct dm_element *elem,
+		      struct dm_value_table *base __attribute__((unused)),
+		      struct dm2_avp *avp,
+		      DM_VALUE *st)
+{
+	int len = avp->size;
+	uint32_t rc;
+	char buffer[MAX_PARAM_NAME_LEN];
+	char *path;
+
+	if (elem->type != T_OBJECT
+	    || st->type != T_OBJECT
+	    || (avp->code != AVP_UNKNOWN && avp->code != AVP_ARRAY))
+		return RC_ERR_INVALID_AVP_TYPE;
+
+	if (!(path = dm_sel2name(sel, buffer, sizeof(buffer))))
+		return RC_ERR_ALLOC;
+
+	debug(": %08x:%08x, %d, %d, %s (%s): %*s", avp->vendor_id, avp->code, elem->type, st->type, elem->key, path, len, (char *)avp->data);
+
+	if (!dm_del_table_by_selector(sel))
+		return RC_ERR_MISC;
+
+	if (avp->code == AVP_UNKNOWN) {
+		debug(": string2array");
+
+		dm_id id = 1;
+		char *s = avp->data;
+		size_t rem = avp->size;
+		char *p;
+
+		while (rem) {
+			size_t s_len;
+			struct dm_instance_node *node;
+
+			p = memchr(s, ',', rem);
+			s_len = (p != NULL) ? (size_t)(p - s) : rem;
+
+			if (!(node = dm_add_instance_by_selector(sel, &id)))
+				return RC_ERR_ALLOC;
+
+			if ((rc = dmconfig_string2value(s, s_len, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
+				return rc;
+
+			id++;
+			rem -= s_len;
+			s = p + 1;
+		}
+	} else {
+		debug(": list2array");
+
+		dm_id id = 1;
+		DM2_AVPGRP container;
+
+		dm_init_avpgrp(NULL, avp->data, avp->size, &container);
+
+		while (dm_expect_group_end(&container) != RC_OK) {
+			struct dm2_avp a;
+			struct dm_instance_node *node;
+
+			if ((rc = dm_expect_value(&container, &a)) != RC_OK)
+				return rc;
+
+			if (!(node = dm_add_instance_by_selector(sel, &id)))
+				return RC_ERR_ALLOC;
+
+			if ((rc = dmconfig_avp2value(&a, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
+				return rc;
+
+			id++;
+		}
+	}
+
+	return RC_OK;
+}
 
 static DM_RESULT
 dmconfig_set_cb(void *data, const dm_selector sel,
@@ -616,6 +750,9 @@ dmconfig_set_cb(void *data, const dm_selector sel,
 	struct dm2_avp *value = (struct dm2_avp *)v;
 	DM_VALUE new_value;
 	DM_RESULT r;
+
+	if (elem->flags & F_ARRAY)
+		return dmconfig_set_array_cb(ctx, sel, elem, base, value, st);
 
 	if ((r = dmconfig_avp2value(value, elem, &new_value)) != DM_OK)
 		return r;
@@ -650,17 +787,55 @@ dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 }
 
 static int
+dmconfig_list_array_cb(struct list_ctx *ctx, CB_type type, const struct dm_element *elem, const DM_VALUE value)
+{
+	debug(": %s, type: %d", elem->key, type);
+
+	switch (type) {
+	case CB_object_end:
+		if (ctx->level && ctx->level < ctx->max_level) {
+			if (dm_finalize_group(ctx->req) != RC_OK)
+				return 0;
+		}
+		ctx->level--;
+
+		return 1;
+
+	case CB_object_start:
+		if ((dm_new_group(ctx->req, AVP_ARRAY, VP_TRAVELPING)) != RC_OK
+		    || (dm_add_string(ctx->req, AVP_NAME, VP_TRAVELPING, elem->key)) != RC_OK
+		    || (dm_add_uint32(ctx->req, AVP_TYPE, VP_TRAVELPING, avp_type_map(elem->type))) != RC_OK)
+			return 0;
+
+		ctx->level++;
+		break;
+
+	case CB_element:
+		dm_add_avp(ctx->req, elem, T_ELEMENT, value);
+		break;
+
+	default:
+		break;
+	}
+
+	return 1;
+}
+
+static int
 dmconfig_list_cb(void *data, CB_type type, dm_id id, const struct dm_element *elem, const DM_VALUE value)
 {
-	struct list_ctx	*ctx = data;
+	struct list_ctx *ctx = data;
 
 	if (!elem->key)
 		return 0;
 
+	if (elem->flags & F_ARRAY)
+		return dmconfig_list_array_cb(ctx, type, elem, value);
+
 	switch (type) {
+	case CB_object_instance_end:
 	case CB_object_end:
 	case CB_table_end:
-	case CB_object_instance_end:
 		if (ctx->level && ctx->level < ctx->max_level) {
 			if (dm_finalize_group(ctx->req) != RC_OK)
 				return 0;

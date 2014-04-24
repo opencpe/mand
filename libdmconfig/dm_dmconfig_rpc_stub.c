@@ -226,9 +226,27 @@ uint32_t rpc_db_set_async(DMCONTEXT *ctx, int pvcnt, struct rpc_db_set_path_valu
 
 	for (i = 0; i < pvcnt; i++) {
 		if ((rc = dm_add_object(req)) != RC_OK
-		    || (rc = dm_add_string(req, AVP_PATH, VP_TRAVELPING, values[i].path)) != RC_OK
-		    || (rc = dm_add_raw(req, values[i].value.code, values[i].value.vendor_id, values[i].value.data, values[i].value.size)) != RC_OK
-		    || (rc = dm_finalize_group(req)) != RC_OK)
+		    || (rc = dm_add_string(req, AVP_PATH, VP_TRAVELPING, values[i].path)) != RC_OK)
+			return rc;
+
+		if (values[i].value.vendor_id == VP_TRAVELPING && values[i].value.code == AVP_ARRAY) {
+			struct rpc_db_set_path_value *array = (struct rpc_db_set_path_value *)values[i].value.data;
+			size_t j;
+
+			if ((rc = dm_new_group(req, AVP_ARRAY, VP_TRAVELPING)) != RC_OK)
+				return rc;
+
+			for (j = 0; j < values[i].value.size; j++)
+				if ((rc = dm_add_raw(req, array[j].value.code, array[j].value.vendor_id, array[j].value.data, array[j].value.size)) != RC_OK)
+					return rc;
+
+			if ((rc = dm_finalize_group(req)) != RC_OK)
+				return rc;
+		} else
+			if ((rc = dm_add_raw(req, values[i].value.code, values[i].value.vendor_id, values[i].value.data, values[i].value.size)) != RC_OK)
+				return rc;
+
+		if ((rc = dm_finalize_group(req)) != RC_OK)
 			return rc;
 	}
 

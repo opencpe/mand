@@ -39,6 +39,7 @@ CTRL_COMMAND		command = DMCTRL_UNDEF;
 
 char			*base = "";
 char			*what = "";
+int			array_f = 0;
 
 #define RETRY_CONN_DELAY 10 /* in seconds */
 
@@ -48,6 +49,108 @@ char			*what = "";
                 *c-- = '\0'; \
         s; \
 })
+
+typedef void (*DECODE_CB)(const char *name, uint32_t code, uint32_t vendor_id, void *data, size_t size, void *cb_data);
+
+uint32_t
+decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_data)
+{
+	uint32_t r;
+	DM2_AVPGRP container;
+	uint32_t code;
+	uint32_t vendor_id;
+	void *data;
+	size_t size;
+
+	char *name, *path;
+	uint16_t id;
+	uint32_t type;
+
+	if ((r = dm_expect_avp(grp, &code, &vendor_id, &data, &size)) != RC_OK)
+		return r;
+
+	if (vendor_id != VP_TRAVELPING)
+		return RC_ERR_MISC;
+
+	dm_init_avpgrp(grp->ctx, data, size, &container);
+
+	switch (code) {
+	case AVP_TABLE:
+		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK)
+			return r;
+
+		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+			return RC_ERR_ALLOC;
+
+		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
+		}
+
+		break;
+
+	case AVP_INSTANCE:
+		if ((r = dm_expect_uint16_type(&container, AVP_NAME, VP_TRAVELPING, &id)) != RC_OK)
+			return r;
+
+		if (!(path = talloc_asprintf(container.ctx, "%s.%d", prefix, id)))
+			return RC_ERR_ALLOC;
+
+		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
+		}
+
+		break;
+
+	case AVP_OBJECT:
+		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK)
+			return r;
+
+		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+			return RC_ERR_ALLOC;
+
+		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
+		}
+
+		break;
+
+	case AVP_ELEMENT:
+		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK
+		    || (r = dm_expect_uint32_type(&container, AVP_TYPE, VP_TRAVELPING, &type)) != RC_OK)
+			return r;
+
+		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+			return RC_ERR_ALLOC;
+
+		if ((r = dm_expect_avp(&container, &code, &vendor_id, &data, &size)) != RC_OK)
+			return r;
+
+		cb(path, code, vendor_id, data, size, cb_data);
+		break;
+
+	case AVP_ARRAY:
+		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK
+		    || (r = dm_expect_uint32_type(&container, AVP_TYPE, VP_TRAVELPING, &type)) != RC_OK)
+			return r;
+
+		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+			return RC_ERR_ALLOC;
+
+		while (dm_expect_group_end(&container) != RC_OK) {
+			if ((r = dm_expect_avp(&container, &code, &vendor_id, &data, &size)) != RC_OK)
+				return r;
+			cb(path, code, vendor_id, data, size, cb_data);
+		}
+		break;
+
+	default:
+		return RC_ERR_MISC;
+	}
+
+	return RC_OK;
+}
+
+void list_cb(const char *name, uint32_t code, uint32_t vendor_id, void *data, size_t size, void *cb_data __attribute__((unused)))
+{
+	printf("%08x:%08x: %s, %zd, %p\n", vendor_id, code, name, size, data);
+}
 
 static void usage(void)
 {
@@ -69,7 +172,7 @@ void parse_commandline(int argc, char **argv)
 {
     int c;
 
-    while (-1 != (c = getopt(argc, argv, "c:s:h"))) {
+    while (-1 != (c = getopt(argc, argv, "ac:s:h"))) {
         switch(c) {
             case 'h':
                 usage();
@@ -78,6 +181,10 @@ void parse_commandline(int argc, char **argv)
 
             case 's':		/* dummy: left only for compatibility reasons */
                 break;
+
+	    case 'a':
+		array_f = 1;
+		break;
 
 	    case 'c':
 	    	if (!strcmp(optarg, "inet"))
@@ -104,6 +211,9 @@ void parse_commandline(int argc, char **argv)
 
     if (strcasecmp(*(argv + optind), "commit") == 0) {
 	    command = DMCTRL_COMMIT;
+    } else if (strcasecmp(*(argv + optind), "list") == 0) {
+	    command = DMCTRL_LIST;
+	    what = *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "get") == 0) {
 	    command = DMCTRL_GET;
 	    what = *(argv + optind + 1);
@@ -171,6 +281,17 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 
 			break;
 		}
+		case DMCTRL_LIST: {
+			if ((rc = rpc_db_list(socket, 0, what, answer)) != RC_OK) {
+				printf("failed with rc=%d (0x%08x)\n", rc, rc);
+				break;
+			}
+
+			while (decode_node_list("", answer, list_cb, NULL) == RC_OK) {
+			}
+
+			break;
+		}
 		case DMCTRL_GET: {
 			uint32_t code;
 			uint32_t vendor_id;
@@ -185,39 +306,104 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 
 			if (dm_expect_avp(answer, &code, &vendor_id, &data, &size) != RC_OK
 			    || vendor_id != VP_TRAVELPING
-			    || dm_expect_group_end(answer) != RC_OK
-			    || dm_decode_unknown_as_string(code, data, size, &result) != RC_OK)
+			    || dm_expect_group_end(answer) != RC_OK)
 				break;
 
-			printf("%s", result);
-			free(result);
+			if (vendor_id == VP_TRAVELPING && code == AVP_ARRAY) {
+				DM2_AVPGRP container;
 
-			break;
-		}
+				dm_init_avpgrp(answer->ctx, data, size, &container);
 
-		case DMCTRL_SET: {
-			char *p;
-			struct rpc_db_set_path_value set_value = {
-				.path  = what,
-				.value = {
-					.code = AVP_UNKNOWN,
-					.vendor_id = VP_TRAVELPING,
-				},
-			};
+				while (dm_expect_group_end(&container) != RC_OK) {
+					if (dm_expect_avp(&container, &code, &vendor_id, &data, &size) != RC_OK
+					    || dm_decode_unknown_as_string(code, data, size, &result) != RC_OK)
+						break;
 
-			if ((p = strchr(what, '=')))
-				*p++ = '\0';
+					printf("%s\n", result);
+					free(result);
+				}
+			} else {
+				if (dm_decode_unknown_as_string(code, data, size, &result) != RC_OK)
+					break;
 
-			set_value.value.data = p ? : "";
-			set_value.value.size = strlen(set_value.value.data);
-
-			if ((rc = rpc_db_set(socket, 1, &set_value, answer)) != RC_OK) {
-				printf("failed with rc=%d (0x%08x)\n", rc, rc);
-				break;
+				printf("%s\n", result);
+				free(result);
 			}
 
 			break;
 		}
+
+		case DMCTRL_SET:
+			if (array_f) {
+				char *p, *s;
+				int i, cnt;
+				char *saveptr;
+
+				struct rpc_db_set_path_value set_array = {
+					.path  = what,
+					.value = {
+						.code = AVP_ARRAY,
+						.vendor_id = VP_TRAVELPING,
+					},
+				};
+				struct rpc_db_set_path_value *array;
+
+				if ((p = strchr(what, '=')))
+					*p++ = '\0';
+
+				cnt = (*p) ? 1 : 0;
+				for (s = p; *s; s++)
+					if (*s == ',')
+						cnt++;
+
+				if (!(array = calloc(cnt, sizeof(struct rpc_db_set_path_value))))
+					break;
+				set_array.value.data = array;
+				set_array.value.size = cnt;
+
+				s = strtok_r(p, ",", &saveptr);
+				for (i = 0; i < cnt && s; i++) {
+					printf("array[%d]=%s\n", i, s);
+
+					array[i].value.code = AVP_UNKNOWN;
+					array[i].value.vendor_id = VP_TRAVELPING;
+					array[i].value.data = s;
+					array[i].value.size = strlen(s);
+
+					s = strtok_r(NULL, ",", &saveptr);
+				}
+
+				if ((rc = rpc_db_set(socket, 1, &set_array, answer)) != RC_OK) {
+					printf("failed with rc=%d (0x%08x)\n", rc, rc);
+					free(array);
+					break;
+				}
+				printf("success with rc=%d (0x%08x)\n", rc, rc);
+				free(array);
+
+			} else {
+				char *p;
+				struct rpc_db_set_path_value set_value = {
+					.path  = what,
+					.value = {
+						.code = AVP_UNKNOWN,
+						.vendor_id = VP_TRAVELPING,
+					},
+				};
+
+				if ((p = strchr(what, '=')))
+					*p++ = '\0';
+
+				set_value.value.data = p ? : "";
+				set_value.value.size = strlen(set_value.value.data);
+
+				if ((rc = rpc_db_set(socket, 1, &set_value, answer)) != RC_OK) {
+					printf("failed with rc=%d (0x%08x)\n", rc, rc);
+					break;
+				}
+			}
+			break;
+
 		case DMCTRL_ADD: {
 			uint16_t instance = DM_ADD_INSTANCE_AUTO;
 

@@ -67,6 +67,7 @@ enum {
 	__F_MAP_ID,
 	__F_VERSION,
 	__F_DATETIME,
+	__F_ARRAY,
 };
 
 #define F_READ		(1 << __F_READ)
@@ -83,6 +84,7 @@ enum {
 #define F_MAP_ID	(1 << __F_MAP_ID)
 #define F_VERSION	(1 << __F_VERSION)
 #define F_DATETIME	(1 << __F_DATETIME)
+#define F_ARRAY		(1 << __F_ARRAY)
 
 enum {
 	__IDX_UNIQUE = 0,

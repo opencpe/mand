@@ -327,6 +327,9 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
         flags.append('F_GET')
     if setter:
         flags.append('F_SET')
+    # set write and array flag for leaf lists
+    if counter == -1 or child.keyword == 'leaf-list':
+        flags.append('F_ARRAY')
 
     field_counter = 1
     #-1 for leaf-list

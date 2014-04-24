@@ -321,6 +321,11 @@
 		<avp name="Name" code="1034" vendor-id="18681">
 			<type type-name="ASCIIString"/>
 		</avp>
+		<avp name="Array" code="1035" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
 
 		<!-- start and switch session requests may contain two timeval AVPs -->
 		<avp name="Timeout-Session" code="1040" vendor-id="18681">
