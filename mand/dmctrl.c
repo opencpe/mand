@@ -261,6 +261,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 
 	if (!(answer = talloc_zero(socket, DM2_AVPGRP)))
 		return RC_ERR_ALLOC;
+	answer->ctx = answer;
 
 	if ((rc = rpc_startsession(socket, CMD_FLAG_READWRITE, 10, answer)) != RC_OK) {
 		ev_break(socket->ev, EVBREAK_ONE);
@@ -475,6 +476,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			fprintf(stderr, "Oops\n");
 			break;
 	}
+	talloc_free(answer);
 
 	rpc_endsession(socket);
 
