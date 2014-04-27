@@ -265,6 +265,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 
 	if ((rc = rpc_startsession(socket, CMD_FLAG_READWRITE, 10, answer)) != RC_OK) {
 		ev_break(socket->ev, EVBREAK_ONE);
+		talloc_free(answer);
 
 		return rc;
 	}
@@ -487,7 +488,6 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 
 int dmctrl(int argc, char **argv)
 {
-	struct ev_loop *loop = EV_DEFAULT;
 	uint32_t rc;
 	DMCONTEXT *ctx;
 
@@ -496,18 +496,18 @@ int dmctrl(int argc, char **argv)
 	if (!(ctx = dm_context_new()))
 		return RC_ERR_ALLOC;
 
-	dm_context_init(ctx, loop, stype, NULL, dmctrl_connect_cb, NULL);
+	dm_context_init(ctx, EV_DEFAULT_ stype, NULL, dmctrl_connect_cb, NULL);
 
 	/* connect */
 	if ((rc = dm_connect_async(ctx)) != RC_OK)
 		goto abort;
 
-	ev_run(loop, 0);
+	ev_run(EV_DEFAULT_ 0);
 
  abort:
 	dm_context_shutdown(ctx, DMCONFIG_ERROR_CONNECTING);
 	dm_context_release(ctx);
-	ev_loop_destroy(loop);
+	ev_loop_destroy(EV_DEFAULT);
 
 	return rc;
 }
