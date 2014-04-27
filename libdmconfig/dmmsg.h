@@ -5,6 +5,10 @@
 #ifndef __DMMSG_H
 #define __DMMSG_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -14,6 +18,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
+
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
 
 #include "libdmconfig/codes.h"
 
@@ -72,7 +82,7 @@ typedef struct dm2_avpgrp {
 	size_t pos;
 } DM2_AVPGRP;
 
-#define DM2_AVPGRP_INITIALIZER {NULL, NULL, 0, 0}
+#define DM2_AVPGRP_INITIALIZER {talloc_new(NULL), NULL, 0, 0}
 
 typedef struct dm2_request {
 	struct {
@@ -136,6 +146,12 @@ static inline struct timeval dm_get_timeval_avp(const void *src);
 /*
 int dm_init_packet(void *ctx, DM_PACKET **packet, DM2_AVPGRP *grp, void *data, size_t len) __attribute__((nonnull (1,2,3,4)));
 */
+
+DM2_AVPGRP *dm_new_avpgrp(void *ctx);
+void dm_free_avpgrp(DM2_AVPGRP *grp);
+
+void dm_initialize_avpgrp(void *ctx, DM2_AVPGRP *grp);
+void dm_release_avpgrp(DM2_AVPGRP *grp);
 
 void dm_init_packet(DM_PACKET *packet, DM2_AVPGRP *grp) __attribute__((nonnull (1,2)));
 void dm_init_avpgrp(void *ctx, void *data, size_t size, DM2_AVPGRP *grp) __attribute__((nonnull (4)));

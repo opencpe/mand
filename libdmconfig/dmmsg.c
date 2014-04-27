@@ -49,6 +49,35 @@ dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t 
 
 /* API v2 */
 
+/* AVPGRP memory functions */
+DM2_AVPGRP *dm_new_avpgrp(void *ctx)
+{
+	DM2_AVPGRP *grp;
+
+	if (!(grp = talloc_zero(ctx, DM2_AVPGRP)))
+		return NULL;
+	grp->ctx = grp;
+
+	return grp;
+}
+
+void dm_free_avpgrp(DM2_AVPGRP *grp)
+{
+	talloc_free(grp);
+}
+
+void dm_initialize_avpgrp(void *ctx, DM2_AVPGRP *grp)
+{
+	if (!ctx)
+		ctx = talloc_new(NULL);
+	grp->ctx = ctx;
+}
+
+void dm_release_avpgrp(DM2_AVPGRP *grp)
+{
+	talloc_free(grp->ctx);
+}
+
 /* decoder functions */
 
 void

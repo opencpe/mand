@@ -5,10 +5,6 @@
 #ifndef __DMCONTEXT_H
 #define __DMCONTEXT_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -21,12 +17,6 @@
 #include <unistd.h>
 #include <sys/queue.h>
 #include <ev.h>
-
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
 
 #include "dmmsg.h"
 #include "libdmconfig/codes.h"
@@ -155,9 +145,9 @@ struct async_reply {
 
 void dm_context_init(DMCONTEXT *dmCtx, struct ev_loop *base, int type,void *userdata, DMCONFIG_CONNECTION_CB connection_cb, DMCONFIG_CB request_cb);
 
-static inline DMCONTEXT *dm_context_new(void);
-static inline void dm_context_reference(DMCONTEXT *dmCtx);
-static inline int dm_context_release(DMCONTEXT *dmCtx);
+DMCONTEXT *dm_context_new(void);
+void dm_context_reference(DMCONTEXT *dmCtx);
+int dm_context_release(DMCONTEXT *dmCtx);
 
 static inline int dm_context_get_socket(DMCONTEXT *dmCtx);
 static inline void dm_context_set_sessionid(DMCONTEXT *dmCtx, uint32_t sessionid);
@@ -183,51 +173,6 @@ static inline uint32_t dm_enqueue_request(DMCONTEXT *socket, DM2_REQUEST *req, D
 void dm_async_cb(DMCONTEXT *socket, DMCONFIG_EVENT event, DM2_AVPGRP *grp, void *userdata);
 
 /* context manipulation */
-
-/** allocate and initialize a new socket context
- *
- * @param [in] dmCtx          Pointer to socket context to work on
- * @param [in] base           libev event_base to use for this context
- *
- * @ingroup API
- */
-static inline DMCONTEXT*
-dm_context_new()
-{
-	return talloc(NULL, DMCONTEXT);
-}
-
-/** aquire a reference to a socket context
- *
- * @param [in] dmCtx          Pointer to socket context to work on
- *
- * @ingroup API
- */
-static inline void
-dm_context_reference(DMCONTEXT *dmCtx)
-{
-	dmCtx->_ref++;
-}
-
-/** release a socket context
- *
- * @param [in] dmCtx          Pointer to socket context to work on
- *
- * @ingroup API
- */
-static inline int
-dm_context_release(DMCONTEXT *dmCtx)
-{
-	int r;
-
-	dmCtx->_ref--;
-	r = dmCtx->_ref;
-
-	if (dmCtx->_ref == 0)
-		talloc_free(dmCtx);
-
-	return r;
-}
 
 /** get the socket from a socket context
  *

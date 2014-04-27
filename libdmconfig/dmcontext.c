@@ -100,6 +100,51 @@ connection_error(DMCONTEXT *socket, DMCONFIG_EVENT event)
 	dm_context_shutdown(socket, event);
 }
 
+/** allocate and initialize a new socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ * @param [in] base           libev event_base to use for this context
+ *
+ * @ingroup API
+ */
+DMCONTEXT*
+dm_context_new()
+{
+	return talloc(NULL, DMCONTEXT);
+}
+
+/** aquire a reference to a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ *
+ * @ingroup API
+ */
+void
+dm_context_reference(DMCONTEXT *dmCtx)
+{
+	dmCtx->_ref++;
+}
+
+/** release a socket context
+ *
+ * @param [in] dmCtx          Pointer to socket context to work on
+ *
+ * @ingroup API
+ */
+int
+dm_context_release(DMCONTEXT *dmCtx)
+{
+	int r;
+
+	dmCtx->_ref--;
+	r = dmCtx->_ref;
+
+	if (dmCtx->_ref == 0)
+		talloc_free(dmCtx);
+
+	return r;
+}
+
 /** shut down the socket in a socket context
  *
  * @param [in] dmCtx          Pointer to socket context to work on

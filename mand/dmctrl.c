@@ -259,13 +259,12 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 	if (event != DMCONFIG_CONNECTED)
 		return RC_OK;
 
-	if (!(answer = talloc_zero(socket, DM2_AVPGRP)))
+	if (!(answer = dm_new_avpgrp(socket)))
 		return RC_ERR_ALLOC;
-	answer->ctx = answer;
 
 	if ((rc = rpc_startsession(socket, CMD_FLAG_READWRITE, 10, answer)) != RC_OK) {
 		ev_break(socket->ev, EVBREAK_ONE);
-		talloc_free(answer);
+		dm_free_avpgrp(answer);
 
 		return rc;
 	}
@@ -479,7 +478,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			fprintf(stderr, "Oops\n");
 			break;
 	}
-	talloc_free(answer);
+	dm_free_avpgrp(answer);
 
 	rpc_endsession(socket);
 
