@@ -1328,8 +1328,12 @@ rpc_db_list(void *data __attribute__((unused)), int level, dm_selector path, DM2
 	list_ctx.req = answer;
 	list_ctx.max_level = level ? : DM_SELECTOR_LEN;
 
-	if (!dm_walk_by_selector_cb(path, level ? level + 1 : DM_SELECTOR_LEN, &list_ctx, dmconfig_list_cb))
-		return RC_ERR_MISC;
+	if (path[0]) {
+		if (!dm_walk_by_selector_cb(path, level ? level + 1 : DM_SELECTOR_LEN, &list_ctx, dmconfig_list_cb))
+			return RC_ERR_MISC;
+	} else
+		if (!dm_walk_table_cb(level ? level + 1 : DM_SELECTOR_LEN, &list_ctx, dmconfig_list_cb, &dm_root, dm_value_store))
+			return RC_ERR_MISC;
 
 	return RC_OK;
 }

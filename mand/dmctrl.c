@@ -284,7 +284,9 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			break;
 		}
 		case DMCTRL_LIST: {
-			if ((rc = rpc_db_list(socket, 0, what, answer)) != RC_OK) {
+			char *path = what ? what : "";
+
+			if ((rc = rpc_db_list(socket, 0, path, answer)) != RC_OK) {
 				printf("failed with rc=%d (0x%08x)\n", rc, rc);
 				break;
 			}

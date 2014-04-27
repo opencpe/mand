@@ -347,6 +347,9 @@ dm_name2sel(const char *name, dm_selector *sel)
 	memset(sel, 0, sizeof(dm_selector));
 	st_type = T_TOKEN;
 
+	if (!name || !*name)
+		return sel;
+
 	for (i = 0; i < DM_SELECTOR_LEN && kw; i++) {
 
 		dm_id id = next_token(&s, kw, st_type);
