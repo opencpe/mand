@@ -453,7 +453,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			break;
 		}
 		case DMCTRL_COMMIT:
-			if (rpc_db_commit(socket, answer) == RC_OK) {
+			if (rpc_db_save(socket, answer) == RC_OK) {
 				printf("success\n");
 			} else
 				printf("failed\n");
