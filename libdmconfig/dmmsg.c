@@ -35,13 +35,13 @@ dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t 
 		if (len < sizeof(struct in_addr) + 2 || size < sizeof(struct in_addr))
 			return 1;
 		*af = AF_INET;
-		*(struct in_addr *)addr = *(struct in_addr *)(((uint8_t *)src) + 2);
+		memcpy(addr, src + 2, sizeof(struct in_addr));
 		return sizeof(struct in_addr);
 	} else if(*(uint16_t *)src == htons(IANA_INET6)) {
 		if (len < sizeof(struct in6_addr) + 2 || size < sizeof(struct in6_addr))
 			return 1;
 		*af = AF_INET6;
-		*(struct in6_addr *)addr = *(struct in6_addr *)(((uint8_t *)src) + 2);
+		memcpy(addr, src + 2, sizeof(struct in6_addr));
 		return sizeof(struct in6_addr);
 	} else
 		return 0;
@@ -300,11 +300,11 @@ dm_add_address(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int af, cons
 
 	if(af == AF_INET) {
 		addr.af = htons(IANA_INET);
-		addr.in = *(struct in_addr *)data;
+		memcpy(&addr.in, data, sizeof(addr.in));
 		return dm_put_avp(req, code, vendor_id, &addr, sizeof(struct in_addr) + 2);
 	} else if(af == AF_INET6) {
 		addr.af = htons(IANA_INET6);
-		addr.in6 = *(struct in6_addr *)data;
+		memcpy(&addr.in6, data, sizeof(addr.in6));
 		return dm_put_avp(req, code, vendor_id, &addr, sizeof(struct in6_addr) + 2);
 	} else
 		return RC_ERR_INVALID_AVP_TYPE;

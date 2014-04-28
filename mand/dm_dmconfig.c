@@ -1875,7 +1875,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 		printf("IPV6 Addr\n");
 
 		if (dm_expect_object(&grp, &addr) != RC_OK
-		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  (struct in_addr *)&iaddr, sizeof(iaddr)) != RC_OK
+		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family, (struct in_addr *)&iaddr, sizeof(iaddr)) != RC_OK
 		    || dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
 		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
 		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &status) != RC_OK
