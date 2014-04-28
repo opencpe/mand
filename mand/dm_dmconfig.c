@@ -1956,9 +1956,17 @@ int set_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __a
 						  DM_VALUE *st __attribute__((unused)),
 						  DM_VALUE val __attribute__((unused)))
 {
+	struct timeval tv;
+
 	*st = val;
 
+	memset(&tv, 0, sizeof(tv));
+	tv.tv_sec = DM_TICKS(*st) / 10;
+
 	fprintf(stderr, "Set DateTime to %"PRItick"\n", DM_TICKS(*st));
+
+	settimeofday(&tv, NULL);
+
 	return 0;
 }
 
