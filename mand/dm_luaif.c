@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include <unistd.h>
 
@@ -34,7 +35,6 @@
 #include "dm_luaif.h"
 #include "dm_lua.h"
 #include "dm_token.h"
-#include "dm_cfgsessions.h"
 #include "dm_cache.h"
 #include "dm_strings.h"
 #include "dm_store.h"
@@ -81,10 +81,12 @@ static DM_RESULT luaif_set_cb(void *data, const dm_selector sel,
 static DM_RESULT luaif_get_cb(void *data,
 			      const dm_selector sb __attribute__((unused)),
 			      const struct dm_element *elem,
+			      int st_type,
 			      const DM_VALUE val);
 static DM_RESULT luaif_retrieve_enums_cb(void *data,
 					 const dm_selector sb __attribute__((unused)),
 					 const struct dm_element *elem,
+					 int st_type,
 					 const DM_VALUE val __attribute__((unused)));
 static int luaif_list_cb(void *data, CB_type type, dm_id id,
 			 const struct dm_element *elem,
@@ -165,6 +167,7 @@ LUA_SIG(configure)
 
 	luaL_argcheck(L, !top, top, L_NUMBER);
 
+#if 0
 	if (getCfgSessionStatus() != CFGSESSION_INACTIVE)
 		lua_pushinteger(L, DM_ERROR);
 	else {
@@ -172,6 +175,7 @@ LUA_SIG(configure)
 
 		lua_pushinteger(L, DM_OK);
 	}
+#endif
 
 	return 1;
 }
@@ -182,6 +186,7 @@ LUA_SIG(terminate)
 
 	luaL_argcheck(L, !top, top, L_NUMBER);
 
+#if 0
 	if (getCfgSessionStatus() != CFGSESSION_ACTIVE_LUAIF)
 		lua_pushinteger(L, DM_ERROR);
 	else {
@@ -189,6 +194,7 @@ LUA_SIG(terminate)
 
 		lua_pushinteger(L, DM_OK);
 	}
+#endif
 
 	return 1;
 }
@@ -199,6 +205,7 @@ LUA_SIG(commit)
 
 	luaL_argcheck(L, !top, top, L_NUMBER);
 
+#if 0
 	if (getCfgSessionStatus() != CFGSESSION_ACTIVE_LUAIF ||
 	    cache_validate())
 		lua_pushinteger(L, DM_ERROR);
@@ -207,6 +214,7 @@ LUA_SIG(commit)
 
 		lua_pushinteger(L, DM_OK);
 	}
+#endif
 
 	return 1;
 }
@@ -217,6 +225,7 @@ LUA_SIG(cancel)
 
 	luaL_argcheck(L, !top, top, L_NUMBER);
 
+#if 0
 	if (getCfgSessionStatus() != CFGSESSION_ACTIVE_LUAIF)
 		lua_pushinteger(L, DM_ERROR);
 	else {
@@ -224,6 +233,7 @@ LUA_SIG(cancel)
 
 		lua_pushinteger(L, DM_OK);
 	}
+#endif
 
 	return 1;
 }
@@ -236,6 +246,7 @@ LUA_SIG(save)
 
 	luaL_argcheck(L, !top, top, L_NUMBER);
 
+#if 0
 	if (getCfgSessionStatus() == CFGSESSION_ACTIVE_LUAIF &&
 	    !cache_is_empty())
 		lua_pushinteger(L, DM_ERROR);
@@ -244,6 +255,7 @@ LUA_SIG(save)
 
 		lua_pushinteger(L, DM_OK);
 	}
+#endif
 
 	return 1;
 }
@@ -543,10 +555,10 @@ luaif_tvpair_to_value(lua_State *L, uint32_t type,
 }
 
 static DM_RESULT
-luaif_set_cb(void *data, const dm_selector sel,
+luaif_set_cb(void *data, const dm_selector sel __attribute__((unused)),
 	     const struct dm_element *elem,
-	     struct dm_value_table *base,
-	     const void *value __attribute__((unused)), DM_VALUE *st)
+	     struct dm_value_table *base __attribute__((unused)),
+	     const void *value __attribute__((unused)), DM_VALUE *st __attribute__((unused)))
 {
 	lua_State	*L = data;
 	DM_VALUE	new_value;
@@ -555,6 +567,7 @@ luaif_set_cb(void *data, const dm_selector sel,
 	if ((r = luaif_tvpair_to_value(L, lua_tointeger(L, -3), elem, &new_value)) != DM_OK)
 		return r;
 
+#if 0
 	if (getCfgSessionStatus() == CFGSESSION_ACTIVE_LUAIF) {
 		st->flags |= DV_UPDATE_PENDING;
 		DM_parity_update(*st);
@@ -565,6 +578,7 @@ luaif_set_cb(void *data, const dm_selector sel,
 		r = dm_overwrite_any_value_by_selector(sel, elem->type,
 							  new_value, -1);
 	}
+#endif
 
 	return r;
 }
@@ -622,7 +636,7 @@ LUA_SIG(set)
 
 static DM_RESULT
 luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
-	     const struct dm_element *elem, const DM_VALUE val)
+	     const struct dm_element *elem, int st_type __attribute__((unused)), const DM_VALUE val)
 {
 	lua_State	*L = data;
 	int 		type = lua_tointeger(L, -4);
@@ -760,7 +774,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 			type = AVP_BINARY;
 		case AVP_BINARY:
 			if (DM_BINARY(val))
-				lua_pushlstring(L, DM_BINARY(val)->data, DM_BINARY(val)->len);
+				lua_pushlstring(L, (const char *)DM_BINARY(val)->data, DM_BINARY(val)->len);
 			else
 				lua_pushstring(L, "");
 
@@ -905,9 +919,13 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 LUA_SIG(get)
 {
 	int top = lua_gettop(L);
+#if 0
 	GET_BY_SELECTOR_CB get_value = getCfgSessionStatus() == CFGSESSION_ACTIVE_LUAIF ?
 					dm_cache_get_value_by_selector_cb :
 					dm_get_value_by_selector_cb;
+#else
+	GET_BY_SELECTOR_CB get_value = dm_get_value_by_selector_cb;
+#endif
 
 	luaL_argcheck(L, top == 1, top, L_NUMBER);
 	luaL_argcheck(L, lua_istable(L, 1), 1, L_TYPE);
@@ -971,6 +989,7 @@ static DM_RESULT
 luaif_retrieve_enums_cb(void *data,
 			const dm_selector sb __attribute__((unused)),
 			const struct dm_element *elem,
+			int st_type __attribute__((unused)),
 			const DM_VALUE val __attribute__((unused)))
 {
 	lua_State		*L = data;
@@ -1028,10 +1047,11 @@ LUA_SIG(retrieve_enums)
  * FIXME: update so it is API-compatible with dmconfig's new recursive list
  */
 static int
-luaif_list_cb(void *data, CB_type type, dm_id id,
-	      const struct dm_element *elem,
+luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((unused)), dm_id id __attribute__((unused)),
+	      const struct dm_element *elem __attribute__((unused)),
 	      const DM_VALUE value __attribute__((unused)))
 {
+#if 0
 	lua_State	*L = data;
 	int		cnt;
 
@@ -1143,6 +1163,7 @@ luaif_list_cb(void *data, CB_type type, dm_id id,
 	lua_settable(L, -3);
 	lua_pushinteger(L, cnt + 1);	/* update array index counter */
 
+#endif
 	return 1;
 }
 
@@ -1520,8 +1541,10 @@ fp_Lua_function(const char *name, int nargs)
 		return r == LUA_ERRRUN ? DM_ERROR : DM_OOM;
 	}
 
+#if 0
 	if (getCfgSessionStatus() == CFGSESSION_ACTIVE_LUAIF)
 		setCfgSessionStatus(CFGSESSION_INACTIVE);
+#endif
 
 	if (lua_isnil(L, -1)) {
 		lua_pop(L, 1);

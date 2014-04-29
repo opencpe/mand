@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -69,11 +70,13 @@ int str2ticks(const char *s, ticks_t *p)
 
 		if (*zone == '.') {
 			char *end;
+			double frac;
 
 			errno = 0;
-			tks = strtol(zone + 1, &end, 10);
+			frac = strtod(zone, &end);
 			if (errno != 0)
 				return -1;
+			tks = rint(frac * 10.0);
 			s = end;
 		} else
 			s = zone;
@@ -127,7 +130,7 @@ int str2ticks(const char *s, ticks_t *p)
 DM_RESULT
 dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_update, DM_VALUE *value)
 {
-	uint8_t		updated;
+	uint8_t		updated = 0;
 	DM_RESULT	res = DM_OK;
 
 	if (!elem || !str || !value)
@@ -143,7 +146,7 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 
 		case T_BINARY:
 			/* FIXME: this is not entirely correct */
-			res = dm_set_binary_data(value, strlen(str), str);
+			res = dm_set_binary_data(value, strlen(str), (const uint8_t *)str);
 			break;
 
 		case T_BASE64: {
@@ -157,8 +160,8 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 			if (!n)
 				return DM_OOM;
 
-			debug(": base64 string: %d, buffer: %d", strlen(str), len);
-			n->len = dm_from64(str, n->data);
+			debug(": base64 string: %zd, buffer: %d", strlen(str), len);
+			n->len = dm_from64((const unsigned char *)str, n->data);
 			debug(": base64 result: %d", n->len);
 			updated = dm_binarycmp(DM_BINARY(*value), n) != 0;
 			res = dm_set_binary_value(value, n);
@@ -307,14 +310,16 @@ dm_string2value(const struct dm_element *elem, const char *str, uint8_t set_upda
 			ticks_t	val;
 			char	*endl;
 
-			val = (ticks_t)strtoul(str, &endl, 10);
-			if (*endl)
-				res = DM_INVALID_TYPE;
-			else {
-				updated = DM_TICKS(*value) != val;
-				set_DM_TICKS(*value, val);
+			if (str2ticks(str, &val) < 0) {
+				val = (ticks_t)strtoul(str, &endl, 10);
+				if (*endl) {
+					res = DM_INVALID_TYPE;
+					break;
+				}
 			}
 
+			updated = DM_TICKS(*value) != val;
+			set_DM_TICKS(*value, val);
 			break;
 		}
 		default:	/* unsupported type including T_COUNTER */
@@ -341,6 +346,9 @@ dm_name2sel(const char *name, dm_selector *sel)
 
 	memset(sel, 0, sizeof(dm_selector));
 	st_type = T_TOKEN;
+
+	if (!name || !*name)
+		return sel;
 
 	for (i = 0; i < DM_SELECTOR_LEN && kw; i++) {
 

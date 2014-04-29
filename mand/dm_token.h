@@ -22,7 +22,6 @@
 #include <netinet/ip.h>
 
 #include "dm.h"
-#include "dm_action_table.h"
 
 enum {
 	T_NONE      = 0x00,
@@ -68,6 +67,7 @@ enum {
 	__F_MAP_ID,
 	__F_VERSION,
 	__F_DATETIME,
+	__F_ARRAY,
 };
 
 #define F_READ		(1 << __F_READ)
@@ -84,6 +84,7 @@ enum {
 #define F_MAP_ID	(1 << __F_MAP_ID)
 #define F_VERSION	(1 << __F_VERSION)
 #define F_DATETIME	(1 << __F_DATETIME)
+#define F_ARRAY		(1 << __F_ARRAY)
 
 enum {
 	__IDX_UNIQUE = 0,
@@ -139,7 +140,7 @@ enum {
 
 typedef struct {
 	unsigned int len;
-	char         data[];
+	uint8_t      data[];
 } binary_t;
 
 #define MAGIC_TYPE unsigned int
@@ -301,7 +302,7 @@ typedef struct {
 
 #define DM_TABLE(val)           ({ const DM_VALUE _v = (val); DM_type_assert(_v, T_TOKEN); assert_struct_magic_start(_v._v.table, TABLE_MAGIC); _v._v.table; })
 #define DM_TABLE_REF(val)       ({ DM_type_assert(val, T_TOKEN); assert_struct_magic_start((val)._v.table, TABLE_MAGIC); &(val)._v.table; })
-#define set_DM_TABLE(val, t)    { assert_struct_magic_start(t, TABLE_MAGIC); (val)._v.table = t; _set_DM_type(val, T_TOKEN); }
+#define set_DM_TABLE(val, t)    { typeof(t) t_ = (t); assert_struct_magic_start(t_, TABLE_MAGIC); (val)._v.table = t_; _set_DM_type(val, T_TOKEN); }
 
 #define DM_INSTANCE(val)        ({ DM_type_assert(val, T_OBJECT); &(val)._v.instance; })
 #define DM_NODE(val)            ({ DM_type_assert(val, T_INSTANCE); assert_struct_magic((val)._v.node, NODE_MAGIC); (val)._v.node; })
@@ -352,7 +353,7 @@ struct dm_table;
 
 struct dm_value_fkts {
 	int (*validate)(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE, unsigned int *, char **);
-	DM_VALUE (*get)(const struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);
+	DM_VALUE (*get)(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);
 	int (*set)(struct dm_value_table *,dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);
 };
 
@@ -384,7 +385,7 @@ struct dm_element {
 	char *key;
 	unsigned short type;
 	uint16_t flags;
-	enum dm_actions action;
+	uint16_t action;
 	union {
 		const struct dm_value_fkts value;
 		const struct dm_instance_fkts instance;

@@ -20,7 +20,7 @@
 #include "dm_store_priv.h"
 #include "dm_index.h"
 #include "dm_notify.h"
-#include "dm_cfgsessions.h"
+#include "dm_dmconfig.h"
 
 //#define SDEBUG
 #include "debug.h"
@@ -407,6 +407,7 @@ DM_RESULT dm_set_notify_by_selector_recursive(const dm_selector sel, int slot, i
 
 static void dm_notify(void *data __attribute__ ((unused)), struct notify_queue *queue)
 {
+#if defined(SDEBUG) && !defined(NDEBUG)
 	char buf[MAX_PARAM_NAME_LEN];
 	struct notify_item *item;
 
@@ -417,6 +418,8 @@ static void dm_notify(void *data __attribute__ ((unused)), struct notify_queue *
 		debug("() selector: %s, level: %d, type: %d",
 		      s ? : "NULL", item->level, item->type);
 	}
+#endif
+
 	clear_notify_queue(queue);
 }
 
@@ -425,7 +428,7 @@ static ev_prepare notify_ev;
 static void notify_prepare_cb(EV_P __attribute__ ((unused)), ev_prepare *w __attribute__ ((unused)),
 			      int revents __attribute__ ((unused)))
 {
-        if (getCfgSessionStatus() == CFGSESSION_INACTIVE) {
+        if (!cfg_session_id) {
 		debug(": exec_pending_notifications");
                 exec_pending_notifications();
 	}

@@ -78,6 +78,10 @@
 			<!-- TODO -->
 		</command>
 
+		<command name="Register-Role" code="350">
+			<!-- TODO -->
+		</command>
+
 		<!-- a number of possible actions can be achieved by sending empty
 			 dmconfig headers
 			 there's no need in complicating the protocol (except if someday, you want to
@@ -90,6 +94,13 @@
 			<!-- TODO -->
 		</command>
 
+		<command name="System-Restart" code="400">
+			<!-- TODO -->
+		</command>
+		<command name="System-Shutdown" code="401">
+			<!-- TODO -->
+		</command>
+
 		<!-- command codes accepted by clients -->
 		<command name="Client-Active-Notify" code="1000">
 			<!-- TODO -->
@@ -97,6 +108,21 @@
 		<command name="Client-Event-Broadcast" code="1001">
 			<!-- TODO -->
 		</command>
+		<command name="Client-Get-Interface-State" code="1002">
+			<!-- TODO -->
+		</command>
+
+		<!-- OpenCPE Commands -->
+		<command name="Firmware-Download" code="2000">
+			<!-- TODO -->
+		</command>
+		<command name="Firmware-Commit" code="2001">
+			<!-- TODO -->
+		</command>
+		<command name="Set-Boot-Order" code="2002">
+			<!-- TODO -->
+		</command>
+
 
 		<!-- PAYLOAD TYPES -->
 
@@ -179,17 +205,22 @@
 			<type type-name="Enumerated"/>
 
 			<enum name="RC-OK"                          code="0"/>
-			<enum name="RC-Err-Connection"              code="4"/>
-			<enum name="RC-Err-Misc"                    code="5"/> <!-- protocol issues (mostly...) -->
-			<enum name="RC-Err-Alloc"                   code="6"/>
-			<enum name="RC-Err-Invalid-SessionId"       code="11"/>
-			<enum name="RC-Err-Requires-CfgSession"     code="12"/>
-			<enum name="RC-Err-Cannot-Open-CfgSession"  code="13"/>
-			<enum name="RC-Err-Cannot-Subscribe-Notify" code="14"/>
-			<enum name="RC-Err-Requires-Notify"         code="15"/>
-			<enum name="RC-Err-Timeout"                 code="16"/>
-			<enum name="RC-Err-Operation-In-Progress"   code="17"/>
-			<enum name="RC-Err-Hostname-Resolution"     code="18"/>
+			<enum name="RC-Err-Connection"              code="0x8001"/>
+			<enum name="RC-Err-Misc"                    code="0x8002"/> <!-- protocol issues (mostly...) -->
+			<enum name="RC-Err-Alloc"                   code="0x8003"/>
+			<enum name="RC-Err-Invalid-AVP-Length"      code="0x8004"/>
+			<enum name="RC-Err-AVP-Misformed"           code="0x8005"/>
+			<enum name="RC-Err-AVP-End"                 code="0x8006"/>
+			<enum name="RC-Err-Invalid-SessionId"       code="0x8007"/>
+			<enum name="RC-Err-Requires-CfgSession"     code="0x8008"/>
+			<enum name="RC-Err-Cannot-Open-CfgSession"  code="0x8009"/>
+			<enum name="RC-Err-Cannot-Subscribe-Notify" code="0x800A"/>
+			<enum name="RC-Err-Requires-Notify"         code="0x800B"/>
+			<enum name="RC-Err-Timeout"                 code="0x800C"/>
+			<enum name="RC-Err-Operation-In-Progress"   code="0x800D"/>
+			<enum name="RC-Err-Hostname-Resolution"     code="0x800E"/>
+			<enum name="RC-Err-Invalid-AVP-Type"        code="0x800F"/>
+			<enum name="RC-Err-Value-Not-Found"         code="0x8010"/>
 		</avp>
 
 		<avp name="SessionId" code="1013" vendor-id="18681">
@@ -206,6 +237,14 @@
 			<enum name="Notify-Parameter-Changed" code="1"/>
 			<enum name="Notify-Instance-Deleted"  code="2"/>
 			<enum name="Notify-Instance-Created"  code="3"/>
+		</avp>
+
+		<avp name="Notify-Level" code="1022" vendor-id="18681">
+			<type type-name="Enumerated"/>
+
+			<enum name="Notify-None"    code="0"/>
+			<enum name="Notify-Passive" code="1"/>
+			<enum name="Notify-Active"  code="2"/>
 		</avp>
 
 		<!-- SPECIAL "UNKNOWN" TYPE AVP -->
@@ -259,21 +298,33 @@
 		<!-- REQUEST SPECIFIC AVPS -->
 
 		<!-- AVP_CONTAINERs returned by a LIST request contain the following AVPs -->
-		<avp name="Node-Name" code="1030" vendor-id="18681">
+		<avp name="Table" code="1030" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Instance" code="1031" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Object" code="1032" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Element" code="1033" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
+		</avp>
+		<avp name="Name" code="1034" vendor-id="18681">
 			<type type-name="ASCIIString"/>
 		</avp>
-		<avp name="Node-Type" code="1031" vendor-id="18681">
-			<type type-name="Enumerated"/>
-
-			<enum name="Node-Object"    code="1"/>
-			<enum name="Node-Table"     code="2"/>
-			<enum name="Node-Parameter" code="3"/>
-		</avp>
-		<avp name="Node-DataType" code="1032" vendor-id="18681">
-			<type type-name="Type"/>
-		</avp>
-		<avp name="Node-Size" code="1033" vendor-id="18681">
-			<type type-name="Unsigned32"/>
+		<avp name="Array" code="1035" vendor-id="18681">
+			<grouped>
+				<avprule name="AVP"/>
+			</grouped>
 		</avp>
 
 		<!-- start and switch session requests may contain two timeval AVPs -->
@@ -317,6 +368,13 @@
 		</avp>
 		<avp name="UInt64" code="2207" vendor-id="18681">
 			<type type-name="Unsigned64"/>
+		</avp>
+
+		<avp name="Ticks" code="2208" vendor-id="18681">
+			<type type-name="Integer64"/>
+		</avp>
+		<avp name="Type" code="2209" vendor-id="18681">
+			<type type-name="Integer32"/>
 		</avp>
 	</base>
 

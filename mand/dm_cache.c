@@ -6,6 +6,7 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
 #include <sys/tree.h>
 
 #define SDEBUG
@@ -196,7 +197,7 @@ DM_VALUE dm_cache_get_any_value_by_selector(const dm_selector sel, int type)
 }
 
 DM_RESULT dm_cache_get_value_by_selector_cb(const dm_selector sel, int type, void *userData,
-					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, const DM_VALUE))
+					    DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, int st_type, const DM_VALUE))
 {
 	struct dm_element_ref ref;
 
@@ -222,11 +223,11 @@ DM_RESULT dm_cache_get_value_by_selector_cb(const dm_selector sel, int type, voi
 				return DM_VALUE_NOT_FOUND;
 
 			DM_parity_assert(i->new_value);
-			return cb(userData, sel, ref.kw_elem, i->new_value);
+			return cb(userData, sel, ref.kw_elem, ref.st_type, i->new_value);
 		}
 
 		DM_VALUE val = dm_get_element_value(type, &ref);
-		return cb(userData, sel, ref.kw_elem, val);
+		return cb(userData, sel, ref.kw_elem, ref.st_type, val);
 	}
 	return DM_VALUE_NOT_FOUND;
 }

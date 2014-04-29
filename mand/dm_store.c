@@ -882,7 +882,7 @@ int dm_get_value_by_selector(const dm_selector sel, int type, void *value)
 }
 
 DM_RESULT dm_get_value_by_selector_cb(const dm_selector sel, int type, void *userData,
-					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, const DM_VALUE))
+					 DM_RESULT (*cb)(void *, const dm_selector, const struct dm_element *, int st_type, const DM_VALUE))
 {
 	struct dm_element_ref ref;
 
@@ -891,7 +891,7 @@ DM_RESULT dm_get_value_by_selector_cb(const dm_selector sel, int type, void *use
 
 	if (dm_get_element_ref(sel, &ref)) {
 		DM_VALUE val = dm_get_element_value(type, &ref);
-		return cb(userData, sel, dm_get_element_from_ref(&ref), val);
+		return cb(userData, sel, dm_get_element_from_ref(&ref), ref.st_type, val);
 	}
 	return DM_VALUE_NOT_FOUND;
 }
@@ -1340,7 +1340,7 @@ int dm_walk_by_selector_cb(const dm_selector sel, int level, void *userData, wal
 	return ret;
 }
 
-const struct dm_table *dm_get_object_table_by_selector(dm_selector sel)
+const struct dm_table *dm_get_object_table_by_selector(const dm_selector sel)
 {
 	struct dm_element_ref ref;
 
@@ -1714,6 +1714,14 @@ void dm_set_ipv4_by_id(struct dm_value_table *ift, dm_id id, struct in_addr val)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_IP4(ift->values[id - 1], val);
+	DM_parity_update(ift->values[id - 1]);
+	__DM_NOTIFY_BY_ID(ift, id);
+}
+
+void dm_set_ipv6_by_id(struct dm_value_table *ift, dm_id id, struct in6_addr val)
+{
+	DM_parity_assert(ift->values[id - 1]);
+	set_DM_IP6(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
 	__DM_NOTIFY_BY_ID(ift, id);
 }

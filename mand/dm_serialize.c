@@ -89,7 +89,7 @@ static int validate_cdata(const char *str, int len)
 	return r;
 }
 
-static void string_escape(FILE *stream, const char *key, const char *nfbuf, const uint8_t *value, int len)
+static void string_escape(FILE *stream, const char *key, const char *nfbuf, const char *value, int len)
 {
 	fprintf(stream, "<%s%s encoding=\"escaped\">", key, nfbuf);
 	while (len) {
@@ -193,10 +193,10 @@ static void serialize_element(FILE *stream,
 
 		case T_DATE: {
 			char buf[40];
-			struct tm tm;
 
 			ticks2str(buf, sizeof(buf), time2ticks(DM_TIME(value)));
 /*
+			struct tm tm;
 			gmtime_r(DM_TIME_REF(value), &tm);
 			strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
 */
@@ -221,10 +221,10 @@ static void serialize_element(FILE *stream,
 			findent(stream, indent); fprintf(stream, "<%s%s>%d</%s>\n", elem->key, nfbuf, DM_INT(value), elem->key);
 			break;
 		case T_UINT64:
-			findent(stream, indent); fprintf(stream, "<%s%s>%llu</%s>\n", elem->key, nfbuf, DM_UINT64(value), elem->key);
+			findent(stream, indent); fprintf(stream, "<%s%s>%"PRIu64"</%s>\n", elem->key, nfbuf, DM_UINT64(value), elem->key);
 			break;
 		case T_INT64:
-			findent(stream, indent); fprintf(stream, "<%s%s>%lld</%s>\n", elem->key, nfbuf, DM_INT64(value), elem->key);
+			findent(stream, indent); fprintf(stream, "<%s%s>%"PRId64"</%s>\n", elem->key, nfbuf, DM_INT64(value), elem->key);
 			break;
 		case T_ENUM:
 			findent(stream, indent); fprintf(stream, "<%s%s>%s</%s>\n",

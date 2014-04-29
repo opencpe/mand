@@ -22,8 +22,6 @@
 #include <stdarg.h>
 #include <syslog.h>
 
-#include <event.h>
-
 #include <features.h>
 #include "dm.h"
 
@@ -46,9 +44,6 @@ void CRYPTO_thread_cleanup(void);
 
 void dm_startup(void)
 {
-	pthread_t tid;
-	struct timeval tv;
-
 #ifdef WITH_OPENSSL
 	if (CRYPTO_thread_setup()) {
 		fprintf(stderr, "Cannot setup crypto thread mutex\n" );

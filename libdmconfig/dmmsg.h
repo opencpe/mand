@@ -5,6 +5,10 @@
 #ifndef __DMMSG_H
 #define __DMMSG_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -13,6 +17,15 @@
 #include <bits/byteswap.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/queue.h>
+
+#ifdef HAVE_TALLOC_TALLOC_H
+# include <talloc/talloc.h>
+#else
+# include <talloc.h>
+#endif
+
+#include "libdmconfig/codes.h"
 
 /* see http://www.iana.org/assignments/address-family-numbers/address-family-numbers.txt */
 #define IANA_INET      1
@@ -36,14 +49,10 @@
 
 #define TIME_SINCE_EPOCH	2208988800
 
+
 		/* structures */
-typedef struct dm_request		DM_REQUEST;
 typedef struct dm_avp			DM_AVP;
-typedef struct dm_avpgrp_info		DM_AVPGRP_INFO;
-typedef struct dm_avpgrp		DM_AVPGRP;
-typedef struct dm_request_info	DM_REQUEST_INFO;
 typedef struct dm_packet		DM_PACKET;
-typedef struct dm_request_head	DM_REQUEST_HEAD;
 typedef struct dm_timeval		DM_TIMEVAL;
 
 struct dm_avp {
@@ -51,24 +60,6 @@ struct dm_avp {
 	uint8_t		flags;
 	uint8_t		length[3];
 	uint32_t	vendor_id;
-} __attribute__ ((packed));
-
-struct dm_avpgrp_info {
-	DM_AVP	*avpptr;
-	uint32_t	size;
-	uint32_t	avps_length;
-} __attribute__ ((packed));
-
-struct dm_avpgrp {
-	DM_AVPGRP_INFO info;
-
-	/* AVP group follows */
-} __attribute__ ((packed));
-
-struct dm_request_info {
-	DM_REQUEST	*next;
-	DM_AVP	*avpptr;
-	uint32_t	size;
 } __attribute__ ((packed));
 
 struct dm_packet {
@@ -79,15 +70,31 @@ struct dm_packet {
 	uint32_t	app_id;
 	uint32_t	hop2hop_id;
 	uint32_t	end2end_id;
+	unsigned char   avps[];
 } __attribute__ ((packed));
 
-struct dm_request {
-	DM_REQUEST_INFO	info;
-	DM_PACKET		packet;
-	/* AVP group follows */
-} __attribute__ ((packed));
+/* Request API v2 */
 
-	/* timeval structure as transmitted in an AVP_TIMEVAL */
+typedef struct dm2_avpgrp {
+	void *ctx;
+	void *data;
+	size_t size;
+	size_t pos;
+} DM2_AVPGRP;
+
+#define DM2_AVPGRP_INITIALIZER {talloc_new(NULL), NULL, 0, 0}
+
+typedef struct dm2_request {
+	struct {
+		size_t start;
+		size_t pos;
+	} grp[16];
+	int level;
+
+	DM_PACKET *packet;
+} DM2_REQUEST;
+
+/* timeval structure as transmitted in an AVP_TIMEVAL */
 struct dm_timeval {
 	uint32_t	tv_sec;		/* maximum size of both fields is 32 bit */
 	uint32_t	tv_usec;
@@ -110,30 +117,6 @@ struct dm_timeval {
 
 		/* function headers */
 
-int get_avp(uint32_t *code, uint8_t *flags, uint32_t *vendor_id,
-	    void **data, size_t *len, DM_AVP **src);
-
-DM_REQUEST *new_dm_request(void *ctx, uint32_t code, uint8_t flags,
-			       uint32_t appid, uint32_t hopid, uint32_t endid);
-int dm_decode_request(void *ctx, DM_REQUEST **req, void *data, size_t len);
-int dm_add_data(DM_REQUEST *req, void *data, size_t len);
-int dm_decode_complete(DM_REQUEST *req);
-
-int build_dm_request(void *ctx, DM_REQUEST **req, DM_AVPGRP *avpgrp);
-DM_AVPGRP *new_dm_avpgrp(void *ctx);
-DM_AVPGRP *dm_decode_avpgrp(void *ctx, void *data, size_t len);
-int dm_avpgrp_add_avpgrp(void *ctx, DM_AVPGRP **avpgrp,
-			   uint32_t code, uint8_t flags, uint32_t vendor_id,
-			   DM_AVPGRP *source);
-int dm_avpgrp_insert_raw(void *ctx, DM_AVPGRP **avpgrp, const void *data, size_t len);
-int dm_avpgrp_add_raw(void *ctx, DM_AVPGRP **avpgrp,
-			uint32_t code, uint8_t flags, uint32_t vendor_id,
-			const void *data, size_t len);
-int dm_avpgrp_add_address(void *ctx, DM_AVPGRP **avpgrp,
-			    uint32_t code, uint8_t flags, uint32_t vendor_id,
-			    int af, const void *data);
-int dm_avpgrp_add_uint32_string(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-				  uint8_t flags, uint32_t vendor_id, uint32_t d1, const char *d2);
 int dm_get_address_avp(int *af, void *addr, socklen_t size, const void *src, size_t len);
 
 static inline uint32_t uint24to32(uint8_t i24[3]);
@@ -146,41 +129,6 @@ static inline uint32_t dm_end2end_id(DM_PACKET *pkt);
 static inline uint32_t dm_hop2hop_id(DM_PACKET *pkt);
 static inline uint32_t dm_avp_length(DM_AVP *avp);
 
-static inline void dm_request_reset_avp(DM_REQUEST *req);
-static inline int dm_request_get_avp(DM_REQUEST *req, uint32_t *code,
-				       uint8_t *flags, uint32_t *vendor_id, void **data, size_t *len);
-
-static inline void dm_avpgrp_reset_avp(DM_AVPGRP *avpgrp);
-static inline int dm_avpgrp_get_avp(DM_AVPGRP *avpgrp, uint32_t *code, uint8_t *flags,
-				      uint32_t *vendor_id, void **data, size_t *len);
-static inline int dm_avpgrp_add_string(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					 uint8_t flags, uint32_t vendor_id, const char *data);
-static inline int dm_avpgrp_add_int8(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-				       uint8_t flags, uint32_t vendor_id, int8_t data);
-static inline int dm_avpgrp_add_uint8(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					uint8_t flags, uint32_t vendor_id, uint8_t data);
-static inline int dm_avpgrp_add_int16(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					uint8_t flags, uint32_t vendor_id, int16_t data);
-static inline int dm_avpgrp_add_uint16(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					 uint8_t flags, uint32_t vendor_id, uint16_t data);
-static inline int dm_avpgrp_add_int32(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					uint8_t flags, uint32_t vendor_id, int32_t data);
-static inline int dm_avpgrp_add_uint32(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					 uint8_t flags, uint32_t vendor_id, uint32_t data);
-static inline int dm_avpgrp_add_uint64(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					 uint8_t flags, uint32_t vendor_id, uint64_t data);
-static inline int dm_avpgrp_add_int64(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					uint8_t flags, uint32_t vendor_id, int64_t data);
-static inline int dm_avpgrp_add_float32(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					  uint8_t flags, uint32_t vendor_id, float data);
-static inline int dm_avpgrp_add_float64(void *ctx, DM_AVPGRP **avpgrp, uint32_t code,
-					  uint8_t flags, uint32_t vendor_id, double data);
-static inline int dm_avpgrp_add_time(void *ctx, DM_AVPGRP **avpgrp, uint32_t code, uint8_t flags,
-				       uint32_t vendor_id, time_t data);
-static inline int dm_avpgrp_add_timeval(void *ctx, DM_AVPGRP **avpgrp,
-					  uint32_t code, uint8_t flags, uint32_t vendor_id,
-					  struct timeval value);
-static inline int dm_avpgrp_insert_avpgrp(void *ctx, DM_AVPGRP **avpgrp, DM_AVPGRP *source);
 
 static inline int dm_get_string_avp(char *dest, size_t dlen, const void *src, size_t slen);
 static inline int8_t dm_get_int8_avp(const void *src);
@@ -194,9 +142,52 @@ static inline uint64_t dm_get_uint64_avp(const void *src);
 static inline time_t dm_get_time_avp(const void *src);
 static inline struct timeval dm_get_timeval_avp(const void *src);
 
-		/* inline functions */
+/* v2 request API */
+/*
+int dm_init_packet(void *ctx, DM_PACKET **packet, DM2_AVPGRP *grp, void *data, size_t len) __attribute__((nonnull (1,2,3,4)));
+*/
 
-		/* operating on dmconfig and AVP headers */
+DM2_AVPGRP *dm_new_avpgrp(void *ctx);
+void dm_free_avpgrp(DM2_AVPGRP *grp);
+
+void dm_initialize_avpgrp(void *ctx, DM2_AVPGRP *grp);
+void dm_release_avpgrp(DM2_AVPGRP *grp);
+
+void dm_init_packet(DM_PACKET *packet, DM2_AVPGRP *grp) __attribute__((nonnull (1,2)));
+void dm_init_avpgrp(void *ctx, void *data, size_t size, DM2_AVPGRP *grp) __attribute__((nonnull (4)));
+uint32_t dm_copy_avpgrp(DM2_AVPGRP *dest, DM2_AVPGRP *src) __attribute__((nonnull (1,2)));
+uint32_t dm_expect_avp(DM2_AVPGRP *grp, uint32_t *code, uint32_t *vendor_id, void **data, size_t *len) __attribute__((nonnull (1,2,3,4,5)));
+
+uint32_t dm_new_packet(void *ctx, DM2_REQUEST *req, uint32_t code, uint8_t flags, uint32_t appid, uint32_t hopid, uint32_t endid) __attribute__((nonnull (2)));
+uint32_t dm_finalize_packet(DM2_REQUEST *req) __attribute__((nonnull (1)));
+uint32_t dm_new_group(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id) __attribute__((nonnull (1)));
+uint32_t dm_finalize_group(DM2_REQUEST *req) __attribute__((nonnull (1)));
+uint32_t dm_put_avp(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, const void *data, size_t len) __attribute__((nonnull (1)));
+
+static inline uint32_t dm_add_object(DM2_REQUEST *req) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_raw(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, const void *data, size_t len) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_string(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, const char *data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_int8(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int8_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_uint8(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint8_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_int16(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int16_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_uint16(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint16_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_int32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int32_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_uint32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint32_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_uint64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint64_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_int64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int64_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_float32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, float data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_float64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, double data);
+static inline uint32_t dm_add_time(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, time_t data) __attribute__((nonnull (1)));
+static inline uint32_t dm_add_timeval(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, struct timeval value) __attribute__((nonnull (1)));
+
+uint32_t dm_add_address(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int af, const void *data);
+uint32_t dm_add_uint32_get_pos(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint32_t value, size_t *pos) __attribute__((nonnull (1)));
+void dm_put_uint32_at_pos(DM2_REQUEST *req, size_t pos, uint32_t value) __attribute__((nonnull (1)));
+
+
+/* inline functions */
+
+/* operating on dmconfig and AVP headers */
 
 static inline uint32_t
 uint24to32(uint8_t i24[3]) {
@@ -245,141 +236,113 @@ dm_avp_length(DM_AVP *avp) {
 	return uint24to32(avp->length);
 }
 
-		/* operating on request and AVP group objects */
-
-static inline void
-dm_request_reset_avp(DM_REQUEST *req) {
-	req->info.avpptr = (DM_AVP*)((uint8_t*)req + sizeof(DM_REQUEST));
+/* inline functions */
+static inline uint32_t
+dm_add_object(DM2_REQUEST *req)
+{
+	return dm_new_group(req, AVP_CONTAINER, VP_TRAVELPING);
 }
 
-static inline int
-dm_request_get_avp(DM_REQUEST *req,
-		     uint32_t *code, uint8_t *flags, uint32_t *vendor_id,
-		     void **data, size_t *len) {
-	return req->info.avpptr < (DM_AVP*)((uint8_t*)req + req->info.size) ?
-	       get_avp(code, flags, vendor_id, data, len, &req->info.avpptr) : 1;
+static inline uint32_t
+dm_add_raw(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, const void *data, size_t len)
+{
+	return dm_put_avp(req, code, vendor_id, data, len);
 }
 
-static inline void
-dm_avpgrp_reset_avp(DM_AVPGRP *avpgrp) {
-	avpgrp->info.avpptr = (DM_AVP*)((uint8_t*)avpgrp + sizeof(DM_AVPGRP));
+static inline uint32_t
+dm_add_string(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, const char *data)
+{
+	return dm_put_avp(req, code, vendor_id, data, strlen(data));
 }
 
-static inline int
-dm_avpgrp_get_avp(DM_AVPGRP *avpgrp,
-		    uint32_t *code, uint8_t *flags, uint32_t *vendor_id,
-		    void **data, size_t *len) {
-	return avpgrp->info.avpptr < (DM_AVP*)((uint8_t*)avpgrp + sizeof(DM_AVPGRP) +
-	       avpgrp->info.avps_length) ? get_avp(code, flags, vendor_id, data, len, &avpgrp->info.avpptr) : 1;
+static inline uint32_t
+dm_add_int8(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int8_t data)
+{
+	return dm_put_avp(req, code, vendor_id, &data, sizeof(data));
 }
 
-static inline int
-dm_avpgrp_add_string(void *ctx, DM_AVPGRP **avpgrp,
-		       uint32_t code, uint8_t flags, uint32_t vendor_id,
-		       const char *data) {
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, data, strlen(data));
+static inline uint32_t
+dm_add_uint8(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint8_t data)
+{
+	return dm_put_avp(req, code, vendor_id, &data, sizeof(data));
 }
 
-static inline int
-dm_avpgrp_add_int8(void *ctx, DM_AVPGRP **avpgrp,
-		     uint32_t code, uint8_t flags, uint32_t vendor_id,
-		     int8_t data) {
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &data, sizeof(data));
-}
-
-static inline int
-dm_avpgrp_add_uint8(void *ctx, DM_AVPGRP **avpgrp,
-		      uint32_t code, uint8_t flags, uint32_t vendor_id,
-		      uint8_t data) {
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &data, sizeof(data));
-}
-
-static inline int
-dm_avpgrp_add_int16(void *ctx, DM_AVPGRP **avpgrp,
-		      uint32_t code, uint8_t flags, uint32_t vendor_id,
-		      int16_t data) {
+static inline uint32_t
+dm_add_int16(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int16_t data)
+{
 	int16_t val = htons(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_uint16(void *ctx, DM_AVPGRP **avpgrp,
-		       uint32_t code, uint8_t flags, uint32_t vendor_id,
-		       uint16_t data) {
+static inline uint32_t
+dm_add_uint16(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint16_t data)
+{
 	uint16_t val = htons(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_int32(void *ctx, DM_AVPGRP **avpgrp,
-		      uint32_t code, uint8_t flags, uint32_t vendor_id,
-		      int32_t data) {
+static inline uint32_t
+dm_add_int32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int32_t data)
+{
 	int32_t val = htonl(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_uint32(void *ctx, DM_AVPGRP **avpgrp,
-		       uint32_t code, uint8_t flags, uint32_t vendor_id,
-		       uint32_t data) {
+static inline uint32_t
+dm_add_uint32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint32_t data)
+{
 	uint32_t val = htonl(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_uint64(void *ctx, DM_AVPGRP **avpgrp,
-		       uint32_t code, uint8_t flags, uint32_t vendor_id,
-		       uint64_t data) {
+static inline uint32_t
+dm_add_uint64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, uint64_t data)
+{
 	uint64_t val = htonll(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_int64(void *ctx, DM_AVPGRP **avpgrp,
-		      uint32_t code, uint8_t flags, uint32_t vendor_id,
-		      int64_t data) {
+static inline uint32_t
+dm_add_int64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, int64_t data)
+{
 	int64_t val = htonll(data);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &val, sizeof(val));
+	return dm_put_avp(req, code, vendor_id, &val, sizeof(val));
 }
 
-static inline int
-dm_avpgrp_add_float32(void *ctx, DM_AVPGRP **avpgrp,
-			uint32_t code, uint8_t flags, uint32_t vendor_id,
-			float data) {
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &data, sizeof(data));
+static inline uint32_t
+dm_add_float32(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, float data)
+{
+	return dm_put_avp(req, code, vendor_id, &data, sizeof(data));
 }
 
-static inline int
-dm_avpgrp_add_float64(void *ctx, DM_AVPGRP **avpgrp,
-			uint32_t code, uint8_t flags, uint32_t vendor_id,
-			double data) {
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &data, sizeof(data));
+static inline uint32_t
+dm_add_float64(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, double data)
+{
+	return dm_put_avp(req, code, vendor_id, &data, sizeof(data));
 }
 
-static inline int
-dm_avpgrp_add_time(void *ctx, DM_AVPGRP **avpgrp,
-		     uint32_t code, uint8_t flags, uint32_t vendor_id,
-		     time_t data) {
+static inline uint32_t
+dm_add_time(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, time_t data)
+{
 	uint32_t dtime;
 
 	if(data + TIME_SINCE_EPOCH > 0xFFFFFFFF)
 		return 1;
 
 	dtime = htonl((uint32_t)data + TIME_SINCE_EPOCH);
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &dtime, sizeof(uint32_t));
+	return dm_put_avp(req, code, vendor_id, &dtime, sizeof(uint32_t));
 }
 
-		/* accept only timevals with both fields <= 32 bits (standardization) */
-static inline int
-dm_avpgrp_add_timeval(void *ctx, DM_AVPGRP **avpgrp,
-			uint32_t code, uint8_t flags, uint32_t vendor_id,
-			struct timeval value) {
+/* accept only timevals with both fields <= 32 bits (standardization) */
+static inline uint32_t
+dm_add_timeval(DM2_REQUEST *req, uint32_t code, uint32_t vendor_id, struct timeval value)
+{
 	DM_TIMEVAL tvalue;
 
 	if(value.tv_sec > (int32_t)0x7FFFFFFF || value.tv_usec >= 1000000)
@@ -388,16 +351,11 @@ dm_avpgrp_add_timeval(void *ctx, DM_AVPGRP **avpgrp,
 	tvalue.tv_sec = htonl((uint32_t)value.tv_sec);
 	tvalue.tv_usec = htonl((uint32_t)value.tv_usec);
 
-	return dm_avpgrp_add_raw(ctx, avpgrp, code, flags, vendor_id, &tvalue, sizeof(DM_TIMEVAL));
+	return dm_put_avp(req, code, vendor_id, &tvalue, sizeof(DM_TIMEVAL));
 }
 
 static inline int
-dm_avpgrp_insert_avpgrp(void *ctx, DM_AVPGRP **avpgrp, DM_AVPGRP *source) {
-	return dm_avpgrp_insert_raw(ctx, avpgrp, (uint8_t*)source + sizeof(DM_AVPGRP), source->info.avps_length);
-}
-
-static inline int
-dm_get_string_avp(char *dest, size_t dlen, const void *src, size_t slen) { 
+dm_get_string_avp(char *dest, size_t dlen, const void *src, size_t slen) {
 	size_t len = slen;
 
 	if (len >= dlen)

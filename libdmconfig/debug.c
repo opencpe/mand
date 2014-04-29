@@ -61,39 +61,14 @@ static struct code2str cmd2str[] = {
 	initC2S(CMD_PARAM_NOTIFY),
 	initC2S(CMD_RECURSIVE_PARAM_NOTIFY),
 	initC2S(CMD_GET_PASSIVE_NOTIFICATIONS),
-//	initC2S(CMD_SUBSCRIBE_GW_NOTIFY),
-//	initC2S(CMD_UNSUBSCRIBE_GW_NOTIFY),
-//	initC2S(CMD_GATEWAY_NOTIFY),
-//
-//	initC2S(CMD_DEV_BOOTSTRAP),
-//	initC2S(CMD_DEV_WANUP),
-//	initC2S(CMD_DEV_WANDOWN),
-//	initC2S(CMD_DEV_SYSUP),
-//	initC2S(CMD_DEV_GETDEVICE),
-//	initC2S(CMD_DEV_BOOT),
-//	initC2S(CMD_DEV_REBOOT),
-//	initC2S(CMD_DEV_HOTPLUG),
-//	initC2S(CMD_DEV_DHCP_INFO),
-//	initC2S(CMD_DEV_DHCP_CIRCUIT),
-//	initC2S(CMD_DEV_DHCP_REMOTE),
-//
-//	initC2S(CMD_GW_NEW_CLIENT),
-//	initC2S(CMD_GW_DEL_CLIENT),
-//	initC2S(CMD_GW_CLIENT_ACCESS),
-//	initC2S(CMD_GW_GET_CLIENT),
-//	initC2S(CMD_GW_CLIENT_REQ_ACCESSCLASS),
-//	initC2S(CMD_GW_CLIENT_SET_ACCESSCLASS),
-//	initC2S(CMD_GW_HEARTBEAT),
-//
-//	initC2S(CMD_DHCP_CLIENT_ACK),
-//	initC2S(CMD_DHCP_CLIENT_RELEASE),
-//	initC2S(CMD_DHCP_CLIENT_EXPIRE),
 
 	initC2S(CMD_CLIENT_ACTIVE_NOTIFY),
-//	initC2S(CMD_CLIENT_GATEWAY_NOTIFY),
 };
 
 static struct code2str avp2str[] = {
+	initC2S(AVP_NAME),
+	initC2S(AVP_TYPE),
+
 	initC2S(AVP_PATH),
 
 	initC2S(AVP_TYPE_PATH),
@@ -117,40 +92,13 @@ static struct code2str avp2str[] = {
 	initC2S(AVP_HOTPLUGCMD),
 
 	initC2S(AVP_CONTAINER),
-
-	initC2S(AVP_NODE_NAME),
-	initC2S(AVP_NODE_TYPE),
-	initC2S(AVP_NODE_DATATYPE),
-	initC2S(AVP_NODE_SIZE),
+	initC2S(AVP_TABLE),
+	initC2S(AVP_INSTANCE),
+	initC2S(AVP_OBJECT),
+	initC2S(AVP_ELEMENT),
 
 	initC2S(AVP_TIMEOUT_SESSION),
 	initC2S(AVP_TIMEOUT_REQUEST),
-
-//	initC2S(AVP_GW_ZONE),
-//	initC2S(AVP_GW_CLIENT_ID),
-//	initC2S(AVP_GW_OBJ_ID),
-//	initC2S(AVP_GW_IPADDRESS),
-//	initC2S(AVP_GW_MACADDRESS),
-//	initC2S(AVP_GW_TOKEN),
-//	initC2S(AVP_GW_ACCTSESSIONID),
-//	initC2S(AVP_GW_SESSIONID),
-//	initC2S(AVP_GW_USERNAME),
-//	initC2S(AVP_GW_PASSWORD),
-//	initC2S(AVP_GW_USERAGENT),
-//	initC2S(AVP_GW_AGENTCIRCUITID),
-//	initC2S(AVP_GW_AGENTREMOTEID),
-//	initC2S(AVP_GW_ACCESSCLASS),
-//
-//	initC2S(AVP_DHCP_IPADDRESS),
-//	initC2S(AVP_DHCP_MACADDRESS),
-//	initC2S(AVP_DHCP_CLIENT_ID),
-//	initC2S(AVP_DHCP_REMOTE_ID),
-//	initC2S(AVP_DHCP_CIRCUIT_ID),
-//	initC2S(AVP_DHCP_HOSTNAME),
-//	initC2S(AVP_DHCP_EXPIRE),
-//	initC2S(AVP_DHCP_REMAINING),
-//	initC2S(AVP_DHCP_INTERFACE),
-//	initC2S(AVP_DHCP_SUBSCRIBER_ID),
 };
 
 static int comp_code(const void *m1, const void *m2)
@@ -162,7 +110,7 @@ static int comp_code(const void *m1, const void *m2)
 		return 1;
 	else if (a->code < b->code)
 		return -1;
-	else 
+	else
 		return 0;
 }
 
@@ -202,9 +150,7 @@ void init_code2str(void)
 	qsort(&avp2str, sizeof(avp2str) / sizeof(struct code2str), sizeof(struct code2str), comp_code);
 }
 
-static void hexdump(void *data, int len);
-
-static void
+void
 hexdump(void *data, int len) {
 	for(int i = 0; i < len; i++, data++) {
 		if((i % 16) == 0)
@@ -215,7 +161,7 @@ hexdump(void *data, int len) {
 	fprintf(stderr, "\n");
 }
 
-static const char *indent(int level)
+static const char *indent(unsigned int level)
 {
 	static const char space[] = "                ";
 
@@ -225,34 +171,37 @@ static const char *indent(int level)
 	return space;
 }
 
-static void dump_avpgrp(int level, DM_AVPGRP *avpgrp)
+static void dump_avpgrp(unsigned int level, DM2_AVPGRP *grp)
 {
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
+	uint32_t code;
+	uint32_t vendor_id;
+	void *data;
+	size_t size;
+	DM2_AVPGRP obj;
 
-	while(!dm_avpgrp_get_avp(avpgrp, &code, &flags, &vendor_id, &data, &len)) {
-		fprintf(stderr, "%sC: %8d %-20s, F: %02x, V: %8d, L: %6d, %p\n", indent(level), code, _get_avp(code), flags, vendor_id, len, data);
-		if (code == AVP_CONTAINER) {
-			DM_AVPGRP *avpgrp1 = dm_decode_avpgrp(NULL, data, len);
+	while(dm_expect_avp(grp, &code, &vendor_id, &data, &size) == RC_OK) {
+		fprintf(stderr, "%sC: %8d %-20s, V: %8d, L: %6zd, %p\n", indent(level), code, _get_avp(code), vendor_id, size, data);
 
-			dump_avpgrp(level + 1, avpgrp1);
-			talloc_free(avpgrp1);
+		switch (code) {
+		case AVP_CONTAINER:
+		case AVP_TABLE:
+		case AVP_INSTANCE:
+		case AVP_OBJECT:
+		case AVP_ELEMENT:
+			dm_init_avpgrp(grp->ctx, data, size, &obj);
+			dump_avpgrp(level + 1, &obj);
+			break;
+
+		default:
+			break;
 		}
 	}
-	fprintf(stderr, "\n");
 }
 
 void
-dump_dm_packet(DM_REQUEST *req) {
-	uint32_t	code;
-	uint8_t		flags;
-	uint32_t	vendor_id;
-	void		*data;
-	size_t		len;
-	DM_PACKET	*packet = &req->packet;
+dump_dm_packet(DM_PACKET *packet)
+{
+	DM2_AVPGRP grp;
 
 	hexdump(packet, dm_packet_length(packet));
 
@@ -264,15 +213,7 @@ dump_dm_packet(DM_REQUEST *req) {
 	fprintf(stderr, " Hop-Id: %08x\n", ntohl(packet->hop2hop_id));
 	fprintf(stderr, " End-Id: %08x\n", ntohl(packet->end2end_id));
 
-	dm_request_reset_avp(req);
-	while(!dm_request_get_avp(req, &code, &flags, &vendor_id, &data, &len)) {
-		fprintf(stderr, "C:   %8d %-20s, F: %02x, V: %8d, L: %6d, %p\n", code, _get_avp(code), flags, vendor_id, len, data);
-		if(code == AVP_CONTAINER) {
-			DM_AVPGRP *avpgrp = dm_decode_avpgrp(req, data, len);
-
-			dump_avpgrp(1, avpgrp);
-			talloc_free(avpgrp);
-		}
-	}
+	dm_init_packet(packet, &grp);
+	dump_avpgrp(0, &grp);
 }
 

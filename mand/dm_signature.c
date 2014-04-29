@@ -84,7 +84,7 @@ static int sign_digest(unsigned char *hash, int hashlen,
 /**
  * copy source to dest adding a TPLINO signature
  */
-int sign_file(const char *source, const char *dest)
+int sign_file(const char *source __attribute__ ((unused)), const char *dest __attribute__ ((unused)))
 {
 #if 0 /* TODO */
 	int fin, fout;
@@ -155,7 +155,7 @@ out:
 /**
  * copy source to dest validating a TPLINO signature
  */
-int validate_file(const char *source, const char *dest)
+int validate_file(const char *source __attribute__ ((unused)), const char *dest __attribute__ ((unused)))
 {
 #if 0 /* TODO */
 	FILE *fin, *fout;

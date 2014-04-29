@@ -1,0 +1,29 @@
+module opencpe-mand {
+
+    namespace "urn:opencpe:mand";
+
+    prefix "ocpemand";
+
+    import ietf-interfaces {
+        prefix "if";
+        revision-date 2013-07-04;
+    }
+
+    organization
+        "Travelping GmbH";
+
+    contact
+        "Röntgenstraße 13
+        39108 Magdeburg
+        Editor: Sascha Kattelmann <sk@travelping.com>";
+
+    description
+        "This module contains specific augmentations for mand.";
+
+    augment "/if:interfaces-state/if:interface" {
+        leaf last-read{
+            type string;
+        }
+    }
+
+}
