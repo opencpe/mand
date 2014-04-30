@@ -708,6 +708,8 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 			if ((rc = dmconfig_string2value(s, s_len, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
 				return rc;
 
+			update_instance_node_index(node);
+
 			id++;
 			rem -= s_len;
 			s = p + 1;
@@ -732,6 +734,8 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 
 			if ((rc = dmconfig_avp2value(&a, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
 				return rc;
+
+			update_instance_node_index(node);
 
 			id++;
 		}
@@ -1772,6 +1776,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_prefixlength, prefix_len);
 		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_origin, origin);
 
+		update_instance_node_index(ipn);
+
 		if_id++;
 	}
 
@@ -1818,6 +1824,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_ip, dst);
 		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_linklayeraddress, lladdr);
 		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_origin, origin);
+
+		update_instance_node_index(ipn);
 
 		printf("IPV4 Neighbor %d\n", if_id);
 
@@ -1893,6 +1901,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_origin, origin);
 		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_status, status);
 
+		update_instance_node_index(ipn);
+
 		if_id++;
 	}
 
@@ -1940,6 +1950,8 @@ static void update_interface_state(struct dm_value_table *tbl)
 		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_linklayeraddress, lladdr);
 		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_origin, origin);
 		dm_set_bool_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_isrouter, is_router);
+
+		update_instance_node_index(ipn);
 
 		printf("IPV6 Neighbor %d\n", if_id);
 
