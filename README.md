@@ -1,5 +1,30 @@
 # mand - a Device Management Daemon
 
+mand is a model driven storage daemon for device management applications. It's main features are:
+- storage engine with model driven data verification
+- in-memory during runtime for high performance on low-end devices
+- persist to storage on request (not for every change to save flash write cycles)
+- access API geared toward typical device management task and external API's, including:
+  - model driven RPC API
+  - get/set/list functionality
+  - atomic commit of multiple set operations
+  - publish/subcribe on value changes
+  - dependency ordered actions, activated on value change/commit
+
+mand is designed to be the binding and storage element connection protocol specific frontends
+(e.g. freenetconfd for NETCONF) with configation agents (e.g. mand-cfg) that apply configuration
+changes on a given target device. It also routes special purpose RPC's from the frontend to
+the agent. mand is management protocol and data model agnostic.
+
+The protocol frontend is responsible for handling the external connection and for translating
+request and answers to and from the mand dmconfig API. The frontend are protocol depend and
+mostly data model agnostic.
+
+The configuration agents are responsible for acting on values changes and apply them to the
+device running config and for reporting status information. They also implement special
+purpose API's (like for example firmware upgrade API). Configuration agents are data model
+aware and depend on particular entries in those models.
+
 # Building and Install
 
 ## Requirements
