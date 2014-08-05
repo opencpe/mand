@@ -152,4 +152,22 @@ Subtree's can be also be dumped:
         </system>
     </data>
 
+*IMPORTANT NOTE:* mand is *NOT* a netconf mapper nor a netconf frontend.
+It merly uses YANG models to define and represent its internal data
+model in a standardized way.
+To actually use mand with netconf, a netconf mapper like freenetconfd
+is needed. When adding new models to mand, it might be neccessary to also
+adjust protocol frontends (like freenetconfd) to support the new models.
+
+# Adding new RPC's
+
+libdmconfig has stubs and skeletons for RPC's. Currently, those need to be
+implemented manually. The existing code can easily be used as sample to
+write code for new RPC's and can be found in `libdmconfig/*_rpc_{skel,stub}.[ch]`
+
+*NOTE:* There are plans to replace the manual stubs and skeletons with
+autogenerate versions. The existing code intentional uses verbose and
+repetive patterns that mimick what generate code would look like.
+*DO NOT* attempt to optimize or streamline that code.
+
 [1]: http://tools.ietf.org/html/rfc6020
