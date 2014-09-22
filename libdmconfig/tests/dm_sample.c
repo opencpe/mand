@@ -15,11 +15,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include <libdmconfig/dmmsg.h>
 #include <libdmconfig/debug.h>
@@ -47,7 +43,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 		return 1;
 	if(!(grp = new_dm_avpgrp(req)) ||
 	   !(buf1 = malloc(size1 = strlen(p1) + 4)) ||!(buf2 = malloc(size2 = strlen(p2) + 4))) {
-		talloc_free(req);
+		ralloc_free(req);
 		return 1;
 	}
 	*(uint32_t*)buf1 = *(uint32_t*)buf2 = htonl(AVP_STRING);
@@ -61,24 +57,24 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
 	dump_dm_packet(req);
 
-	talloc_free(req);
+	ralloc_free(req);
 
 			/* SET command */
 
 	if(!(req = new_dm_request(NULL, CMD_DB_SET, CMD_FLAG_REQUEST, APP_ID, hop2hop, end2end)))
 		return 1;
 	if(!(grp = new_dm_avpgrp(req)) || !(pair = new_dm_avpgrp(grp))) {
-		talloc_free(req);
+		ralloc_free(req);
 		return 1;
 	}
 
 	dm_avpgrp_add_string(grp, &pair, AVP_PATH, 0, VP_TRAVELPING, p1);
 	dm_avpgrp_add_string(grp, &pair, AVP_STRING, 0, VP_TRAVELPING, "test value for ManufacturerOUI");
 	dm_avpgrp_add_avpgrp(req, &grp, AVP_CONTAINER, 0, VP_TRAVELPING, pair);
-	talloc_free(pair);
+	ralloc_free(pair);
 
 	if(!(pair = new_dm_avpgrp(grp))) {
-		talloc_free(req);
+		ralloc_free(req);
 		return 1;
 	}
 	dm_avpgrp_add_string(grp, &pair, AVP_PATH, 0, VP_TRAVELPING, p2);
@@ -88,7 +84,7 @@ main(int argc __attribute__((unused)), char **argv __attribute__((unused))) {
 
 	dump_dm_packet(req);
 
-	talloc_free(req);
+	ralloc_free(req);
 
 	return 0;
 }

@@ -19,11 +19,7 @@
 #include "libdmconfig/debug.h"
 #endif
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/dmconfig.h"
@@ -47,7 +43,7 @@ dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, 
 	if (!dm_name2sel(s, value))
 		r = RC_ERR_MISC;
 
-	talloc_free(s);
+	ralloc_free(s);
 	return r;
 }
 
@@ -154,7 +150,7 @@ rpc_param_notify_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	pcnt = 0;
 	do {
 		if ((pcnt % BLOCK_ALLOC) == 0)
-			if (!(path = talloc_realloc(NULL, path, dm_selector, pcnt + BLOCK_ALLOC)))
+			if (!(path = reralloc(NULL, path, dm_selector, pcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
 		if ((rc = dm_expect_path_type(&grp, AVP_PATH, VP_TRAVELPING, &path[pcnt])) != RC_OK)
@@ -165,7 +161,7 @@ rpc_param_notify_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	if (rc == RC_OK)
 		rc = rpc_param_notify(ctx, notify, pcnt, path, answer);
 
-	talloc_free(path);
+	ralloc_free(path);
 	return rc;
 }
 
@@ -233,7 +229,7 @@ rpc_db_set_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 		DM2_AVPGRP grp;
 
 		if ((pvcnt % BLOCK_ALLOC) == 0)
-			if (!(values = talloc_realloc(NULL, values, struct rpc_db_set_path_value, pvcnt + BLOCK_ALLOC)))
+			if (!(values = reralloc(NULL, values, struct rpc_db_set_path_value, pvcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
 		if ((rc = dm_expect_object(obj, &grp)) != RC_OK
@@ -247,7 +243,7 @@ rpc_db_set_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 
 	rc = rpc_db_set(ctx, pvcnt, values, answer);
 
-	talloc_free(values);
+	ralloc_free(values);
 	return rc;
 }
 
@@ -261,7 +257,7 @@ rpc_db_get_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	pcnt = 0;
 	do {
 		if ((pcnt % BLOCK_ALLOC) == 0)
-			if (!(values = talloc_realloc(NULL, values, dm_selector, pcnt + BLOCK_ALLOC)))
+			if (!(values = reralloc(NULL, values, dm_selector, pcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
 		if ((rc = dm_expect_path_type(obj, AVP_PATH, VP_TRAVELPING, values + pcnt)) != RC_OK)
@@ -273,7 +269,7 @@ rpc_db_get_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 	if (rc == RC_OK)
 		rc = rpc_db_get(ctx, pcnt, values, answer);
 
-	talloc_free(values);
+	ralloc_free(values);
 	return rc;
 }
 
@@ -455,7 +451,7 @@ rpc_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
 	pcnt = 0;
 	do {
 		if ((pcnt % BLOCK_ALLOC) == 0)
-			if (!(boot_order = talloc_realloc(NULL, boot_order, char *, pcnt + BLOCK_ALLOC)))
+			if (!(boot_order = reralloc(NULL, boot_order, char *, pcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
 		if ((rc = dm_expect_string_type(obj, AVP_STRING, VP_TRAVELPING, &boot_order[pcnt])) != RC_OK)
@@ -466,7 +462,7 @@ rpc_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
 	if (rc == RC_OK)
 		rc = rpc_set_boot_order(ctx, pcnt, (const char **)boot_order);
 
-	talloc_free(boot_order);
+	ralloc_free(boot_order);
 	return rc;
 }
 

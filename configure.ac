@@ -103,8 +103,8 @@ AC_CHECK_LIB([lua], lua_callk, , [have_liblua=no], [-ldl -lm])
 if test x$have_liblua = xno; then
    AC_CHECK_LIB([lua5.1], lua_call, , AC_MSG_ERROR(Required liblua missing), [-ldl -lm])
 fi
-AC_CHECK_LIB(talloc, talloc_named_const, , AC_MSG_ERROR(Required libtalloc missing) )
-AC_CHECK_HEADERS([talloc.h talloc/talloc.h])
+AC_CHECK_LIB(ralloc, ralloc_context, , AC_MSG_ERROR(Required libralloc missing) )
+AC_CHECK_HEADERS([ralloc.h])
 
 save_LIBS=$LIBS
 

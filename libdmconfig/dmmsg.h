@@ -19,11 +19,7 @@
 #include <string.h>
 #include <sys/queue.h>
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "libdmconfig/codes.h"
 
@@ -82,7 +78,7 @@ typedef struct dm2_avpgrp {
 	size_t pos;
 } DM2_AVPGRP;
 
-#define DM2_AVPGRP_INITIALIZER {talloc_new(NULL), NULL, 0, 0}
+#define DM2_AVPGRP_INITIALIZER {ralloc_context(NULL), NULL, 0, 0}
 
 typedef struct dm2_request {
 	struct {

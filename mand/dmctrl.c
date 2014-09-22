@@ -79,7 +79,7 @@ decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_dat
 		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK)
 			return r;
 
-		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+		if (!(path = ralloc_asprintf(container.ctx, "%s.%s", prefix, name)))
 			return RC_ERR_ALLOC;
 
 		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
@@ -91,7 +91,7 @@ decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_dat
 		if ((r = dm_expect_uint16_type(&container, AVP_NAME, VP_TRAVELPING, &id)) != RC_OK)
 			return r;
 
-		if (!(path = talloc_asprintf(container.ctx, "%s.%d", prefix, id)))
+		if (!(path = ralloc_asprintf(container.ctx, "%s.%d", prefix, id)))
 			return RC_ERR_ALLOC;
 
 		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
@@ -103,7 +103,7 @@ decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_dat
 		if ((r = dm_expect_string_type(&container, AVP_NAME, VP_TRAVELPING, &name)) != RC_OK)
 			return r;
 
-		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+		if (!(path = ralloc_asprintf(container.ctx, "%s.%s", prefix, name)))
 			return RC_ERR_ALLOC;
 
 		while (decode_node_list(path, &container, cb, cb_data) == RC_OK) {
@@ -116,7 +116,7 @@ decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_dat
 		    || (r = dm_expect_uint32_type(&container, AVP_TYPE, VP_TRAVELPING, &type)) != RC_OK)
 			return r;
 
-		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+		if (!(path = ralloc_asprintf(container.ctx, "%s.%s", prefix, name)))
 			return RC_ERR_ALLOC;
 
 		if ((r = dm_expect_avp(&container, &code, &vendor_id, &data, &size)) != RC_OK)
@@ -130,7 +130,7 @@ decode_node_list(const char *prefix, DM2_AVPGRP *grp, DECODE_CB cb, void *cb_dat
 		    || (r = dm_expect_uint32_type(&container, AVP_TYPE, VP_TRAVELPING, &type)) != RC_OK)
 			return r;
 
-		if (!(path = talloc_asprintf(container.ctx, "%s.%s", prefix, name)))
+		if (!(path = ralloc_asprintf(container.ctx, "%s.%s", prefix, name)))
 			return RC_ERR_ALLOC;
 
 		while (dm_expect_group_end(&container) != RC_OK) {
@@ -278,7 +278,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 				break;
 
 			printf("%s", dump);
-			talloc_free(dump);
+			ralloc_free(dump);
 
 			break;
 		}
