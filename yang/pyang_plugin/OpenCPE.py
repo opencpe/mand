@@ -216,10 +216,10 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             keys = s.search('key')
             key_leafs = {}
             for key in keys:
-                for leaf in s.search('leaf'):
-                    if leaf.arg == key.arg:
-                        type = seek_type(leaf.search_one('type'), leaf, builtin_types, typedefs)
-                        key_leafs[key.arg] = type.arg
+                leaf = seek_leaf(groupings, children, key)
+                if leaf != None:
+                    type = seek_type(leaf.search_one('type'), leaf, builtin_types, typedefs)
+                    key_leafs[key.arg] = type.arg
 
             fd.write("const struct index_definition " + "index_" + name + " =\n")
             fd.write("{\n")
@@ -590,6 +590,14 @@ def seek_type(type, child, builtin_types, typedefs):
         return seek_type(type, child, builtin_types, typedefs)
     else:
         return type
+
+def seek_leaf(groupings, children, key):
+    for child in children:
+        if child.keyword == 'uses':
+            grouping = groupings[child.i_module.i_prefix + ':' + child.arg]
+            return seek_leaf(groupings, grouping.substmts, key)
+        elif child.keyword == 'leaf' and child.arg == key.arg:
+            return child
 
 def make_chain(chain_list):
     if chain_list == []:
