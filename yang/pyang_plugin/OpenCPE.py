@@ -226,7 +226,7 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             fd.write(tab + ".idx = {\n")
             fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = T_INSTANCE },\n")
             for key in keys:
-                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] + ", .element = " + "field_" + name + "_" + key.arg + " },\n")
+                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] + ", .element = " + "field_" + name + "_" + key.arg.replace("-","") + " },\n")
             fd.write(tab + "},\n")
             fd.write(tab + ".size = " + str(len(keys)+1) + "\n")
             fd.write("};\n")
@@ -262,7 +262,10 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
                         if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
                             counter += print_field(fd, substmt, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'uses':
-                grouping = groupings[child.i_module.i_prefix + ':' + child.arg]
+                mod_prefix = ""
+                if ':' not in child.arg:
+                    mod_prefix = child.i_module.i_prefix + ':'
+                grouping = groupings[mod_prefix + child.arg]
                 for groupchild in grouping.substmts:
                     if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list', 'choice']:
                         counter += print_field(fd, groupchild, typedefs, annotations, counter, keys, prefix=make_name(s)+'__', write_access=get_write_access(write_access, child))
@@ -368,10 +371,10 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
                 hyphen_key = make_key(child, keep_hyphens=True)
 
             if prefix == "":
-                name = make_name(child.parent)
+                name = make_name(child.parent) + "_"
             else:
                 name = prefix
-            header_collector.insert(0, "#define " + "field_" + name + "_" + header_key + " " + str(counter) + "\n")
+            header_collector.insert(0, "#define " + "field_" + name + header_key + " " + str(counter) + "\n")
 
             fd.write(2*tab + "{\n")
             fd.write(3*tab + "/* " + str(counter) + " */\n")
@@ -410,10 +413,10 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
 
     else:
         if prefix == "":
-            name = make_name(child.parent)
+            name = make_name(child.parent) + "_"
         else:
             name = prefix
-        header_collector.insert(0, "#define " + "field_" + name + "_" + make_key(child) + " " + str(counter) + "\n")
+        header_collector.insert(0, "#define " + "field_" + name + make_key(child) + " " + str(counter) + "\n")
 
         fd.write(2*tab + "{\n")
         fd.write(3*tab + "/* " + str(abs(counter)) + " */\n")
@@ -600,7 +603,10 @@ def seek_type(type, child, builtin_types, typedefs):
 def seek_leaf(groupings, children, key):
     for child in children:
         if child.keyword == 'uses':
-            grouping = groupings[child.i_module.i_prefix + ':' + child.arg]
+            prefix = ""
+            if ':' not in child.arg:
+                prefix = child.i_module.i_prefix + ':'
+            grouping = groupings[prefix + child.arg]
             return seek_leaf(groupings, grouping.substmts, key)
         elif child.keyword == 'leaf' and child.arg == key.arg:
             return child
