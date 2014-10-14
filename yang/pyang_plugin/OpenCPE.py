@@ -367,7 +367,10 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
                 header_key = make_key(child, keep_hyphens=False)
                 hyphen_key = make_key(child, keep_hyphens=True)
 
-            name = make_name(child.parent)
+            if prefix == "":
+                name = make_name(child.parent)
+            else:
+                name = prefix
             header_collector.insert(0, "#define " + "field_" + name + "_" + header_key + " " + str(counter) + "\n")
 
             fd.write(2*tab + "{\n")
@@ -406,7 +409,10 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
             fd.write(2*tab + "},\n")
 
     else:
-        name = make_name(child.parent)
+        if prefix == "":
+            name = make_name(child.parent)
+        else:
+            name = prefix
         header_collector.insert(0, "#define " + "field_" + name + "_" + make_key(child) + " " + str(counter) + "\n")
 
         fd.write(2*tab + "{\n")
