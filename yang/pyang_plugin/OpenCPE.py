@@ -361,17 +361,17 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
 
             type = seek_type(type_i, child, builtin_types, typedefs)
             if union_flag:
-                header_key = make_key(type_i, child.arg + '_', keep_hyphens=False)
-                hyphen_key = make_key(type_i, child.arg + '_', keep_hyphens=True)
+                header_key = make_key(type_i, child.arg + '__', keep_hyphens=False)
+                hyphen_key = make_key(type_i, child.arg + '__', keep_hyphens=True)
             elif child.keyword == 'leaf-list':
-                header_key = ''.join(child.arg.split('-')) + "_" + make_key(child, keep_hyphens=False)
+                header_key = ''.join(child.arg.split('-')) + "__" + make_key(child, keep_hyphens=False)
                 hyphen_key = make_key(child, keep_hyphens=True)
             else:
                 header_key = make_key(child, keep_hyphens=False)
                 hyphen_key = make_key(child, keep_hyphens=True)
 
             if prefix == "":
-                name = make_name(child.parent) + "_"
+                name = make_name(child.parent) + "__"
             else:
                 name = prefix
             header_collector.insert(0, "#define " + "field_" + name + header_key + " " + str(counter) + "\n")
@@ -395,17 +395,17 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
                 fd.write(3*tab + ".fkts.value = {\n")
                 if getter:
                     fd.write(4*tab + ".get = get_" + name + "_" + header_key + ",\n")
-                    header_collector.insert(0, "DM_VALUE get_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
+                    header_collector.insert(0, "DM_VALUE get_" + name + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
                 if setter:
                     fd.write(4*tab + ".set = set_" + name + "_" + header_key + ",\n")
-                    header_collector.insert(0, "int set_" + name + "_" + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n")
+                    header_collector.insert(0, "int set_" + name + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n")
                 fd.write(3*tab + "},\n")
 
             if annotated_type != None:
                 fd.write(3*tab + ".type = " + annotated_type + ",\n")
             #for yang standard types
             elif type.arg == 'enumeration':
-                print_type(fd, type, "field_" + name + "_" + header_key + "_")
+                print_type(fd, type, "field_" + name + header_key + "__")
             else:
                 print_type(fd, type)
 
@@ -413,7 +413,7 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
 
     else:
         if prefix == "":
-            name = make_name(child.parent) + "_"
+            name = make_name(child.parent) + "__"
         else:
             name = prefix
         header_collector.insert(0, "#define " + "field_" + name + make_key(child) + " " + str(counter) + "\n")
