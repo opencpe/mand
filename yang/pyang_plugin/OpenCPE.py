@@ -253,22 +253,9 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in deviations.keys():
                 counter += print_field(fd, child, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'choice':
-                for substmt in child.substmts:
-                    if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                        counter += print_field(fd, substmt, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
-                cases = child.search('case')
-                for case in cases:
-                    for substmt in case.substmts:
-                        if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
-                            counter += print_field(fd, substmt, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
+                counter = print_choice(s, child, fd, typedefs, annotations, groupings, counter, keys, write_access)
             elif child.keyword == 'uses':
-                mod_prefix = ""
-                if ':' not in child.arg:
-                    mod_prefix = child.i_module.i_prefix + ':'
-                grouping = groupings[mod_prefix + child.arg]
-                for groupchild in grouping.substmts:
-                    if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list', 'choice']:
-                        counter += print_field(fd, groupchild, typedefs, annotations, counter, keys, prefix=make_name(s)+'__', write_access=get_write_access(write_access, child))
+                counter = print_group(s, child, fd, typedefs, annotations, groupings, counter, keys, write_access)
 
 
         fd.write(tab + "},\n")
@@ -280,6 +267,39 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
         return
 
     fd.write('\n')
+
+def print_group(s, child, fd, typedefs, annotations, groupings, temp_counter, keys, write_access, prefix=""):
+    new_prefix = make_name(s)+'__'
+    if prefix != "":
+        new_prefix = prefix
+    counter = temp_counter
+    mod_prefix = ""
+    if ':' not in child.arg:
+        mod_prefix = child.i_module.i_prefix + ':'
+    grouping = groupings[mod_prefix + child.arg]
+    for groupchild in grouping.substmts:
+        if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list']:
+            counter += print_field(fd, groupchild, typedefs, annotations, counter, keys, prefix=new_prefix, write_access=get_write_access(write_access, child))
+        elif groupchild.keyword == 'choice':
+            counter = print_choice(child, groupchild, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=new_prefix)
+    return counter
+
+def print_choice(s, child, fd, typedefs, annotations, groupings, temp_counter, keys, write_access, prefix=""):
+    counter = temp_counter
+    for substmt in child.substmts:
+        if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
+            counter += print_field(fd, substmt, typedefs, annotations, counter, keys, prefix=prefix, write_access=get_write_access(write_access, child))
+        elif substmt.keyword == 'uses':
+            counter = print_group(child, substmt, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=prefix)
+    cases = child.search('case')
+    for case in cases:
+        for substmt in case.substmts:
+            if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
+                counter += print_field(fd, substmt, typedefs, annotations, counter, keys, prefix=prefix, write_access=get_write_access(write_access, child))
+            elif substmt.keyword == 'uses':
+                counter = print_group(child, substmt, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=prefix)
+    return counter
+
 
 def collect_unions(type, child, builtin_types, typedefs):
     new_types = type.search('type')
@@ -450,6 +470,7 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
             c_type = 'T_TOKEN'
         fd.write(3*tab + ".type = " + c_type  + ",\n")
         fd.write(3*tab + ".u.t = {\n")
+        print make_name(child)
         fd.write(4*tab + ".table = " + "&" + prefix + make_name(child) + ",\n")
         if c_type == 'T_OBJECT':
             fd.write(4*tab + ".max = INT_MAX,\n")
@@ -560,8 +581,10 @@ def make_path_string(s, with_prefixes=False, multi_instance=False):
     if multi_instance:
         if s.keyword in ['list', 'leaf-list']:
             suffix = ".{i}"
+    if s.keyword == 'grouping':
+        return ""
     if s.keyword in ['choice', 'case']:
-           return make_path_string(s.parent, with_prefixes, multi_instance)
+        return make_path_string(s.parent, with_prefixes, multi_instance)
     def name(s):
         if with_prefixes:
             return s.i_module.i_prefix + "_" + s.arg
