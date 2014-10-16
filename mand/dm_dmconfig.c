@@ -1962,7 +1962,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 		return;
 }
 
-int set_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
+int set_ocpe__system_state__clock__currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
 						  dm_id id __attribute__((unused)),
 						  const struct dm_element *e __attribute__((unused)),
 						  DM_VALUE *st __attribute__((unused)),
@@ -1982,7 +1982,7 @@ int set_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __a
 	return 0;
 }
 
-DM_VALUE get_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
+DM_VALUE get_ocpe__system_state__clock__currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
 						       dm_id id __attribute__((unused)),
 						       const struct dm_element *e __attribute__((unused)),
 						       DM_VALUE val __attribute__((unused)))
@@ -1992,7 +1992,7 @@ DM_VALUE get_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tb
 	return init_DM_TICKS(rt_now, 0);
 }
 
-DM_VALUE get_ocpe__system__clock_timezoneutcoffset(struct dm_value_table *tbl __attribute__((unused)),
+DM_VALUE get_ocpe__system__clock__timezoneutcoffset(struct dm_value_table *tbl __attribute__((unused)),
 						       dm_id id __attribute__((unused)),
 						       const struct dm_element *e __attribute__((unused)),
 						       DM_VALUE val __attribute__((unused)))
@@ -2023,7 +2023,7 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 
-DM_VALUE get_ocpe__interfaces_state__interface_adminstatus(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val) __attribute__ ((alias ("__get_ocpe__interfaces_state__interface")));
+DM_VALUE get_ocpe__interfaces_state__interface__adminstatus(struct dm_value_table *tbl, dm_id id, const struct dm_element *e, DM_VALUE val) __attribute__ ((alias ("__get_ocpe__interfaces_state__interface")));
 
 static void update_address_netmask(struct dm_value_table *tbl, dm_id read, dm_id update)
 {
@@ -2051,7 +2051,7 @@ static void update_address_prefixlength(struct dm_value_table *tbl, const char *
 	dm_set_uint_by_id(tbl, update, length);
 }
 
-int set_ocpe__interfaces__interface__ipv4__address_prefixlength(struct dm_value_table *tbl,
+int set_ocpe__interfaces__interface__ipv4__address__prefixlength(struct dm_value_table *tbl,
 								dm_id id __attribute__((unused)),
 								const struct dm_element *e __attribute__((unused)),
 								DM_VALUE *st,
@@ -2063,7 +2063,7 @@ int set_ocpe__interfaces__interface__ipv4__address_prefixlength(struct dm_value_
 	return DM_OK;
 }
 
-int set_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+int set_ocpe__interfaces__interface__ipv4__address__netmask(struct dm_value_table *tbl,
 							   dm_id id __attribute__((unused)),
 							   const struct dm_element *e __attribute__((unused)),
 							   DM_VALUE *st,
@@ -2081,7 +2081,7 @@ int set_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table
 	return DM_OK;
 }
 
-DM_VALUE get_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+DM_VALUE get_ocpe__interfaces__interface__ipv4__address__netmask(struct dm_value_table *tbl,
 								dm_id id,
 								const struct dm_element *e __attribute__((unused)),
 								DM_VALUE val)
@@ -2094,7 +2094,7 @@ DM_VALUE get_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 
-DM_VALUE get_ocpe__interfaces_state__interface__ipv4__address_netmask(struct dm_value_table *tbl,
+DM_VALUE get_ocpe__interfaces_state__interface__ipv4__address__netmask(struct dm_value_table *tbl,
 								      dm_id id,
 								      const struct dm_element *e __attribute__((unused)),
 								      DM_VALUE val __attribute__((unused)))
