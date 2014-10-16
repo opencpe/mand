@@ -226,7 +226,7 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             fd.write(tab + ".idx = {\n")
             fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = T_INSTANCE },\n")
             for key in keys:
-                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] + ", .element = " + "field_" + name + "_" + key.arg.replace("-","") + " },\n")
+                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] + ", .element = " + "field_" + name + "__" + key.arg.replace("-","") + " },\n")
             fd.write(tab + "},\n")
             fd.write(tab + ".size = " + str(len(keys)+1) + "\n")
             fd.write("};\n")
@@ -394,10 +394,10 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
             if getter or setter:
                 fd.write(3*tab + ".fkts.value = {\n")
                 if getter:
-                    fd.write(4*tab + ".get = get_" + name + "_" + header_key + ",\n")
+                    fd.write(4*tab + ".get = get_" + name + header_key + ",\n")
                     header_collector.insert(0, "DM_VALUE get_" + name + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE);\n")
                 if setter:
-                    fd.write(4*tab + ".set = set_" + name + "_" + header_key + ",\n")
+                    fd.write(4*tab + ".set = set_" + name + header_key + ",\n")
                     header_collector.insert(0, "int set_" + name + header_key + "(struct dm_value_table *, dm_id, const struct dm_element *, DM_VALUE *, DM_VALUE);\n")
                 fd.write(3*tab + "},\n")
 

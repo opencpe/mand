@@ -1627,7 +1627,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 	if (!(ctx = find_role("-state")))
 		return;
 
-	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name);
+	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface__name);
 	printf("get_ocpe__interfaces_state__interface: %s\n", name);
 
 	memset(&answer, 0, sizeof(answer));
@@ -1666,41 +1666,41 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 	printf("if_flags: %08x\n", if_flags);
 
-	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange) == 0)
-		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange , rt_now);
+	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface__lastchange) == 0)
+		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface__lastchange , rt_now);
 
-	dm_set_int_by_id(tbl, field_ocpe__interfaces_state__interface_ifindex , if_index);
-	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_adminstatus ,
-			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_adminstatus_up : field_ocpe__interfaces_state__interface_adminstatus_down);
-	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus ,
-			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_operstatus_up : field_ocpe__interfaces_state__interface_operstatus_down);
+	dm_set_int_by_id(tbl, field_ocpe__interfaces_state__interface__ifindex , if_index);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface__adminstatus ,
+			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface__adminstatus__up : field_ocpe__interfaces_state__interface__adminstatus__down);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface__operstatus ,
+			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface__operstatus__up : field_ocpe__interfaces_state__interface__operstatus__down);
 
 	mac = hwaddr.data;
 	snprintf(macstr, sizeof(macstr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress , macstr);
+	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface__physaddress , macstr);
 
-	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface_speed , if_speed);
+	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface__speed , if_speed);
 
 	struct dm_value_table *stats;
 
-	stats = dm_get_table_by_id(tbl, field_ocpe__interfaces_state__interface_statistics);
+	stats = dm_get_table_by_id(tbl, field_ocpe__interfaces_state__interface__statistics);
 
-	if (dm_get_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime) == 0)
-		dm_set_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime, rt_now);
+	if (dm_get_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics__discontinuitytime) == 0)
+		dm_set_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics__discontinuitytime, rt_now);
 
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inoctets, rec_oct);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunicastpkts, rec_pkt);
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inbroadcastpkts,       );
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inmulticastpkts,       );
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_indiscards, rec_drop);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inerrors, rec_err);
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunknownprotos,       );
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outoctets, snd_oct);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outunicastpkts, snd_pkt);
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outbroadcastpkts,       );
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outmulticastpkts,       );
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outdiscards, snd_drop);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outerrors, snd_err);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inoctets, rec_oct);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inunicastpkts, rec_pkt);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inbroadcastpkts,       );
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inmulticastpkts,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__indiscards, rec_drop);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inerrors, rec_err);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__inunknownprotos,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outoctets, snd_oct);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outunicastpkts, snd_pkt);
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outbroadcastpkts,       );
+//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outmulticastpkts,       );
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outdiscards, snd_drop);
+	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics__outerrors, snd_err);
 
 	char buffer[MAX_PARAM_NAME_LEN];
 	dm_selector sel;
@@ -1714,7 +1714,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 	/* IPv4 Interface */
 
 	dm_selcpy(sel, tbl->id);
-	sel[3] = field_ocpe__interfaces_state__interface_ipv4;
+	sel[3] = field_ocpe__interfaces_state__interface__ipv4;
 	sel[4] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1728,12 +1728,12 @@ static void update_interface_state(struct dm_value_table *tbl)
 	    || dm_expect_uint32_type(&ipiface, AVP_UINT32, VP_TRAVELPING, &mtu) != RC_OK)
 		return;
 
-	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_forwarding, forward);
-	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_mtu, mtu);
+	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4__forwarding, forward);
+	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4__mtu, mtu);
 
 	/* IPv4 Addr */
 
-	sel[4] = field_ocpe__interfaces_state__interface__ipv4_address;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv4__address;
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1772,9 +1772,9 @@ static void update_interface_state(struct dm_value_table *tbl)
 			return;
 		printf("IPV4 Addr %d\n", if_id);
 
-		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_ip, iaddr);
-		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_prefixlength, prefix_len);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_origin, origin);
+		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address__ip, iaddr);
+		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address__prefixlength, prefix_len);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address__origin, origin);
 
 		update_instance_node_index(ipn);
 
@@ -1783,7 +1783,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 	/* IPv4 Neighbor */
 
-	sel[4] = field_ocpe__interfaces_state__interface__ipv4_neighbor;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv4__neighbor;
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1821,9 +1821,9 @@ static void update_interface_state(struct dm_value_table *tbl)
 		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
 			return;
 
-		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_ip, dst);
-		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_linklayeraddress, lladdr);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_origin, origin);
+		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor__ip, dst);
+		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor__linklayeraddress, lladdr);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor__origin, origin);
 
 		update_instance_node_index(ipn);
 
@@ -1838,7 +1838,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 	/* IPv6 Interface */
 
 	dm_selcpy(sel, tbl->id);
-	sel[3] = field_ocpe__interfaces_state__interface_ipv6;
+	sel[3] = field_ocpe__interfaces_state__interface__ipv6;
 	sel[4] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1852,12 +1852,12 @@ static void update_interface_state(struct dm_value_table *tbl)
 	    || dm_expect_uint32_type(&ipiface, AVP_UINT32, VP_TRAVELPING, &mtu) != RC_OK)
 		return;
 
-	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6_forwarding, forward);
-	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6_mtu, mtu);
+	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6__forwarding, forward);
+	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6__mtu, mtu);
 
 	/* IPv6 Addr */
 
-	sel[4] = field_ocpe__interfaces_state__interface__ipv6_address;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv6__address;
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1896,10 +1896,10 @@ static void update_interface_state(struct dm_value_table *tbl)
 			return;
 		printf("IPV6 Addr %d\n", if_id);
 
-		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_ip, iaddr);
-		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_prefixlength, prefix_len);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_origin, origin);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_status, status);
+		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address__ip, iaddr);
+		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address__prefixlength, prefix_len);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address__origin, origin);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address__status, status);
 
 		update_instance_node_index(ipn);
 
@@ -1908,7 +1908,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 
 	/* IPv6 Neighbor */
 
-	sel[4] = field_ocpe__interfaces_state__interface__ipv6_neighbor;
+	sel[4] = field_ocpe__interfaces_state__interface__ipv6__neighbor;
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
@@ -1946,10 +1946,10 @@ static void update_interface_state(struct dm_value_table *tbl)
 		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
 			return;
 
-		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_ip, dst);
-		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_linklayeraddress, lladdr);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_origin, origin);
-		dm_set_bool_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_isrouter, is_router);
+		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor__ip, dst);
+		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor__linklayeraddress, lladdr);
+		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor__origin, origin);
+		dm_set_bool_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor__isrouter, is_router);
 
 		update_instance_node_index(ipn);
 
@@ -2011,7 +2011,7 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 
 	char buf1[40], buf2[40];
 
-	last = dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastread);
+	last = dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface__lastread);
 	ticks2str(buf1, sizeof(buf1), ticks2realtime(last));
 	ticks2str(buf2, sizeof(buf2), ticks2realtime(rt_now));
 
@@ -2019,7 +2019,7 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 	if (rt_now - last > 10)
 		update_interface_state(tbl);
 
-	dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastread, rt_now);
+	dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface__lastread, rt_now);
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 
@@ -2058,8 +2058,8 @@ int set_ocpe__interfaces__interface__ipv4__address_prefixlength(struct dm_value_
 								DM_VALUE val)
 {
 	*st = val;
-	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address_prefixlength,
-			            field_ocpe__interfaces__interface__ipv4__address_netmask);
+	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address__prefixlength,
+			            field_ocpe__interfaces__interface__ipv4__address__netmask);
 	return DM_OK;
 }
 
@@ -2077,7 +2077,7 @@ int set_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_table
 	if ((r = dm_set_string_value(st, DM_STRING(val))) != DM_OK)
 		return r;
 
-	update_address_prefixlength(tbl, DM_STRING(val), field_ocpe__interfaces__interface__ipv4__address_prefixlength);
+	update_address_prefixlength(tbl, DM_STRING(val), field_ocpe__interfaces__interface__ipv4__address__prefixlength);
 	return DM_OK;
 }
 
@@ -2089,8 +2089,8 @@ DM_VALUE get_ocpe__interfaces__interface__ipv4__address_netmask(struct dm_value_
 	if (DM_STRING(val))
 		return val;
 
-	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address_prefixlength,
-			            field_ocpe__interfaces__interface__ipv4__address_netmask);
+	update_address_netmask(tbl, field_ocpe__interfaces__interface__ipv4__address__prefixlength,
+			            field_ocpe__interfaces__interface__ipv4__address__netmask);
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 
@@ -2099,7 +2099,7 @@ DM_VALUE get_ocpe__interfaces_state__interface__ipv4__address_netmask(struct dm_
 								      const struct dm_element *e __attribute__((unused)),
 								      DM_VALUE val __attribute__((unused)))
 {
-	update_address_netmask(tbl, field_ocpe__interfaces_state__interface__ipv4__address_prefixlength,
-			            field_ocpe__interfaces_state__interface__ipv4__address_netmask);
+	update_address_netmask(tbl, field_ocpe__interfaces_state__interface__ipv4__address__prefixlength,
+			            field_ocpe__interfaces_state__interface__ipv4__address__netmask);
 	return *dm_get_value_ref_by_id(tbl, id);
 }
