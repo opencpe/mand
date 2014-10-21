@@ -95,6 +95,8 @@ def emit_tree(modules, fd):
             else:
                 augments[augment.arg] += [augment]
 
+    print ""
+
     deviations = {}
     for module in modules:
         module_deviations = module.search('deviation')
@@ -117,8 +119,7 @@ def emit_tree(modules, fd):
     # MAIN LOOP
     for module in modules:
 
-        chs = [ch for ch in module.i_children
-               if ch.keyword in statements.data_definition_keywords]
+        chs = [ch for ch in module.i_children if ch.keyword in statements.data_definition_keywords]
 
         if len(chs) > 0:
             print_children(chs, module, typedefs, groupings, augments, deviations, annotations, fd)
@@ -207,8 +208,9 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
         children = s.substmts
 
         #include the augments if neccassary
-        if get_xpath(s) in augments.keys():
-            for augment in augments[get_xpath(s)]:
+        xpath = get_xpath(s, complete=True)
+        if xpath in augments.keys():
+            for augment in augments[xpath]:
                 children += augment.i_children
 
         keys = None
@@ -253,9 +255,9 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in deviations.keys():
                 counter += print_field(fd, child, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'choice':
-                counter = print_choice(s, child, fd, typedefs, annotations, groupings, counter, keys, write_access)
+                counter = print_choice(s, child, fd, typedefs, annotations, groupings, augments, counter, keys, write_access)
             elif child.keyword == 'uses':
-                counter = print_group(s, child, fd, typedefs, annotations, groupings, counter, keys, write_access)
+                counter = print_group(s, child, fd, typedefs, annotations, groupings, augments, counter, keys, write_access)
 
 
         fd.write(tab + "},\n")
@@ -268,7 +270,13 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
 
     fd.write('\n')
 
-def print_group(s, child, fd, typedefs, annotations, groupings, temp_counter, keys, write_access, prefix=""):
+def print_group(s, child, fd, typedefs, annotations, groupings, augments, temp_counter, keys, write_access, prefix=""):
+    groupchilds = []
+    xpath = get_xpath(child, complete=True)
+    if xpath in augments.keys():
+        for augment in augments[xpath]:
+            groupchilds += augment.i_children
+
     new_prefix = make_name(s)+'__'
     if prefix != "":
         new_prefix = prefix
@@ -277,27 +285,36 @@ def print_group(s, child, fd, typedefs, annotations, groupings, temp_counter, ke
     if ':' not in child.arg:
         mod_prefix = child.i_module.i_prefix + ':'
     grouping = groupings[mod_prefix + child.arg]
-    for groupchild in grouping.substmts:
+    groupchilds += grouping.substmts
+    for groupchild in groupchilds:
         if groupchild.keyword in ['container', 'list', 'leaf', 'leaf-list']:
             counter += print_field(fd, groupchild, typedefs, annotations, counter, keys, prefix=new_prefix, write_access=get_write_access(write_access, child))
         elif groupchild.keyword == 'choice':
-            counter = print_choice(child, groupchild, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=new_prefix)
+            counter = print_choice(child, groupchild, fd, typedefs, annotations, groupings, augments, counter, keys, write_access, prefix=new_prefix)
     return counter
 
-def print_choice(s, child, fd, typedefs, annotations, groupings, temp_counter, keys, write_access, prefix=""):
+def print_choice(s, child, fd, typedefs, annotations, groupings, augments, temp_counter, keys, write_access, prefix=""):
     counter = temp_counter
     for substmt in child.substmts:
         if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
             counter += print_field(fd, substmt, typedefs, annotations, counter, keys, prefix=prefix, write_access=get_write_access(write_access, child))
         elif substmt.keyword == 'uses':
-            counter = print_group(child, substmt, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=prefix)
+            counter = print_group(child, substmt, fd, typedefs, annotations, groupings, augments, counter, keys, write_access, prefix=prefix)
     cases = child.search('case')
     for case in cases:
-        for substmt in case.substmts:
+
+        casechilds = []
+        xpath = get_xpath(case, complete=True)
+        if xpath in augments.keys():
+            for augment in augments[xpath]:
+                casechilds += augment.i_children
+        casechilds += case.substmts
+
+        for substmt in casechilds:
             if substmt.keyword in ['container', 'list', 'leaf', 'leaf-list']:
                 counter += print_field(fd, substmt, typedefs, annotations, counter, keys, prefix=prefix, write_access=get_write_access(write_access, child))
             elif substmt.keyword == 'uses':
-                counter = print_group(child, substmt, fd, typedefs, annotations, groupings, counter, keys, write_access, prefix=prefix)
+                counter = print_group(child, substmt, fd, typedefs, annotations, groupings, augments, counter, keys, write_access, prefix=prefix)
     return counter
 
 
@@ -470,7 +487,6 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
             c_type = 'T_TOKEN'
         fd.write(3*tab + ".type = " + c_type  + ",\n")
         fd.write(3*tab + ".u.t = {\n")
-        print make_name(child)
         fd.write(4*tab + ".table = " + "&" + prefix + make_name(child) + ",\n")
         if c_type == 'T_OBJECT':
             fd.write(4*tab + ".max = INT_MAX,\n")
@@ -598,8 +614,8 @@ def make_path_string(s, with_prefixes=False, multi_instance=False):
         p = make_path_string(s.parent, with_prefixes, multi_instance)
         return p + "/" + name(s) + suffix
 
-def get_xpath(s, with_prefixes=True):
-    if s.keyword in ['choice', 'case']:
+def get_xpath(s, with_prefixes=True, complete=False):
+    if s.keyword in ['choice', 'case'] and complete==False:
         return get_xpath(s.parent)
     def name(s):
         if with_prefixes:
@@ -609,7 +625,7 @@ def get_xpath(s, with_prefixes=True):
     if s.parent.keyword in ['module', 'submodule', 'grouping']:
         return "/" + name(s)
     else:
-        p = get_xpath(s.parent, with_prefixes)
+        p = get_xpath(s.parent, with_prefixes, complete)
         return p + "/" + name(s)
 
 #seek and return the actual builtin type

@@ -70,7 +70,7 @@ module ietf-ipv4-unicast-routing {
     }
     description
       "This leaf augments an IPv4 unicast route.";
-    leaf destination-prefix {
+    leaf ipv4-destination-prefix {
       type inet:ipv4-prefix;
       description
         "IPv4 destination prefix.";
@@ -104,7 +104,7 @@ module ietf-ipv4-unicast-routing {
     description
       "This leaf augments the 'next-hop-list' case of IPv4 unicast
        routes.";
-    leaf address {
+    leaf ipv4-address {
       type inet:ipv4-address;
       description
         "IPv4 address of the next-hop.";
