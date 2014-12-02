@@ -15,11 +15,7 @@
 #include "libdmconfig/debug.h"
 #endif
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/dmconfig.h"

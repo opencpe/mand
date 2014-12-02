@@ -8,11 +8,7 @@
 
 #include <stdlib.h>
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include <sys/tree.h>
 
@@ -79,7 +75,7 @@ static void insert_action(enum dm_actions action, const dm_selector sel, enum dm
 	struct exec_node *node;
 	struct exec_node *res;
 
-	node = talloc_zero(exec_chain, struct exec_node);
+	node = rzalloc(exec_chain, struct exec_node);
 	if (!node)
 		return;
 
@@ -94,7 +90,7 @@ static void insert_action(enum dm_actions action, const dm_selector sel, enum dm
 	res = RB_INSERT(action_tree, exec_chain, node);
 	if (res != NULL) {
 		debug(": duplicate insert");
-		talloc_free(node);
+		ralloc_free(node);
 	}
 
 }
@@ -105,7 +101,7 @@ void action_sel(enum dm_actions action, const dm_selector sel, enum dm_action_ty
 		return;
 
 	if (!exec_chain)
-		exec_chain = talloc_zero(NULL, struct action_tree);
+		exec_chain = rzalloc(NULL, struct action_tree);
 	if (!exec_chain)
 		return;
 
@@ -181,6 +177,6 @@ void exec_actions(void)
 
 void clear_actions(void)
 {
-	talloc_free(exec_chain);
+	ralloc_free(exec_chain);
 	exec_chain = NULL;
 }

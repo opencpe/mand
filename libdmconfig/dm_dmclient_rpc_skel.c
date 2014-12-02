@@ -18,11 +18,7 @@
 #include "libdmconfig/debug.h"
 #endif
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/dmconfig.h"
@@ -117,7 +113,7 @@ rpc_agent_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
 	pcnt = 0;
 	do {
 		if ((pcnt % BLOCK_ALLOC) == 0)
-			if (!(boot_order = talloc_realloc(NULL, boot_order, char *, pcnt + BLOCK_ALLOC)))
+			if (!(boot_order = reralloc(NULL, boot_order, char *, pcnt + BLOCK_ALLOC)))
 				return RC_ERR_ALLOC;
 
 		if ((rc = dm_expect_string_type(obj, AVP_STRING, VP_TRAVELPING, &boot_order[pcnt])) != RC_OK)
@@ -128,7 +124,7 @@ rpc_agent_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
 	if (rc == RC_OK)
 		rc = rpc_agent_set_boot_order(ctx, pcnt, (const char **)boot_order);
 
-	talloc_free(boot_order);
+	ralloc_free(boot_order);
 	return rc;
 }
 

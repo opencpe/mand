@@ -19,11 +19,7 @@
 
 #include "debug.h"
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "errors.h"
 #include "codes.h"
@@ -54,7 +50,7 @@ DM2_AVPGRP *dm_new_avpgrp(void *ctx)
 {
 	DM2_AVPGRP *grp;
 
-	if (!(grp = talloc_zero(ctx, DM2_AVPGRP)))
+	if (!(grp = rzalloc(ctx, DM2_AVPGRP)))
 		return NULL;
 	grp->ctx = grp;
 
@@ -63,19 +59,19 @@ DM2_AVPGRP *dm_new_avpgrp(void *ctx)
 
 void dm_free_avpgrp(DM2_AVPGRP *grp)
 {
-	talloc_free(grp);
+	ralloc_free(grp);
 }
 
 void dm_initialize_avpgrp(void *ctx, DM2_AVPGRP *grp)
 {
 	if (!ctx)
-		ctx = talloc_new(NULL);
+		ctx = ralloc_context(NULL);
 	grp->ctx = ctx;
 }
 
 void dm_release_avpgrp(DM2_AVPGRP *grp)
 {
-	talloc_free(grp->ctx);
+	ralloc_free(grp->ctx);
 }
 
 /* decoder functions */
@@ -104,7 +100,7 @@ dm_copy_avpgrp(DM2_AVPGRP *dest, DM2_AVPGRP *src)
 	assert(dest);
 	assert(src);
 
-	if (!(dest->data = talloc_memdup(dest->ctx, src->data, src->size)))
+	if (!(dest->data = ralloc_memdup(dest->ctx, src->data, src->size)))
 	      return RC_ERR_ALLOC;
 
 	dest->size = src->size;
@@ -164,7 +160,7 @@ dm_new_packet(void *ctx, DM2_REQUEST *req, uint32_t code, uint8_t flags, uint32_
 
 	memset(req, 0, sizeof(DM2_REQUEST));
 
-	if (!(req->packet = pkt = talloc_zero_size(ctx, DM_BLOCK_ALLOC)))
+	if (!(req->packet = pkt = rzalloc_size(ctx, DM_BLOCK_ALLOC)))
 		return RC_ERR_ALLOC;
 
 	pkt->version = 1;
@@ -231,7 +227,7 @@ dm_packet_ensure_space(DM2_REQUEST *req, size_t len)
 	if (have == want)
 		return RC_OK;
 
-	if (!(req->packet = talloc_realloc_size(NULL, req->packet, want * DM_BLOCK_ALLOC)))
+	if (!(req->packet = reralloc_size(NULL, req->packet, want * DM_BLOCK_ALLOC)))
 		return RC_ERR_ALLOC;
 	memset((unsigned char *)req->packet + (have * DM_BLOCK_ALLOC), 0, (want - have) * DM_BLOCK_ALLOC);
 

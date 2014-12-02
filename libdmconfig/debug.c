@@ -17,11 +17,7 @@
 #include <inttypes.h>
 #include <arpa/inet.h>
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "errors.h"
 #include "dmmsg.h"

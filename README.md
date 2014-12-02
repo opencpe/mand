@@ -39,7 +39,7 @@ aware and depend on particular entries in those models.
 - openssl
 - expat
 - libev (including the event.h compatibility header, libev-libevent-dev package on Debian/Ubuntu)
-- libtalloc
+- libralloc
 - lua 5.1
 - lua-event
 - xsltproc

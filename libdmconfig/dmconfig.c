@@ -37,11 +37,7 @@
 #include "debug.h"
 #endif
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "mand/dm_token.h"
 #include "mand/dm_strings.h"
@@ -248,7 +244,7 @@ uint32_t dm_expect_string_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_
 	if ((r = dm_expect_raw(grp, exp_code, exp_vendor_id, &data, &size)) != RC_OK)
 		return r;
 
-	if (!(*value = talloc_strndup(grp->ctx, data, size)))
+	if (!(*value = ralloc_strndup(grp->ctx, data, size)))
 		return RC_ERR_ALLOC;
 
 	return RC_OK;
@@ -418,11 +414,11 @@ DM2_REQUEST *dm_new_request(void *ctx, uint32_t code, uint8_t flags, uint32_t ho
 {
 	DM2_REQUEST *req;
 
-	if (!(req = talloc_zero(ctx, DM2_REQUEST)))
+	if (!(req = rzalloc(ctx, DM2_REQUEST)))
 		return NULL;
 
 	if (dm_new_packet(ctx, req, code, flags, APP_ID, hopid, endid) != RC_OK) {
-		talloc_free(req);
+		ralloc_free(req);
 		return NULL;
 	}
 

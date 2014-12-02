@@ -22,11 +22,7 @@
 #include <sys/queue.h>
 #include <ev.h>
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "dmmsg.h"
 #include "libdmconfig/codes.h"

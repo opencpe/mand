@@ -45,11 +45,7 @@
 #include "libdmconfig/debug.h"
 #endif
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "libdmconfig/dmconfig.h"
 #include "libdmconfig/dmcontext.h"
@@ -111,7 +107,7 @@ end_session(SOCKCONTEXT *ctx)
 	}
 
 	TAILQ_REMOVE(&socket_head, ctx, list);
-	talloc_free(ctx);
+	ralloc_free(ctx);
 
 	exec_actions_pre();
 	exec_actions();
@@ -146,7 +142,7 @@ accept_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userdata)
 		return RC_OK;
 	}
 
-	if (!(ctx = talloc_zero(NULL, SOCKCONTEXT)))
+	if (!(ctx = rzalloc(NULL, SOCKCONTEXT)))
 		return RC_ERR_ALLOC;
 
 	dm_context_set_userdata(socket, ctx);
@@ -1515,7 +1511,7 @@ uint32_t rpc_register_role(void *data, const char *role)
 		return RC_ERR_MISC;
 
 	/* add role */
-	ctx->role = talloc_strdup(ctx, role);
+	ctx->role = ralloc_strdup(ctx, role);
 	dm_debug(ctx->id, "CMD: %s %s: success", "REGISTER_ROLE", role);
 
 	return RC_OK;

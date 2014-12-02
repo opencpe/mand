@@ -36,11 +36,7 @@
 
 #include "debug.h"
 
-#ifdef HAVE_TALLOC_TALLOC_H
-# include <talloc/talloc.h>
-#else
-# include <talloc.h>
-#endif
+#include <ralloc.h>
 
 #include "dmmsg.h"
 #include "codes.h"
@@ -110,7 +106,7 @@ connection_error(DMCONTEXT *socket, DMCONFIG_EVENT event)
 DMCONTEXT*
 dm_context_new()
 {
-	return talloc(NULL, DMCONTEXT);
+	return ralloc(NULL, DMCONTEXT);
 }
 
 /** aquire a reference to a socket context
@@ -140,7 +136,7 @@ dm_context_release(DMCONTEXT *dmCtx)
 	r = dmCtx->_ref;
 
 	if (dmCtx->_ref == 0)
-		talloc_free(dmCtx);
+		ralloc_free(dmCtx);
 
 	return r;
 }
@@ -190,9 +186,10 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 		req->packet->end2end_id = htonl(endid);
 	}
 
-	if (!(rqi = talloc_zero(socket, DM2_REQUEST_INFO)))
+	if (!(rqi = rzalloc(socket, DM2_REQUEST_INFO)))
 		return RC_ERR_ALLOC;
-	rqi->packet = talloc_steal(rqi, req->packet);
+	ralloc_steal(rqi, req->packet);
+	rqi->packet = req->packet;
 	rqi->flags = flags;
 	rqi->reply_cb = cb;
 	rqi->userdata = data;
@@ -305,7 +302,7 @@ acceptEvent(EV_P_UNUSED_ ev_io *w, int revents)
 		return;
 	}
 
-	if (!(sock = talloc_zero(NULL, DMCONTEXT)))
+	if (!(sock = rzalloc(NULL, DMCONTEXT)))
 		return;
 
 	trace(":[%p] new socket [%p]", acceptSock, sock);
@@ -370,7 +367,7 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 		if (len != sizeof(buf))
 			return;
 
-		ctx->pos = ctx->packet = talloc_size(socket, dm_packet_length(&buf));
+		ctx->pos = ctx->packet = ralloc_size(socket, dm_packet_length(&buf));
 		ctx->left = dm_packet_length(&buf);
 		trace(":[%p] recv ctx->left: %zd", socket, ctx->left);
 	}
@@ -424,7 +421,7 @@ readEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 		else
 			process_reply(socket, ctx->packet);
 
-		talloc_free(ctx->packet);
+		ralloc_free(ctx->packet);
 		ctx->packet = ctx->pos = NULL;
 		ctx->left = 0;
 
@@ -467,7 +464,7 @@ process_reply(DMCONTEXT *socket, DM_PACKET *pkt)
 		return;
 
 	TAILQ_REMOVE(&socket->head, req, entries);
-	talloc_steal(pkt, req);
+	ralloc_steal(pkt, req);
 
 	CALLBACK(req->reply_cb, socket, DMCONFIG_ANSWER_READY, &grp, req->userdata);
 }
@@ -502,12 +499,12 @@ writeEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 
 			ctx->pos = ctx->packet = req->packet;
 			ctx->left = dm_packet_length(ctx->packet);
-			talloc_steal(socket, req->packet);
+			ralloc_steal(socket, req->packet);
 
 			if (req->flags & (ONE_WAY | REPLY)) {
 				/* drop the packet from the request queue */
 				TAILQ_REMOVE(&socket->head, req, entries);
-				talloc_free(req);
+				ralloc_free(req);
 			} else
 				req->status = REQUEST_SHALL_READ;
 		}
@@ -547,7 +544,7 @@ writeEvent(EV_P_ ev_io *w, int revents __attribute__((unused)))
 		trace(":[%p] loop exit: %zd bytes,ctx->left: %zd ", socket, len, ctx->left);
 
 		if (ctx->left == 0) {
-			talloc_free(ctx->packet);
+			ralloc_free(ctx->packet);
 			ctx->packet = NULL;
 		}
 
@@ -570,13 +567,13 @@ dm_free_requests(DMCONTEXT *sock, DMCONFIG_EVENT event)
 		r = TAILQ_FIRST(&sock->head);
 		TAILQ_REMOVE(&sock->head, r, entries);
 		CALLBACK(r->reply_cb, sock, event, NULL, r->userdata);
-		talloc_free(r);
+		ralloc_free(r);
 	}
 
-	talloc_free(sock->writeCtx.packet);
+	ralloc_free(sock->writeCtx.packet);
 	sock->writeCtx.packet = NULL;
 
-	talloc_free(sock->readCtx.packet);
+	ralloc_free(sock->readCtx.packet);
 	sock->readCtx.packet = NULL;
 }
 
