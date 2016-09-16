@@ -1495,7 +1495,14 @@ init_Lua_environment(void)
 		return DM_OOM;
 #endif
 
+#if LUA_VERSION_NUM > 501
+	lua_newtable(L);
+	luaL_setfuncs(L, auxfuncs, 0);
+	lua_pushvalue(L, -1);
+	lua_setglobal(L, "dm");
+#else
 	luaL_register(L, "dm", auxfuncs);
+#endif
 
 	lua_register_constants(L, mapping);
 	lua_register_type_constants(L);		/* FIXME: maybe use types from dm_token.h */
