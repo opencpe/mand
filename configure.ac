@@ -93,8 +93,6 @@ dnl ## AC_HAVE_LIBRARY(socket)
 
 AC_MSG_PART(Support libraries)
 AC_CHECK_LIB(ev, event_init, , AC_MSG_ERROR(Required libev missing) )
-AC_CHECK_LIB(crypto, ssl_init)
-AC_CHECK_HEADERS([ssl.h])
 
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(rt, clock_gettime)
@@ -111,7 +109,6 @@ save_LIBS=$LIBS
 AC_CHECK_HEADER(pthread.h, , AC_MSG_ERROR(You need the pthread headers) )
 AC_CHECK_LIB(pthread, pthread_create, , AC_MSG_ERROR(You need the pthread library) )
 
-AC_CHECK_LIB(z, inflate)
 AC_CHECK_LIB(expat, XML_Parse, , AC_MSG_ERROR(Required libexpat missing) )
 
 dnl
