@@ -840,7 +840,7 @@ dmconfig_list_cb(void *data, CB_type type, dm_id id, const struct dm_element *el
 	case CB_object_instance_end:
 	case CB_object_end:
 	case CB_table_end:
-		if (ctx->level && ctx->level < ctx->max_level) {
+		if (ctx->level && ctx->level <= ctx->max_level) {
 			if (dm_finalize_group(ctx->req) != RC_OK)
 				return 0;
 		}
@@ -1330,7 +1330,7 @@ rpc_db_list(void *data __attribute__((unused)), int level, dm_selector path, DM2
 
 	memset(&list_ctx, 0, sizeof(struct list_ctx));
 	list_ctx.req = answer;
-	list_ctx.max_level = level ? : DM_SELECTOR_LEN;
+	list_ctx.max_level = level ? level + 1 : DM_SELECTOR_LEN;
 
 	if (path[0]) {
 		if (!dm_walk_by_selector_cb(path, level ? level + 1 : DM_SELECTOR_LEN, &list_ctx, dmconfig_list_cb))
