@@ -216,14 +216,7 @@ static void string_unescape(char *text, const char *s, int len)
 static void XMLCALL
 charElement(void *userData, const XML_Char *s, int len)
 {
-	char buf[1024];
-
 	struct XMLstate **state = userData;
-
-	if (len > 1024)
-		len = 1023;
-	memcpy(buf, s, len);
-	buf[len] = '\0';
 
 	if (!(*state)->text) {
 		(*state)->text = calloc(len + 1, 1);
