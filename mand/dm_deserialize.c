@@ -73,6 +73,10 @@ startElement(void *userData, const char *name, const char **atts)
 	int ntfy = 0;
 	dm_id id;
 
+	(*state)++;
+	if (!is_root)
+		memset(*state, 0, sizeof(struct XMLstate));
+
 	for (int i = 0; atts[i]; i += 2) {
 		if (strcasecmp("instance", atts[i]) == 0) {
 			xml_debug("%s: instance: %s\n", name, atts[i + 1]);
@@ -94,8 +98,6 @@ startElement(void *userData, const char *name, const char **atts)
 		}
 	}
 
-	(*state)++;
-
 	if (is_root) {
 		if (flags & DS_VERSIONCHECK &&
 		    dm_get_cfg_version() != CFG_VERSION) {
@@ -107,8 +109,6 @@ startElement(void *userData, const char *name, const char **atts)
 				debug("(): Error during Lua function execution");
 		}
 	} else {
-		memset(*state, 0, sizeof(struct XMLstate));
-
 		if (xid != 0)
 			asprintf(&(*state)->base, "%s.%s.%d", base, name, xid);
 		else
@@ -216,14 +216,7 @@ static void string_unescape(char *text, const char *s, int len)
 static void XMLCALL
 charElement(void *userData, const XML_Char *s, int len)
 {
-	char buf[1024];
-
 	struct XMLstate **state = userData;
-
-	if (len > 1024)
-		len = 1023;
-	memcpy(buf, s, len);
-	buf[len] = '\0';
 
 	if (!(*state)->text) {
 		(*state)->text = calloc(len + 1, 1);

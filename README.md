@@ -36,12 +36,10 @@ aware and depend on particular entries in those models.
 - shtool
 - gcc
 - libpthreads
-- openssl
 - expat
-- libev (including the event.h compatibility header, libev-libevent-dev package on Debian/Ubuntu)
+- libev
 - libtalloc
-- lua 5.1
-- lua-event
+- lua 5.1 or 5.2
 - xsltproc
 - python
 - pyang
