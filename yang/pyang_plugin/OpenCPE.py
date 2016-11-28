@@ -149,8 +149,8 @@ def emit_tree(modules, fd):
 
 #GLOBAL SETTINGS
 #mapping of the yang types to c types
-c_types = {'string':'T_STR', 'enumeration':'T_ENUM', 'uint8':'T_UINT', 'uint16':'T_UINT', 'uint32':'T_UINT', 'uint64':'T_UINT',
-           'int8':'T_INT', 'int16':'T_INT', 'int32':'T_INT', 'int64':'T_INT', 'boolean':'T_BOOL', 'bits':'T_BINARY',
+c_types = {'string':'T_STR', 'enumeration':'T_ENUM', 'uint8':'T_UINT', 'uint16':'T_UINT', 'uint32':'T_UINT', 'uint64':'T_UINT64',
+           'int8':'T_INT', 'int16':'T_INT', 'int32':'T_INT', 'int64':'T_INT64', 'boolean':'T_BOOL', 'bits':'T_BINARY',
            'binary':'T_BASE64', 'identityref':'T_STR', 'leafref':'T_SELECTOR', 'inet:ipv4-address':'T_IPADDR4', 'inet:ipv6-address':'T_IPADDR6',
             'empty':'T_BOOL', 'inet:host':'T_STR', 'inet:ip-address':'T_STR', 'yang:date-and-time':'T_TICKS'}
 
