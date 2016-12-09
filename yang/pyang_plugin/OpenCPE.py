@@ -226,7 +226,8 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
             fd.write(tab + ".idx = {\n")
             fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = T_INSTANCE },\n")
             for key in keys:
-                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] + ", .element = " + "field_" + name + "_" + key.arg + " },\n")
+                fd.write(2*tab + "{ .flags = IDX_UNIQUE, .type = " + c_types[key_leafs[key.arg]] +
+                         ", .element = " + "field_" + name + "_" + make_key(key, keep_hyphens=False) + " },\n")
             fd.write(tab + "},\n")
             fd.write(tab + ".size = " + str(len(keys)+1) + "\n")
             fd.write("};\n")
