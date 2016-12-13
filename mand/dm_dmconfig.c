@@ -698,6 +698,7 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 		while (rem) {
 			size_t s_len;
 			struct dm_instance_node *node;
+			DM_VALUE *value;
 
 			p = memchr(s, ',', rem);
 			s_len = (p != NULL) ? (size_t)(p - s) : rem;
@@ -705,8 +706,13 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 			if (!(node = dm_add_instance_by_selector(sel, &id)))
 				return RC_ERR_ALLOC;
 
-			if ((rc = dmconfig_string2value(s, s_len, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
+			value = dm_get_value_ref_by_index(DM_TABLE(node->table), 0);
+
+			if ((rc = dmconfig_string2value(s, s_len, &elem->u.t.table->table[0], value)) != DM_OK)
 				return rc;
+
+			value->flags |= DV_UPDATED;
+			DM_parity_update(*value);
 
 			update_instance_node_index(node);
 
@@ -725,6 +731,7 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 		while (dm_expect_group_end(&container) != RC_OK) {
 			struct dm2_avp a;
 			struct dm_instance_node *node;
+			DM_VALUE *value;
 
 			if ((rc = dm_expect_value(&container, &a)) != RC_OK)
 				return rc;
@@ -732,8 +739,13 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 			if (!(node = dm_add_instance_by_selector(sel, &id)))
 				return RC_ERR_ALLOC;
 
-			if ((rc = dmconfig_avp2value(&a, &elem->u.t.table->table[0], dm_get_value_ref_by_index(DM_TABLE(node->table), 0))) != DM_OK)
+			value = dm_get_value_ref_by_index(DM_TABLE(node->table), 0);
+
+			if ((rc = dmconfig_avp2value(&a, &elem->u.t.table->table[0], value)) != DM_OK)
 				return rc;
+
+			value->flags |= DV_UPDATED;
+			DM_parity_update(*value);
 
 			update_instance_node_index(node);
 
