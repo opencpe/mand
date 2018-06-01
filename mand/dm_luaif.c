@@ -1341,7 +1341,7 @@ LUA_SIG(deserialize_file)
 
 	luaL_argcheck(L, top && top <= 2, top, L_NUMBER);
 	file = luaL_checkstring(L, 1);
-	flags = luaL_optint(L, 2, DS_USERCONFIG);
+	flags = (int)luaL_optinteger(L, 2, DS_USERCONFIG);
 
 	debug(": LUAIF: deserialize_file %s, %d\n", file, flags);
 
@@ -1358,7 +1358,7 @@ LUA_SIG(deserialize_directory)
 
 	luaL_argcheck(L, top && top <= 2, top, L_NUMBER);
 	dir = luaL_checkstring(L, 1);
-	flags = luaL_optint(L, 2, DS_USERCONFIG);
+	flags = (int)luaL_optinteger(L, 2, DS_USERCONFIG);
 
 	debug(": LUAIF: deserialize_directory %s, %d\n", dir, flags);
 

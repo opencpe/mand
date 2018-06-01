@@ -39,7 +39,7 @@ aware and depend on particular entries in those models.
 - expat
 - libev
 - libtalloc
-- lua 5.1 or 5.2
+- lua 5.1 - 5.3
 - xsltproc
 - python
 - pyang
