@@ -40,7 +40,6 @@ AM_PROG_CC_C_O
 AC_CHECK_PROG(LUAC, luac, luac)
 AC_CHECK_PROG(LUAC, luac5.1, luac5.1)
 AC_CHECK_HEADER(lua.h, , AC_MSG_ERROR(You need the lua headers) )
-AC_CHECK_PROG(RENAME, rename, rename)
 AC_PROG_INSTALL
 AC_SET_MAKE
 AC_CHECK_DEBUGGING
