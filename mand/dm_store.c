@@ -1243,9 +1243,6 @@ int dm_walk_table_cb(int level, void *userData, walk_cb *cb,
 
 	debug("(%p, %p)\n", kw_base, st_base);
 
-	if (!kw_base || !st_base)
-		return 0;
-
 	ref.kw_base = kw_base;
 	ref.kw_elem = kw_base->table;
 	ref.st_base = st_base;

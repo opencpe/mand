@@ -128,7 +128,7 @@ shutdown_session(SOCKCONTEXT *ctx)
 }
 
 static void
-sessionTimeoutEvent(struct ev_loop *loop __attribute__((unused)), ev_io *w, int revents __attribute__((unused)))
+sessionTimeoutEvent(struct ev_loop *loop __attribute__((unused)), ev_timer *w, int revents __attribute__((unused)))
 {
 	SOCKCONTEXT *ctx = w->data;
 
