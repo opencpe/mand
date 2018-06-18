@@ -209,18 +209,17 @@ int main(int argc, char *argv[])
 		dm_load_default_config();
         }
 
-	if (run_daemon)
-		if (daemon(1, 0) != 0) {
-			fprintf(stderr, "daemon failed: %s\n", strerror(errno));
-			exit(1);
-
-		}
-
 	dm_notify_init(EV_DEFAULT_UC);
 
 	libdmconfigSocketType = AF_INET;
 	if (init_libdmconfig_server(EV_DEFAULT_UC))
 		debug("Cannot initiate libdmconfig server\n");
+
+	if (run_daemon)
+		if (daemon(1, 0) != 0) {
+			fprintf(stderr, "daemon failed: %s\n", strerror(errno));
+			exit(1);
+		}
 
 	ev_loop(EV_DEFAULT_UC_ 0);
 
