@@ -68,6 +68,8 @@ void dm_save(void)
 		fout = fdopen(fd, "w");
 		if (fout) {
 			dm_serialize_store(fout, S_CFG);
+			fflush(fout);
+			fsync(fd);
 			fclose(fout);
 			rename(fname, DM_CONFIG);
 		} else {
