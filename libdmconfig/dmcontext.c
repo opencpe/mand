@@ -181,6 +181,7 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 		/* initialize static hopid */
 		switch (hopid) {		/* one never knows... */
 		case 0:		srand((unsigned int)time(NULL));
+				/* fallthrough */
 		case MAX_INT:	hopid = endid = (float)rand()/RAND_MAX * (MAX_INT-1) + 1;
 			break;
 		default:	hopid = ++endid;

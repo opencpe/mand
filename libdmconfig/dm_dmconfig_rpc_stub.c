@@ -363,7 +363,7 @@ uint32_t rpc_db_cancel_async(DMCONTEXT *ctx, DMRESULT_CB cb, void *data)
 	return dm_enqueue_request(ctx, req, cb, data);
 }
 
-uint32_t rpc_db_findinstance_async(DMCONTEXT *ctx, const const char *path, const char *name, const struct dm2_avp *search, DMRESULT_CB cb, void *data)
+uint32_t rpc_db_findinstance_async(DMCONTEXT *ctx, const char *path, const char *name, const struct dm2_avp *search, DMRESULT_CB cb, void *data)
 {
 	uint32_t rc;
 	DM2_REQUEST *req;
@@ -684,7 +684,7 @@ uint32_t rpc_db_cancel(DMCONTEXT *ctx, DM2_AVPGRP *answer)
 	return reply.rc;
 }
 
-uint32_t rpc_db_findinstance(DMCONTEXT *ctx, const const char *path, const char *name, const struct dm2_avp *search, DM2_AVPGRP *answer)
+uint32_t rpc_db_findinstance(DMCONTEXT *ctx, const char *path, const char *name, const struct dm2_avp *search, DM2_AVPGRP *answer)
 {
 	struct async_reply reply = {.rc = RC_OK, .answer = answer };
 

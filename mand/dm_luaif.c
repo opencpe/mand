@@ -649,6 +649,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_ENUM;
+			/* fallthrough */
 		case AVP_ENUM:
 			lua_pushstring(L, dm_int2enum(&elem->u.e,
 						   	 DM_ENUM(val)));
@@ -673,6 +674,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_COUNTER;
+			/* fallthrough */
 		case AVP_COUNTER:
 			lua_pushinteger(L, DM_UINT(val));
 
@@ -688,6 +690,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_INT32;
+			/* fallthrough */
 		case AVP_INT32:
 			lua_pushinteger(L, DM_INT(val));
 
@@ -703,6 +706,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_UINT32;
+			/* fallthrough */
 		case AVP_UINT32:
 			lua_pushinteger(L, DM_UINT(val));
 
@@ -718,6 +722,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_INT64;
+			/* fallthrough */
 		case AVP_INT64: {
 			char buf[INT64_DIGITS];
 
@@ -737,6 +742,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_UINT64;
+			/* fallthrough */
 		case AVP_UINT64: {
 			char buf[UINT64_DIGITS];
 
@@ -756,6 +762,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_STRING;
+			/* fallthrough */
 		case AVP_STRING:
 			lua_pushstring(L, DM_STRING(val) ? : "");
 
@@ -772,6 +779,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_BINARY;
+			/* fallthrough */
 		case AVP_BINARY:
 			if (DM_BINARY(val))
 				lua_pushlstring(L, (const char *)DM_BINARY(val)->data, DM_BINARY(val)->len);
@@ -792,6 +800,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_ADDRESS;
+			/* fallthrough */
 		case AVP_ADDRESS:
 			inet_ntop(AF_INET, DM_IP4_REF(val), buf, sizeof(buf));
 			lua_pushstring(L, buf);
@@ -811,6 +820,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_ADDRESS;
+			/* fallthrough */
 		case AVP_ADDRESS:
 			inet_ntop(AF_INET6, DM_IP6_REF(val), buf, sizeof(buf));
 			lua_pushstring(L, buf);
@@ -828,6 +838,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_BOOL;
+			/* fallthrough */
 		case AVP_BOOL:
 			lua_pushboolean(L, DM_BOOL(val));
 
@@ -844,6 +855,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_DATE;
+			/* fallthrough */
 		case AVP_DATE:
 			lua_pushinteger(L, DM_TIME(val));
 
@@ -884,6 +896,7 @@ luaif_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		switch (type) {
 		case AVP_UNKNOWN:
 			type = AVP_PATH;
+			/* fallthrough */
 		case AVP_PATH: {
 			char buffer[MAX_PARAM_NAME_LEN];
 			char *name;
