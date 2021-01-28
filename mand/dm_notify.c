@@ -367,7 +367,12 @@ DM_RESULT dm_set_notify_by_selector_recursive(const dm_selector sel, int slot, i
 
 	ENTER();
 
-	if (dm_get_element_ref(sel, &ref)) {
+	if (!sel[0]) {
+		debug("(): notify on root\n");
+		set_notify_slot_table(&dm_root, dm_value_store, slot, value);
+		EXIT();
+		return DM_OK;
+	} else if (dm_get_element_ref(sel, &ref)) {
 #if DEBUG
 		debug("(): %s\n", ref.kw_base->name);
 #endif
