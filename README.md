@@ -75,6 +75,9 @@ libdmconfig API documentation can be build with doxygen:
 
 For how to use this API, refer to the C and Lua samples in libdmconfig/tests.
 
+**NOTE:** Currently only the [event_client_sample.c](libdmconfig/tests/event_client_sample.c)
+example builds and reflects the current state of the API.
+
 # Adding new YANG modules
 
 YANG is specified in [RFC 6020][1]. mand already contains several IETF YANG modules
