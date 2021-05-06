@@ -213,23 +213,23 @@ void parse_commandline(int argc, char **argv)
 	    command = DMCTRL_COMMIT;
     } else if (strcasecmp(*(argv + optind), "list") == 0) {
 	    command = DMCTRL_LIST;
-	    what = *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "get") == 0) {
 	    command = DMCTRL_GET;
-	    what = *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "set") == 0) {
 	    command = DMCTRL_SET;
-	    what = *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "add") == 0) {
 	    command = DMCTRL_ADD;
-	    what = *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "del") == 0) {
 	    command = DMCTRL_DEL;
-	    what = *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 1);
     } else if (strcasecmp(*(argv + optind), "find") == 0) {
 	    command = DMCTRL_FIND;
-	    base = *(argv + optind + 1);
-	    what = *(argv + optind + 2);
+	    base = optind+1 == argc ? "" : *(argv + optind + 1);
+	    what = optind+1 == argc ? "" : *(argv + optind + 2);
     } else if (strcasecmp(*(argv + optind), "dump") == 0) {
 	    command = DMCTRL_DUMP;
 	    what = optind+1 == argc ? "" : *(argv + optind + 1);
@@ -283,9 +283,7 @@ uint32_t dmctrl_connect_cb(DMCONFIG_EVENT event, DMCONTEXT *socket, void *userda
 			break;
 		}
 		case DMCTRL_LIST: {
-			char *path = what ? what : "";
-
-			if ((rc = rpc_db_list(socket, 0, path, answer)) != RC_OK) {
+			if ((rc = rpc_db_list(socket, 0, what, answer)) != RC_OK) {
 				printf("failed with rc=%d (0x%08x)\n", rc, rc);
 				break;
 			}
