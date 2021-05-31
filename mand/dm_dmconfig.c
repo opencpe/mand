@@ -1691,7 +1691,7 @@ static void update_interface_state(struct dm_value_table *tbl)
 	snprintf(macstr, sizeof(macstr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress , macstr);
 
-	dm_set_uint_by_id(tbl, field_ocpe__interfaces_state__interface_speed , if_speed);
+	dm_set_uint64_by_id(tbl, field_ocpe__interfaces_state__interface_speed, if_speed);
 
 	struct dm_value_table *stats;
 
@@ -1700,17 +1700,17 @@ static void update_interface_state(struct dm_value_table *tbl)
 	if (dm_get_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime) == 0)
 		dm_set_ticks_by_id(stats, field_ocpe__interfaces_state__interface__statistics_discontinuitytime, rt_now);
 
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inoctets, rec_oct);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunicastpkts, rec_pkt);
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inbroadcastpkts,       );
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inmulticastpkts,       );
+	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inoctets, rec_oct);
+	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunicastpkts, rec_pkt);
+//	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inbroadcastpkts,       );
+//	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inmulticastpkts,       );
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_indiscards, rec_drop);
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inerrors, rec_err);
 //	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_inunknownprotos,       );
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outoctets, snd_oct);
-	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outunicastpkts, snd_pkt);
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outbroadcastpkts,       );
-//	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outmulticastpkts,       );
+	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outoctets, snd_oct);
+	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outunicastpkts, snd_pkt);
+//	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outbroadcastpkts,       );
+//	dm_set_uint64_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outmulticastpkts,       );
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outdiscards, snd_drop);
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outerrors, snd_err);
 
