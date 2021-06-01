@@ -1639,6 +1639,15 @@ static void update_interface_state(struct dm_value_table *tbl)
 	if (!(ctx = find_role("-state")))
 		return;
 
+	/*
+	 * Make sure the interface is reported as "down" in case of any errors.
+	 * This will also include missing interfaces.
+	 */
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_adminstatus ,
+			  field_ocpe__interfaces_state__interface_adminstatus_down);
+	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus ,
+			  field_ocpe__interfaces_state__interface_operstatus_down);
+
 	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name);
 	printf("get_ocpe__interfaces_state__interface: %s\n", name);
 
