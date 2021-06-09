@@ -2036,11 +2036,23 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 	ticks2str(buf1, sizeof(buf1), ticks2realtime(last));
 	ticks2str(buf2, sizeof(buf2), ticks2realtime(rt_now));
 
+	/*
+	 * FIXME: Disables all notifications.
+	 * The dmconfig client querying this information does not need them
+	 * and the others cannot rely on notifications anyway.
+	 * This should be solved more elegantly, though.
+	 */
+	int notify_enabled_old = notify_enabled;
+	notify_enabled = 0;
+
 	printf("get_ocpe__interfaces_state__interface: %s: %s, %s, %" PRItick "\n", e->key, buf1, buf2, rt_now - last);
 	if (rt_now - last > 10)
 		update_interface_state(tbl);
 
 	dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastread, rt_now);
+
+	notify_enabled = notify_enabled_old;
+
 	return *dm_get_value_ref_by_id(tbl, id);
 }
 

@@ -25,6 +25,8 @@
 //#define SDEBUG
 #include "debug.h"
 
+int notify_enabled = 1;
+
 static int notify_pending = 0;
 
 static int
@@ -180,6 +182,9 @@ void notify_sel(int slot, const dm_selector sel,
 
 	if (ntfy == 0)
 		/* not notify's at all */
+		return;
+
+	if (!notify_enabled)
 		return;
 
 	debug("(): %s, %08x ... %d", dm_sel2name(sel, b1, sizeof(b1)), ntfy, slot);

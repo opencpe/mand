@@ -1591,28 +1591,28 @@ void dm_set_bool_by_id(struct dm_value_table *ift, dm_id id, char bool)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_BOOL(ift->values[id - 1], bool);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_string_by_id(struct dm_value_table *ift, dm_id id, const char *val)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	dm_set_string_value(&ift->values[id - 1], val);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_binary_by_id(struct dm_value_table *ift, dm_id id, const binary_t *val)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	dm_set_binary_value(&ift->values[id - 1], val);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_binary_data_by_id(struct dm_value_table *ift, dm_id id, unsigned int len, const uint8_t *data)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	dm_set_binary_data(&ift->values[id - 1], len, data);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 int dm_set_binary_data_by_selector(const dm_selector sel, unsigned int len, uint8_t * const data, int flags)
@@ -1641,7 +1641,7 @@ void dm_set_enum_by_id(struct dm_value_table *ift, dm_id id, int val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_ENUM(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_counter_by_id(struct dm_value_table *ift, dm_id id, unsigned int val)
@@ -1649,7 +1649,7 @@ void dm_set_counter_by_id(struct dm_value_table *ift, dm_id id, unsigned int val
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_UINT(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_int_by_id(struct dm_value_table *ift, dm_id id, int val)
@@ -1657,7 +1657,7 @@ void dm_set_int_by_id(struct dm_value_table *ift, dm_id id, int val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_INT(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_uint_by_id(struct dm_value_table *ift, dm_id id, unsigned int val)
@@ -1665,7 +1665,7 @@ void dm_set_uint_by_id(struct dm_value_table *ift, dm_id id, unsigned int val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_UINT(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_int64_by_id(struct dm_value_table *ift, dm_id id, int64_t val)
@@ -1673,7 +1673,7 @@ void dm_set_int64_by_id(struct dm_value_table *ift, dm_id id, int64_t val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_INT64(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_uint64_by_id(struct dm_value_table *ift, dm_id id, uint64_t val)
@@ -1681,7 +1681,7 @@ void dm_set_uint64_by_id(struct dm_value_table *ift, dm_id id, uint64_t val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_UINT64(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_time_by_id(struct dm_value_table *ift, dm_id id, time_t t)
@@ -1689,7 +1689,7 @@ void dm_set_time_by_id(struct dm_value_table *ift, dm_id id, time_t t)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_TIME(ift->values[id - 1], t);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_ticks_by_id(struct dm_value_table *ift, dm_id id, ticks_t val)
@@ -1697,14 +1697,14 @@ void dm_set_ticks_by_id(struct dm_value_table *ift, dm_id id, ticks_t val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_TICKS(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_selector_by_id(struct dm_value_table *ift, dm_id id, const dm_selector sel)
 {
 	DM_parity_assert(ift->values[id - 1]);
 	dm_set_selector_value(&ift->values[id - 1], sel);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_ipv4_by_id(struct dm_value_table *ift, dm_id id, struct in_addr val)
@@ -1712,7 +1712,7 @@ void dm_set_ipv4_by_id(struct dm_value_table *ift, dm_id id, struct in_addr val)
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_IP4(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }
 
 void dm_set_ipv6_by_id(struct dm_value_table *ift, dm_id id, struct in6_addr val)
@@ -1720,5 +1720,5 @@ void dm_set_ipv6_by_id(struct dm_value_table *ift, dm_id id, struct in6_addr val
 	DM_parity_assert(ift->values[id - 1]);
 	set_DM_IP6(ift->values[id - 1], val);
 	DM_parity_update(ift->values[id - 1]);
-//	__DM_NOTIFY_BY_ID(ift, id);
+	__DM_NOTIFY_BY_ID(ift, id);
 }

@@ -39,6 +39,8 @@ struct slot {
 
 RB_PROTOTYPE(notify_queue, notify_item, node, notify_compare);
 
+extern int notify_enabled;
+
 int alloc_slot(notify_cb *cb, void *data);
 void free_slot(int slot);
 
