@@ -9,6 +9,7 @@ from pyang import plugin
 from pyang import statements
 
 from copy import deepcopy
+from six.moves import range
 
 def pyang_plugin_init():
     plugin.register_plugin(TreePlugin())
@@ -90,7 +91,7 @@ def emit_tree(modules, fd):
     for module in modules:
         module_augments = module.search('augment')
         for augment in module_augments:
-            if augment.arg not in augments.keys():
+            if augment.arg not in list(augments.keys()):
                 augments[augment.arg] = [augment]
             else:
                 augments[augment.arg] += [augment]
@@ -191,7 +192,7 @@ def print_children(i_children, module, typedefs, groupings, augments, deviations
             ch.parent.search_one(ch.arg) is None):
             pass
         #exclude the deviations with 'not supported'
-        elif get_xpath(ch) not in deviations.keys():
+        elif get_xpath(ch) not in list(deviations.keys()):
             child_write_access = get_write_access(write_access, ch)
             print_node(ch, module, typedefs, groupings, augments, deviations, annotations, fd, child_write_access)
 
@@ -207,7 +208,7 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
         children = s.substmts
 
         #include the augments if neccassary
-        if get_xpath(s) in augments.keys():
+        if get_xpath(s) in list(augments.keys()):
             for augment in augments[get_xpath(s)]:
                 children += augment.i_children
 
@@ -251,7 +252,7 @@ def print_node(s, module, typedefs, groupings, augments, deviations, annotations
 
         #the inner part of one struct
         for child in children:
-            if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in deviations.keys():
+            if child.keyword in ['container', 'list', 'leaf', 'leaf-list'] and get_xpath(child) not in list(deviations.keys()):
                 counter += print_field(fd, child, typedefs, annotations, counter, keys, write_access=get_write_access(write_access, child))
             elif child.keyword == 'choice':
                 for substmt in child.substmts:
@@ -304,7 +305,7 @@ def print_field(fd, child, typedefs, annotations, counter, keys, prefix='', writ
     getter = False
     setter = False
     annotated_type = None
-    if get_xpath(child) in annotations.keys():
+    if get_xpath(child) in list(annotations.keys()):
         action = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'action'))
         annotated_flags = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'flags'))
         getter = annotations[get_xpath(child)].search_one(('opencpe-annotations', 'getter'))
@@ -752,7 +753,7 @@ def zero(n):
 
 # the code regarding the transitive reduction is now used here
 def make_chains(chains):
-    keys = chains.keys()
+    keys = list(chains.keys())
     n = len(keys)
 
     for action in keys:

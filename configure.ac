@@ -27,7 +27,7 @@ dnl ##
 
 AC_MSG_PART(Build Tools)
 
-AM_PATH_PYTHON
+AM_PATH_PYTHON([3.0])
 AX_PYTHON_MODULE([pyang], [true])
 AC_CHECK_PROG(PYANG, pyang, pyang)
 

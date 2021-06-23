@@ -51,7 +51,8 @@ stamp-h1
 /build*
 
 # pyang plugin
-OpenCPE.pyc
+__pycache__
+*.pyc
 p_table*
 dm_action_*
 

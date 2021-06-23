@@ -41,8 +41,9 @@ aware and depend on particular entries in those models.
 - libtalloc
 - lua 5.1 - 5.3
 - xsltproc
-- python
-- pyang
+- python3
+- pyang v1.7
+- python3-six
 
 ## Optional tools and libraries
 
