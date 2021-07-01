@@ -147,7 +147,8 @@ int main(int argc, char *argv[])
 	FILE *fin;
 
 	/* switch working dir to /tmp so that logfiles can be written */
-	chdir("/tmp");
+	if (chdir("/tmp") < 0)
+		perror("chdir");
 
 	/*
 	 * prevent any spawned processes from inheriting LD_PRELOAD

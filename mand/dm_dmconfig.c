@@ -403,7 +403,7 @@ dmconfig_string2value(char *s, size_t size, const struct dm_element *elem, DM_VA
 	debug(": %s: %*s", elem->key, ilen, s);
 
 	if (!(dum = strndup(s, size)))
-		return RC_ERR_ALLOC;
+		return DM_OOM;
 
 	switch (elem->type) {
 	case T_BASE64:
@@ -670,22 +670,22 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 		      DM_VALUE *st)
 {
 	int len = avp->size;
-	uint32_t rc;
+	DM_RESULT rc;
 	char buffer[MAX_PARAM_NAME_LEN];
 	char *path;
 
 	if (elem->type != T_OBJECT
 	    || st->type != T_OBJECT
 	    || (avp->code != AVP_UNKNOWN && avp->code != AVP_ARRAY))
-		return RC_ERR_INVALID_AVP_TYPE;
+		return DM_INVALID_TYPE;
 
 	if (!(path = dm_sel2name(sel, buffer, sizeof(buffer))))
-		return RC_ERR_ALLOC;
+		return DM_OOM;
 
 	debug(": %08x:%08x, %d, %d, %s (%s): %*s", avp->vendor_id, avp->code, elem->type, st->type, elem->key, path, len, (char *)avp->data);
 
 	if (!dm_del_table_by_selector(sel))
-		return RC_ERR_MISC;
+		return DM_ERROR;
 
 	if (avp->code == AVP_UNKNOWN) {
 		debug(": string2array");
@@ -704,7 +704,7 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 			s_len = (p != NULL) ? (size_t)(p - s) : rem;
 
 			if (!(node = dm_add_instance_by_selector(sel, &id)))
-				return RC_ERR_ALLOC;
+				return DM_OOM;
 
 			value = dm_get_value_ref_by_index(DM_TABLE(node->table), 0);
 
@@ -733,11 +733,11 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 			struct dm_instance_node *node;
 			DM_VALUE *value;
 
-			if ((rc = dm_expect_value(&container, &a)) != RC_OK)
-				return rc;
+			if (dm_expect_value(&container, &a) != RC_OK)
+				return DM_ERROR;
 
 			if (!(node = dm_add_instance_by_selector(sel, &id)))
-				return RC_ERR_ALLOC;
+				return DM_OOM;
 
 			value = dm_get_value_ref_by_index(DM_TABLE(node->table), 0);
 
@@ -753,7 +753,7 @@ dmconfig_set_array_cb(SOCKCONTEXT *ctx __attribute__((unused)),
 		}
 	}
 
-	return RC_OK;
+	return DM_OK;
 }
 
 static DM_RESULT
@@ -791,15 +791,14 @@ dmconfig_get_cb(void *data, const dm_selector sb __attribute__((unused)),
 		const struct dm_element *elem, int st_type, const DM_VALUE val)
 {
 	DM2_REQUEST *req = data;
-	uint32_t rc;
 
 	if (!elem)
-		return RC_ERR_VALUE_NOT_FOUND;
+		return DM_VALUE_NOT_FOUND;
 
-	if ((rc = dm_add_avp(req, elem, st_type, val)) != RC_OK)
-		return rc;
+	if (dm_add_avp(req, elem, st_type, val) != RC_OK)
+		return DM_ERROR;
 
-	return RC_OK;
+	return DM_OK;
 }
 
 static int
