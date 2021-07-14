@@ -45,7 +45,8 @@ int do_ethflags(const char *iface, uint32_t flags, uint32_t mask)
                 return -1;
 
         memset(&ifr, 0, sizeof(ifr));
-        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
+        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name)-1);
+        ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
         err = ioctl(s, SIOCGIFFLAGS, &ifr);
         if (err) {
                 debug("(): SIOCGIFFLAGS: %m");
@@ -74,7 +75,8 @@ struct in_addr getifip(const char *iface)
                 return ret;
 
         memset(&ifr, 0, sizeof(ifr));
-        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
+        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name)-1);
+        ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
         ifr.ifr_addr.sa_family = AF_INET;
         if (ioctl(s, SIOCGIFADDR, &ifr) == 0)
                 ret = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
@@ -95,7 +97,8 @@ struct in_addr getifdstip(const char *iface)
                 return ret;
 
         memset(&ifr, 0, sizeof(ifr));
-        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
+        strncpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name)-1);
+        ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
         ifr.ifr_addr.sa_family = AF_INET;
         if (ioctl(s, SIOCGIFDSTADDR, &ifr) == 0)
                 ret = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
