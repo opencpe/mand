@@ -16,6 +16,10 @@ module opencpe-annotations {
         ocpe-annotation:setter true;
     }
 
+    ocpe-annotation:annotate "/sys:system/sys:ntp/sys:enabled" {
+        ocpe-annotation:action "dm_ntp";
+    }
+
     ocpe-annotation:annotate "/sys:system/sys:ntp/sys:server/sys:udp/sys:address" {
         ocpe-annotation:action "dm_ntp";
     }
@@ -34,6 +38,14 @@ module opencpe-annotations {
 
     ocpe-annotation:annotate "/sys:system/sys:dns-resolver/sys:search" {
         ocpe-annotation:action "dm_dns";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:authentication/sys:user/sys:name" {
+        ocpe-annotation:action "dm_authentication";
+    }
+
+    ocpe-annotation:annotate "/sys:system/sys:authentication/sys:user/sys:password" {
+        ocpe-annotation:action "dm_authentication";
     }
 
     ocpe-annotation:annotate "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:ip" {

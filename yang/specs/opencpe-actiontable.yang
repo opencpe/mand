@@ -25,6 +25,16 @@ module opencpe-actiontable {
         ocpe-actiontable:chain      "NULL";
     }
 
+    ocpe-actiontable:action-field authentication {
+        ocpe-actiontable:include    "NULL";
+        ocpe-actiontable:comment    "a first try on the new action table";
+        ocpe-actiontable:sel        2;
+        ocpe-actiontable:pre        "NULL";
+        ocpe-actiontable:action     "NULL";
+        ocpe-actiontable:post       "NULL";
+        ocpe-actiontable:chain      "NULL";
+    }
+
     ocpe-actiontable:action-field if_ip {
         ocpe-actiontable:include    "NULL";
         ocpe-actiontable:comment    "a first try on the new action table";
