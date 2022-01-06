@@ -45,7 +45,7 @@ dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, 
 		return r;
 
 	if (!dm_name2sel(s, value))
-		r = RC_ERR_MISC;
+		r = RC_ERR_VALUE_NOT_FOUND;
 
 	talloc_free(s);
 	return r;
