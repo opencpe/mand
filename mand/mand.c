@@ -55,13 +55,22 @@ extern int libdmconfigSocketType;
 
 void dm_save(void)
 {
-	static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 	char *fname;
 	int fd;
 	FILE *fout;
 
-	pthread_mutex_lock(&save_mutex);
+	/*
+	 * FIXME: Temporary workaround to possible deadlocks.
+	 * Instead the event loop recursion in dm_dmclient_rpc_stub.c should
+	 * be avoided.
+	 */
+	static sig_atomic_t running = 0;
+	if (running)
+		return;
+	running = 1;
+
+//	static pthread_mutex_t save_mutex = PTHREAD_MUTEX_INITIALIZER;
+//	pthread_mutex_lock(&save_mutex);
 
 	fname = strdup(DM_CONFIG ".XXXXXX");
 	if (fname && (fd = mkstemp(fname)) != -1) {
@@ -78,7 +87,9 @@ void dm_save(void)
 	}
 	free(fname);
 
-	pthread_mutex_unlock(&save_mutex);
+//	pthread_mutex_unlock(&save_mutex);
+
+	running = 0;
 }
 
 void dm_dump(int fd, const char *element)
