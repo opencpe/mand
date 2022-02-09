@@ -16,7 +16,6 @@
 
 uint32_t rpc_client_active_notify(void *ctx, DM2_AVPGRP *obj);
 uint32_t rpc_client_event_broadcast(void *ctx, const char *path, uint32_t type);
-uint32_t rpc_client_get_interface_state(void *ctx, const char *if_name, DM2_REQUEST *answer);
 uint32_t rpc_agent_firmware_download(void *ctx, char *address, uint8_t credentialstype, char *credential,
 				     char *install_target, uint32_t timeframe, uint8_t retry_count,
 				     uint32_t retry_interval, uint32_t retry_interval_increment,

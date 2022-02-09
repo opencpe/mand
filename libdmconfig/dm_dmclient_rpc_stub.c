@@ -51,21 +51,6 @@ uint32_t rpc_event_broadcast(DMCONTEXT *ctx, const char *path, uint32_t type)
 
 }
 
-uint32_t rpc_get_interface_state_async(DMCONTEXT *ctx, const char *if_name, DMRESULT_CB cb, void *data)
-{
-	uint32_t rc;
-	DM2_REQUEST *req;
-
-	if (!(req = dm_new_request(ctx, CMD_CLIENT_GET_INTERFACE_STATE, CMD_FLAG_REQUEST, 0, 0)))
-		return RC_ERR_ALLOC;
-
-	if ((rc = dm_add_string(req, AVP_STRING, VP_TRAVELPING, if_name)) != RC_OK
-	    || (rc = dm_finalize_packet(req)) != RC_OK)
-		return rc;
-
-	return dm_enqueue_request(ctx, req, cb, data);
-}
-
 uint32_t rpc_agent_firmware_download_async(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
 				     const char *install_target, uint32_t timeframe, uint8_t retry_count,
 				     uint32_t retry_interval, uint32_t retry_interval_increment,
@@ -123,53 +108,4 @@ uint32_t rpc_agent_set_boot_order_async(DMCONTEXT *ctx, int pcnt, const char **b
 		return rc;
 
 	return dm_enqueue_request(ctx, req, cb, data);
-}
-
-/*
- * sync call wrapper's
- */
-
-uint32_t rpc_get_interface_state(DMCONTEXT *ctx, const char *if_name, DM2_AVPGRP *answer)
-{
-        struct async_reply reply = {.rc = RC_OK, .answer = answer };
-
-        rpc_get_interface_state_async(ctx, if_name, dm_async_cb, &reply);
-        ev_run(ctx->ev, 0);
-
-        return reply.rc;
-}
-
-uint32_t rpc_agent_firmware_download(DMCONTEXT *ctx, const char *address, uint8_t credentialstype, const char *credential,
-				    const char *install_target, uint32_t timeframe, uint8_t retry_count,
-				    uint32_t retry_interval, uint32_t retry_interval_increment,
-				    DM2_AVPGRP *answer)
-{
-	struct async_reply reply = {.rc = RC_OK, .answer = answer };
-
-	rpc_agent_firmware_download_async(ctx, address, credentialstype, credential, install_target,
-				    timeframe, retry_count, retry_interval, retry_interval_increment,
-				    dm_async_cb, &reply);
-	ev_run(ctx->ev, 0);
-
-	return reply.rc;
-}
-
-uint32_t rpc_agent_firmware_commit(DMCONTEXT *ctx, int32_t job_id)
-{
-	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
-
-	rpc_agent_firmware_commit_async(ctx, job_id, dm_async_cb, &reply);
-	ev_run(ctx->ev, 0);
-
-	return reply.rc;
-}
-
-uint32_t rpc_agent_set_boot_order(DMCONTEXT *ctx, int pcnt, const char **boot_order)
-{
-	struct async_reply reply = {.rc = RC_OK, .answer = NULL };
-
-	rpc_agent_set_boot_order_async(ctx, pcnt, boot_order, dm_async_cb, &reply);
-	ev_run(ctx->ev, 0);
-
-	return reply.rc;
 }

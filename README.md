@@ -39,6 +39,7 @@ aware and depend on particular entries in those models.
 - expat
 - libev
 - libtalloc
+- libnl and libnl-route
 - lua 5.1 - 5.3
 - xsltproc
 - python3

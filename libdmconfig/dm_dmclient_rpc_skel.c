@@ -53,19 +53,6 @@ rpc_client_event_broadcast_skel(void *ctx, DM2_AVPGRP *obj)
 }
 
 static inline uint32_t
-rpc_client_get_interface_state_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
-{
-        uint32_t rc;
-	char *if_name;
-
-        if ((rc = dm_expect_string_type(obj, AVP_STRING, VP_TRAVELPING, &if_name)) != RC_OK
-            || (rc = dm_expect_end(obj)) != RC_OK)
-                return rc;
-
-        return rpc_client_get_interface_state(ctx, if_name, answer);
-}
-
-static inline uint32_t
 rpc_agent_firmware_download_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 {
 	uint32_t rc;
@@ -154,10 +141,6 @@ rpc_dmclient_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj __attribu
 		return rc;
 
 	switch (req->code) {
-	case CMD_CLIENT_GET_INTERFACE_STATE:
-		rc = rpc_client_get_interface_state_skel(ctx, obj, *answer);
-                break;
-
 	case CMD_FIRMWARE_DOWNLOAD:
 		rpc_agent_firmware_download_skel(ctx, obj, *answer);
 		break;

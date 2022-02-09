@@ -103,6 +103,11 @@ fi
 AC_CHECK_LIB(talloc, talloc_named_const, , AC_MSG_ERROR(Required libtalloc missing) )
 AC_CHECK_HEADERS([talloc.h talloc/talloc.h])
 
+# Necessary to rertrieving the interface-state.
+PKG_CHECK_MODULES([LIBNL3], [libnl-3.0 >= 3.2.8 libnl-route-3.0 >= 3.2.8])
+AC_SUBST([LIBNL3_LIBS])
+AC_SUBST([LIBNL3_CFLAGS])
+
 save_LIBS=$LIBS
 
 AC_CHECK_HEADER(pthread.h, , AC_MSG_ERROR(You need the pthread headers) )

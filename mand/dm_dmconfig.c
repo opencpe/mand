@@ -22,6 +22,7 @@
 #include <sys/un.h>
 #include <sys/reboot.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 #include <signal.h>
 
 #include <sys/tree.h>
@@ -36,6 +37,14 @@
 #include <netdb.h>
 
 #include <sys/time.h>
+
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+
+#include <netlink/route/link.h>
+#include <netlink/route/addr.h>
+#include <netlink/route/neighbour.h>
+
 #include <ev.h>
 
 #include <sys/tree.h>
@@ -167,7 +176,6 @@ request_cb(DMCONTEXT *socket, DM_PACKET *pkt, DM2_AVPGRP *grp, void *userdata)
 {
 	SOCKCONTEXT *ctx = userdata;
 	DMC_REQUEST req;
-	DM2_REQUEST *answer = NULL;
 
 	req.hop2hop = dm_hop2hop_id(pkt);
 	req.end2end = dm_end2end_id(pkt);
@@ -182,13 +190,25 @@ request_cb(DMCONTEXT *socket, DM_PACKET *pkt, DM2_AVPGRP *grp, void *userdata)
 	if (ev_is_active(&ctx->session_timer_ev))
 		ev_timer_again(socket->ev, &ctx->session_timer_ev);
 
-	if ((rpc_dmconfig_switch(ctx, &req, grp, &answer)) == RC_ERR_ALLOC) {
+	struct dm_request_info *request_info = talloc_zero(NULL, struct dm_request_info);
+	if (!request_info)
+		return;
+	request_info->ctx = ctx;
+
+	if ((rpc_dmconfig_switch(ctx, &req, grp, request_info)) == RC_ERR_ALLOC) {
 		shutdown_session(ctx);
+		talloc_free(request_info);
 		return;
 	}
 
-	if (answer)
-		dm_enqueue(socket, answer, REPLY, NULL, NULL);
+	/*
+	 * FIXME: Perhaps we should move this into rpc_dmconfig_switch().
+	 * However, we don't have the DMCONTEXT type there.
+	 * It could be added to struct dm_request_info, though.
+	 */
+	if (request_info->answer && !talloc_reference_count(request_info))
+		dm_enqueue(socket, request_info->answer, REPLY, NULL, NULL);
+	talloc_unlink(NULL, request_info);
 }
 
 uint32_t
@@ -1546,42 +1566,105 @@ uint32_t rpc_system_shutdown(void *data __attribute__((unused)))
 	return RC_OK;
 }
 
-uint32_t rpc_firmware_download(void *data, char *address, uint8_t credentialstype, char *credential,
-				     char *install_target, uint32_t timeframe, uint8_t retry_count,
-				     uint32_t retry_interval, uint32_t retry_interval_increment,
-				     DM2_REQUEST *answer)
+static void
+rpc_firmware_download_cb(DMCONTEXT *socket __attribute__((unused)), DMCONFIG_EVENT event, DM2_AVPGRP *grp, void *userdata)
 {
-	SOCKCONTEXT *ctx __attribute__((unused)) = data;
-	SOCKCONTEXT *clnt;
-	DM2_AVPGRP clnt_answer;
-	uint32_t rc;
-	int32_t job_id;
+	uint32_t rc = RC_OK;
+	struct dm_request_info *request_info = userdata;
+	SOCKCONTEXT *ctx = request_info->ctx;
 
-	dm_debug(ctx->id, "CMD: %s", "FIRMWARE DOWNLOAD");
-
-	if ((clnt = find_role("-firmware")) == NULL)
-		return RC_ERR_MISC;
-
-	memset(&clnt_answer, 0, sizeof(clnt_answer));
-	if ((rc = rpc_agent_firmware_download(clnt->socket, address, credentialstype, credential,
-					      install_target, timeframe, retry_count,
-					      retry_interval, retry_interval_increment, &clnt_answer)) != RC_OK) {
-		printf("rpc_agent_firmware_download rc=%d\n", rc);
-		return rc;
+	if (event != DMCONFIG_ANSWER_READY) {
+		rc = RC_ERR_MISC;
+		goto response;
 	}
-	if ((rc = dm_expect_int32_type(&clnt_answer, AVP_INT32, VP_TRAVELPING, &job_id)) != RC_OK
-	    || (rc = dm_expect_group_end(&clnt_answer)) != RC_OK)
-		return rc;
+
+	if (dm_expect_uint32_type(grp, AVP_RC, VP_TRAVELPING, &rc) != RC_OK) {
+		rc = RC_ERR_MISC;
+		goto response;
+	}
+
+	int32_t job_id;
+	if ((rc = dm_expect_int32_type(grp, AVP_INT32, VP_TRAVELPING, &job_id)) != RC_OK
+	    || (rc = dm_expect_group_end(grp)) != RC_OK)
+		goto response;
 
 	dm_debug(ctx->id, "CMD: %s: answer: %u", "FIRMWARE DOWNLOAD", job_id);
 
-	if (dm_add_int32(answer, AVP_INT32, VP_TRAVELPING, job_id))
-		return RC_ERR_ALLOC;
+response:
+	if (rc == RC_OK) {
+		if (dm_add_int32(request_info->answer, AVP_INT32, VP_TRAVELPING, job_id) != RC_OK)
+			return;
+	} else {
+		/* fill in the RC */
+		dm_put_uint32_at_pos(request_info->answer, request_info->rc_pos, rc);
+	}
+	if (dm_finalize_packet(request_info->answer) != RC_OK)
+		return;
+
+	dm_enqueue(ctx->socket, request_info->answer, REPLY, NULL, NULL);
+	talloc_free(request_info);
+}
+
+uint32_t rpc_firmware_download(void *data, char *address, uint8_t credentialstype, char *credential,
+                               char *install_target, uint32_t timeframe, uint8_t retry_count,
+                               uint32_t retry_interval, uint32_t retry_interval_increment,
+                               struct dm_request_info *request_info)
+{
+	SOCKCONTEXT *ctx = data;
+	SOCKCONTEXT *clnt;
+	uint32_t rc;
+
+	dm_debug(ctx->id, "CMD: %s", "FIRMWARE DOWNLOAD");
+
+	if ((clnt = find_role("-firmware")) == NULL) {
+		talloc_free(request_info);
+		return RC_ERR_MISC;
+	}
+
+	rc = rpc_agent_firmware_download_async(clnt->socket, address, credentialstype, credential,
+	                                       install_target, timeframe, retry_count,
+	                                       retry_interval, retry_interval_increment,
+	                                       rpc_firmware_download_cb, request_info);
+	if (rc != RC_OK) {
+		logx(LOG_ERR, "rpc_agent_firmware_download_async rc=%d\n", rc);
+		return rc;
+	}
 
 	return RC_OK;
 }
 
-uint32_t rpc_firmware_commit(void *data, int32_t job_id)
+static void
+rpc_firmware_commit_cb(DMCONTEXT *socket __attribute__((unused)), DMCONFIG_EVENT event, DM2_AVPGRP *grp, void *userdata)
+{
+	uint32_t rc = RC_OK;
+	struct dm_request_info *request_info = userdata;
+	SOCKCONTEXT *ctx = request_info->ctx;
+
+	if (event != DMCONFIG_ANSWER_READY) {
+		rc = RC_ERR_MISC;
+		goto response;
+	}
+
+	if (dm_expect_uint32_type(grp, AVP_RC, VP_TRAVELPING, &rc) != RC_OK) {
+		rc = RC_ERR_MISC;
+		goto response;
+	}
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "FIRMWARE COMMIT", rc);
+
+response:
+	if (rc != RC_OK)
+		/* fill in the RC */
+		dm_put_uint32_at_pos(request_info->answer, request_info->rc_pos, rc);
+	if (dm_finalize_packet(request_info->answer) != RC_OK)
+		return;
+
+	dm_enqueue(ctx->socket, request_info->answer, REPLY, NULL, NULL);
+	talloc_free(request_info);
+}
+
+uint32_t rpc_firmware_commit(void *data, int32_t job_id,
+                             struct dm_request_info *request_info)
 {
 	SOCKCONTEXT *ctx __attribute__((unused)) = data;
 	SOCKCONTEXT *clnt;
@@ -1592,13 +1675,48 @@ uint32_t rpc_firmware_commit(void *data, int32_t job_id)
 	if ((clnt = find_role("-firmware")) == NULL)
 		return RC_ERR_MISC;
 
-	rc = rpc_agent_firmware_commit(clnt->socket, job_id);
+	rc = rpc_agent_firmware_commit_async(clnt->socket, job_id,
+	                                     rpc_firmware_commit_cb, request_info);
+	if (rc != RC_OK) {
+		logx(LOG_ERR, "rpc_agent_firmware_commit_async rc=%d\n", rc);
+		return rc;
+	}
 
-	dm_debug(ctx->id, "CMD: %s: answer: %u", "FIRMWARE COMMIT", rc);
-	return rc;
+	return RC_OK;
 }
 
-uint32_t rpc_set_boot_order(void *data, int pcnt, const char **boot_order)
+static void
+rpc_set_boot_order_cb(DMCONTEXT *socket __attribute__((unused)), DMCONFIG_EVENT event, DM2_AVPGRP *grp, void *userdata)
+{
+	uint32_t rc = RC_OK;
+	struct dm_request_info *request_info = userdata;
+	SOCKCONTEXT *ctx = request_info->ctx;
+
+	if (event != DMCONFIG_ANSWER_READY) {
+		rc = RC_ERR_MISC;
+		goto response;
+	}
+
+	if (dm_expect_uint32_type(grp, AVP_RC, VP_TRAVELPING, &rc) != RC_OK) {
+		rc = RC_ERR_MISC;
+		goto response;
+	}
+
+	dm_debug(ctx->id, "CMD: %s: answer: %u", "SET BOOT ORDER", rc);
+
+response:
+	if (rc != RC_OK)
+		/* fill in the RC */
+		dm_put_uint32_at_pos(request_info->answer, request_info->rc_pos, rc);
+	if (dm_finalize_packet(request_info->answer) != RC_OK)
+		return;
+
+	dm_enqueue(ctx->socket, request_info->answer, REPLY, NULL, NULL);
+	talloc_free(request_info);
+}
+
+uint32_t rpc_set_boot_order(void *data, int pcnt, const char **boot_order,
+                            struct dm_request_info *request_info)
 {
 	SOCKCONTEXT *ctx __attribute__((unused)) = data;
 	SOCKCONTEXT *clnt;
@@ -1609,10 +1727,14 @@ uint32_t rpc_set_boot_order(void *data, int pcnt, const char **boot_order)
 	if ((clnt = find_role("-firmware")) == NULL)
 		return RC_ERR_MISC;
 
-	rc = rpc_agent_set_boot_order(clnt->socket, pcnt, boot_order);
+	rc = rpc_agent_set_boot_order_async(clnt->socket, pcnt, boot_order,
+	                                    rpc_set_boot_order_cb, request_info);
+	if (rc != RC_OK) {
+		logx(LOG_ERR, "rpc_agent_set_boot_order_async rc=%d\n", rc);
+		return rc;
+	}
 
-	dm_debug(ctx->id, "CMD: %s: answer: %u", "SET BOOT ORDER", rc);
-	return rc;
+	return RC_OK;
 }
 
 void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
@@ -1628,13 +1750,183 @@ void dm_event_broadcast(const dm_selector sel, enum dm_action_type type)
 		rpc_event_broadcast(ctx->socket, path, type);
 }
 
-static void update_interface_state(struct dm_value_table *tbl)
+static int sys_scan(const char *file, const char *fmt, ...)
 {
-	uint32_t rc;
-	SOCKCONTEXT *ctx;
-	const char *name;
-	DM2_AVPGRP answer;
+	FILE *fin;
+	int rc, _errno;
+	va_list vlist;
 
+	fin = fopen(file, "r");
+	if (!fin) {
+		errno = 0;
+		return EOF;
+	}
+
+	va_start(vlist, fmt);
+	errno = 0;
+	rc = vfscanf(fin, fmt, vlist);
+	_errno = errno;
+	va_end(vlist);
+
+	fclose(fin);
+
+	errno = _errno;
+	return rc;
+}
+
+static uint32_t if_ioctl(int d, int request, void *data)
+{
+	int result;
+
+	if (ioctl(d, request, data) == -1) {
+		do {
+			result = close(d);
+		} while (result == -1 && errno == EINTR);
+		return RC_ERR_MISC;
+	}
+	return RC_OK;
+}
+
+static void
+update_neigh_state_ip4(struct nl_object *obj, void *data)
+{
+	dm_selector *sel = data;
+
+	char buf[32];
+	struct rtnl_neigh *neigh = (struct rtnl_neigh *)obj;
+
+	struct in_addr dst;
+	memcpy(&dst.s_addr, nl_addr_get_binary_addr(rtnl_neigh_get_dst(neigh)), sizeof(dst.s_addr));
+	struct nl_addr *lladdr = rtnl_neigh_get_lladdr(neigh);
+	uint32_t state = rtnl_neigh_get_state(neigh);
+	nl_addr2str(lladdr, buf, sizeof(buf));
+	uint8_t origin = (state == NUD_PERMANENT) ? 1 : 2;
+
+	dm_id if_id = 0;
+
+	struct dm_instance_node *ipn;
+	if (!(ipn = dm_add_instance_by_selector(*sel, &if_id)))
+		return;
+
+	dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_ip, dst);
+	dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_linklayeraddress, buf);
+	dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_origin, origin);
+
+	update_instance_node_index(ipn);
+
+	logx(LOG_DEBUG, "IPV4 Neighbor %d", if_id);
+}
+
+static void
+update_neigh_state_ip6(struct nl_object *obj, void *data)
+{
+	dm_selector *sel = data;
+
+	char buf[32];
+	struct rtnl_neigh *neigh = (struct rtnl_neigh *)obj;
+
+	struct in6_addr dst;
+	memcpy(dst.s6_addr, nl_addr_get_binary_addr(rtnl_neigh_get_dst(neigh)), sizeof(dst.s6_addr));
+	struct nl_addr *lladdr = rtnl_neigh_get_lladdr(neigh);
+	uint32_t state = rtnl_neigh_get_state(neigh);
+	uint32_t flags = rtnl_neigh_get_flags(neigh);
+	nl_addr2str(lladdr, buf, sizeof(buf));
+	uint8_t origin = (state == NUD_PERMANENT) ? 1 : 2;
+	uint8_t is_router = ((flags & NTF_ROUTER) != 0);
+
+	dm_id if_id = 0;
+
+	struct dm_instance_node *ipn;
+	if (!(ipn = dm_add_instance_by_selector(*sel, &if_id)))
+		return;
+
+	dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_ip, dst);
+	dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_linklayeraddress, buf);
+	dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_origin, origin);
+	dm_set_bool_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_isrouter, is_router);
+
+	update_instance_node_index(ipn);
+
+	logx(LOG_DEBUG, "IPV6 Neighbor %d", if_id);
+}
+
+static void
+update_addr_state_ip4(struct nl_object *obj, void *data)
+{
+	dm_selector *sel = data;
+
+	char buf[32];
+	struct nl_addr *naddr = rtnl_addr_get_local((struct rtnl_addr *) obj);
+	struct in_addr addr;
+	memcpy(&addr.s_addr, nl_addr_get_binary_addr(naddr), sizeof(addr.s_addr));
+	unsigned int flags = rtnl_addr_get_flags((struct rtnl_addr *) obj);
+	uint8_t origin = 0;
+
+	logx(LOG_DEBUG, "IP: %s", nl_addr2str(naddr, buf, sizeof(buf)));
+
+	if (flags & IFA_F_PERMANENT)
+		origin = 1;
+
+	dm_id if_id = 0;
+
+	struct dm_instance_node *ipn;
+	if (!(ipn = dm_add_instance_by_selector(*sel, &if_id)))
+		return;
+	logx(LOG_DEBUG, "IPV4 Addr %d", if_id);
+
+	dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_ip, addr);
+	dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_prefixlength,
+	                  nl_addr_get_prefixlen(naddr));
+	dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_origin, origin);
+
+	update_instance_node_index(ipn);
+}
+
+static void
+update_addr_state_ip6(struct nl_object *obj, void *data)
+{
+	dm_selector *sel = data;
+
+	char buf[32];
+	struct nl_addr *naddr = rtnl_addr_get_local((struct rtnl_addr *) obj);
+	struct in6_addr addr;
+	memcpy(addr.s6_addr, nl_addr_get_binary_addr(naddr), sizeof(addr.s6_addr));
+	unsigned int flags = rtnl_addr_get_flags((struct rtnl_addr *) obj);
+	uint8_t origin = 0;
+	uint8_t status = 4;
+
+	logx(LOG_DEBUG, "IP: %s", nl_addr2str(naddr, buf, sizeof(buf)));
+
+	if (flags & IFA_F_OPTIMISTIC)
+		status = 7;
+	else if (flags & IFA_F_TENTATIVE)
+		status = 5;
+	else if (flags & IFA_F_HOMEADDRESS)
+		status = 0;
+	else if (flags & IFA_F_DEPRECATED)
+		status = 1;
+
+	if (flags & IFA_F_PERMANENT)
+		origin = 1;
+
+	dm_id if_id = 0;
+
+	struct dm_instance_node *ipn;
+	if (!(ipn = dm_add_instance_by_selector(*sel, &if_id)))
+		return;
+	logx(LOG_DEBUG, "IPV6 Addr %d", if_id);
+
+	dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_ip, addr);
+	dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_prefixlength,
+	                  nl_addr_get_prefixlen(naddr));
+	dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_origin, origin);
+	dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_status, status);
+
+	update_instance_node_index(ipn);
+}
+
+static uint32_t update_interface_state(struct dm_value_table *tbl)
+{
 	/*
 	 * Make sure the interface is reported as "down" in case of any errors.
 	 * This will also include missing interfaces.
@@ -1644,48 +1936,75 @@ static void update_interface_state(struct dm_value_table *tbl)
 	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus ,
 			  field_ocpe__interfaces_state__interface_operstatus_down);
 
-	if (!(ctx = find_role("-state")))
-		/* there is no agent implementing the RPC */
-		return;
+	const char *if_name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name);
+	logx(LOG_DEBUG, "get_ocpe__interfaces_state__interface: %s", if_name);
 
-	name = dm_get_string_by_id(tbl, field_ocpe__interfaces_state__interface_name);
-	printf("get_ocpe__interfaces_state__interface: %s\n", name);
-
-	memset(&answer, 0, sizeof(answer));
-	if ((rc = rpc_get_interface_state(ctx->socket, name, &answer)) != RC_OK) {
-		printf("get_ocpe__interfaces_state__interface rc=%d\n", rc);
-		return;
-	}
-
-	/* apply values to table */
-	int32_t if_index;
-	uint32_t if_flags;
-	struct dm_bin hwaddr;
-	uint8_t *mac;
 	char macstr[20];
-	uint32_t if_speed;
-	DM2_AVPGRP grp;
-        uint64_t rec_pkt = 0, rec_oct = 0, rec_err = 0, rec_drop = 0;
-        uint64_t snd_pkt = 0, snd_oct = 0, snd_err = 0, snd_drop = 0;
 	ticks_t rt_now = ticks();
 
-	if (dm_expect_int32_type(&answer, AVP_INT32, VP_TRAVELPING, &if_index) != RC_OK
-	    || dm_expect_uint32_type(&answer, AVP_UINT32, VP_TRAVELPING, &if_flags) != RC_OK
-	    || dm_expect_bin(&answer, AVP_BINARY, VP_TRAVELPING, &hwaddr) != RC_OK
-	    || dm_expect_uint32_type(&answer, AVP_UINT32, VP_TRAVELPING, &if_speed) != RC_OK
-	    || dm_expect_object(&answer, &grp) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_oct) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_pkt) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_err) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &rec_drop) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_oct) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_pkt) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_err) != RC_OK
-	    || dm_expect_uint64_type(&grp, AVP_UINT64, VP_TRAVELPING, &snd_drop) != RC_OK
-	    || dm_expect_group_end(&grp) != RC_OK)
-		return;
+	int fd;
+	FILE *fp;
+	char line[1024];
+	struct ifreq ifr;
+	uint32_t rc;
 
-	printf("if_flags: %08x\n", if_flags);
+	int scan_count;
+
+	logx(LOG_DEBUG, "if_name: %s", if_name);
+
+	const char *dev = if_name;
+
+	fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (fd == -1)
+		return RC_ERR_MISC;
+
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
+	ifr.ifr_name[IFNAMSIZ-1] = '\0';
+
+	if ((rc = if_ioctl(fd, SIOCGIFINDEX, &ifr)) != RC_OK)
+		return rc;
+	if (ifr.ifr_ifindex == 0)
+		ifr.ifr_ifindex = 2147483647;
+	int32_t if_index = ifr.ifr_ifindex;
+
+	if ((rc = if_ioctl(fd, SIOCGIFFLAGS, &ifr)) != RC_OK)
+		return rc;
+	uint32_t if_flags = ifr.ifr_flags;
+
+	if ((rc = if_ioctl(fd, SIOCGIFHWADDR, &ifr)) != RC_OK)
+	    return rc;
+	uint8_t mac[6];
+	memcpy(mac, &ifr.ifr_hwaddr, sizeof(mac));
+
+	struct ethtool_cmd cmd;
+	ifr.ifr_data = (void *)&cmd;
+	cmd.cmd = ETHTOOL_GSET; /* "Get settings" */
+	uint32_t if_speed = 0;
+	if ((rc = if_ioctl(fd, SIOCETHTOOL, &ifr)) == RC_OK)
+		if_speed = ethtool_cmd_speed(&cmd);
+
+	if (!(fp = fopen("/proc/net/dev", "r")))
+		return RC_ERR_MISC;
+
+	if (!fgets(line, sizeof(line), fp)) /* ignore first line */
+		logx(LOG_ERR, "Cannot parse /proc/net/dev");
+	if (!fgets(line, sizeof(line), fp))
+		logx(LOG_ERR, "Cannot parse /proc/net/dev");
+
+        uint64_t rec_pkt = 0, rec_oct = 0, rec_err = 0, rec_drop = 0;
+        uint64_t snd_pkt = 0, snd_oct = 0, snd_err = 0, snd_drop = 0;
+
+	while (!feof(fp)) {
+		char device[32];
+
+		scan_count = fscanf(fp, " %32[^:]:%"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %*u %*u %*u %*u %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %*u %*u %*s",
+				    device,
+				    &rec_oct, &rec_pkt, &rec_err, &rec_drop,
+				    &snd_oct, &snd_pkt, &snd_err, &snd_drop);
+		if (scan_count == 9 && strcmp(dev, device) == 0)
+			break;
+	}
+	fclose(fp);
 
 	if (dm_get_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange) == 0)
 		dm_set_ticks_by_id(tbl, field_ocpe__interfaces_state__interface_lastchange , rt_now);
@@ -1696,7 +2015,6 @@ static void update_interface_state(struct dm_value_table *tbl)
 	dm_set_enum_by_id(tbl, field_ocpe__interfaces_state__interface_operstatus ,
 			  (if_flags & IFF_UP) ? field_ocpe__interfaces_state__interface_operstatus_up : field_ocpe__interfaces_state__interface_operstatus_down);
 
-	mac = hwaddr.data;
 	snprintf(macstr, sizeof(macstr), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	dm_set_string_by_id(tbl, field_ocpe__interfaces_state__interface_physaddress , macstr);
 
@@ -1723,14 +2041,47 @@ static void update_interface_state(struct dm_value_table *tbl)
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outdiscards, snd_drop);
 	dm_set_uint_by_id(stats, field_ocpe__interfaces_state__interface__statistics_outerrors, snd_err);
 
+	/* read IP's from NL */
+
+	int ifindex;
+	struct nl_sock *socket = nl_socket_alloc();
+	struct nl_cache *link_cache;
+	struct nl_cache *addr_cache;
+	struct nl_cache *neigh_cache;
+	struct rtnl_link *link;
+	struct rtnl_addr *addr_filter = NULL;
+	struct rtnl_neigh *neigh_filter = NULL;
+	int forward;
+	uint32_t mtu;
+
+	if (nl_connect(socket, NETLINK_ROUTE) < 0)
+		return RC_ERR_MISC;
+
+	if (rtnl_link_alloc_cache(socket, AF_UNSPEC, &link_cache) < 0
+	    || rtnl_addr_alloc_cache(socket, &addr_cache) < 0
+	    || rtnl_neigh_alloc_cache(socket, &neigh_cache) < 0) {
+		nl_socket_free(socket);
+		return RC_ERR_ALLOC;
+	}
+
+	rc = RC_OK;
+
+	link = rtnl_link_get_by_name(link_cache, dev);
+	ifindex = rtnl_link_get_ifindex(link);
+	mtu = rtnl_link_get_mtu(link);
+	if (mtu == 0 || mtu > 65535)
+		mtu = 65535;
+
+	addr_filter = rtnl_addr_alloc();
+	rtnl_addr_set_ifindex(addr_filter, ifindex);
+
+	snprintf(line, sizeof(line), "/proc/sys/net/ipv4/conf/%s/forwarding", dev);
+	sys_scan(line, "%u", &forward);
+	logx(LOG_DEBUG, "IPv4 Forward: %d", forward);
+
 	char buffer[MAX_PARAM_NAME_LEN];
 	dm_selector sel;
-	dm_id if_id;
-	struct dm_instance_node *ipn;
 	struct dm_value_table *iftbl;
-	DM2_AVPGRP ipiface;
-	uint8_t forward;
-	uint32_t mtu;
 
 	/* IPv4 Interface */
 
@@ -1739,16 +2090,10 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[4] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	if (!(iftbl = dm_get_table_by_selector(sel)))
-		return;
-
-	if (dm_expect_object(&answer, &ipiface) != RC_OK
-	    || dm_expect_uint8_type(&ipiface, AVP_BOOL, VP_TRAVELPING, &forward) != RC_OK
-	    || dm_expect_uint32_type(&ipiface, AVP_UINT32, VP_TRAVELPING, &mtu) != RC_OK)
-		return;
-
+		return RC_ERR_MISC;
 	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_forwarding, forward);
 	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_mtu, mtu);
 
@@ -1758,49 +2103,14 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	dm_del_table_by_selector(sel);
 	dm_add_table_by_selector(sel);
 
-	if (dm_expect_object(&ipiface, &grp) != RC_OK)
-		return;
+	rtnl_addr_set_family(addr_filter, AF_INET);
 
-	printf("IPV4 Group\n");
-
-	if_id = 1;
-	while (dm_expect_group_end(&grp) != RC_OK) {
-		DM2_AVPGRP addr;
-		int family;
-		struct in_addr iaddr;
-		uint8_t prefix_len;
-		uint8_t origin;
-		uint8_t status;
-
-		printf("IPV4 Addr\n");
-
-		if (dm_expect_object(&grp, &addr) != RC_OK
-		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  &iaddr, sizeof(iaddr)) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &status) != RC_OK
-		    || dm_expect_group_end(&addr) != RC_OK)
-			return;
-
-		printf("IPV4 Addr #1\n");
-
-		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
-			return;
-		printf("IPV4 Addr %d\n", if_id);
-
-		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_ip, iaddr);
-		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_prefixlength, prefix_len);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__address_origin, origin);
-
-		update_instance_node_index(ipn);
-
-		if_id++;
-	}
+	nl_cache_foreach_filter(addr_cache, (struct nl_object *) addr_filter, update_addr_state_ip4, sel);
 
 	/* IPv4 Neighbor */
 
@@ -1808,53 +2118,17 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	dm_del_table_by_selector(sel);
 	dm_add_table_by_selector(sel);
 
-	if (dm_expect_object(&ipiface, &grp) != RC_OK)
-		return;
+	neigh_filter = rtnl_neigh_alloc();
+	rtnl_neigh_set_ifindex(neigh_filter, ifindex);
 
-	printf("IPV4 Neighbor Group\n");
+	rtnl_neigh_set_family(neigh_filter, AF_INET);
 
-	if_id = 1;
-	while (dm_expect_group_end(&grp) != RC_OK) {
-		DM2_AVPGRP addr;
-		int family;
-		struct in_addr dst;
-		char *lladdr;
-		uint8_t origin;
-		uint8_t is_router;
-
-		printf("IPV4 Neighbor\n");
-
-		if (dm_expect_object(&grp, &addr) != RC_OK
-		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family, &dst, sizeof(dst)) != RC_OK
-		    || dm_expect_string_type(&addr, AVP_STRING, VP_TRAVELPING, &lladdr) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_BOOL, VP_TRAVELPING, &is_router) != RC_OK
-		    || dm_expect_group_end(&addr) != RC_OK)
-			return;
-
-		printf("IPV4 Neighbor #1\n");
-
-		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
-			return;
-
-		dm_set_ipv4_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_ip, dst);
-		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_linklayeraddress, lladdr);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv4__neighbor_origin, origin);
-
-		update_instance_node_index(ipn);
-
-		printf("IPV4 Neighbor %d\n", if_id);
-
-		if_id++;
-	}
-
-	if (dm_expect_group_end(&ipiface) != RC_OK)
-		return;
+	nl_cache_foreach_filter(neigh_cache, (struct nl_object *) neigh_filter, update_neigh_state_ip4, sel);
 
 	/* IPv6 Interface */
 
@@ -1863,15 +2137,14 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[4] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	if (!(iftbl = dm_get_table_by_selector(sel)))
-		return;
+		return RC_ERR_MISC;
 
-	if (dm_expect_object(&answer, &ipiface) != RC_OK
-	    || dm_expect_uint8_type(&ipiface, AVP_BOOL, VP_TRAVELPING, &forward) != RC_OK
-	    || dm_expect_uint32_type(&ipiface, AVP_UINT32, VP_TRAVELPING, &mtu) != RC_OK)
-		return;
+	snprintf(line, sizeof(line), "/proc/sys/net/ipv6/conf/%s/forwarding", dev);
+	sys_scan(line, "%u", &forward);
+	logx(LOG_DEBUG, "IPv6 Forward: %d", forward);
 
 	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6_forwarding, forward);
 	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv6_mtu, mtu);
@@ -1882,50 +2155,14 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	dm_del_table_by_selector(sel);
 	dm_add_table_by_selector(sel);
 
-	if (dm_expect_object(&ipiface, &grp) != RC_OK)
-		return;
+	rtnl_addr_set_family(addr_filter, AF_INET6);
 
-	printf("IPV6 Group\n");
-
-	if_id = 1;
-	while (dm_expect_group_end(&grp) != RC_OK) {
-		DM2_AVPGRP addr;
-		int family;
-		struct in6_addr iaddr;
-		uint8_t prefix_len;
-		uint8_t origin;
-		uint8_t status;
-
-		printf("IPV6 Addr\n");
-
-		if (dm_expect_object(&grp, &addr) != RC_OK
-		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family, (struct in_addr *)&iaddr, sizeof(iaddr)) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_UINT8, VP_TRAVELPING, &prefix_len) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &status) != RC_OK
-		    || dm_expect_group_end(&addr) != RC_OK)
-			return;
-
-		printf("IPV6 Addr #1\n");
-
-		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
-			return;
-		printf("IPV6 Addr %d\n", if_id);
-
-		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_ip, iaddr);
-		dm_set_uint_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_prefixlength, prefix_len);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_origin, origin);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__address_status, status);
-
-		update_instance_node_index(ipn);
-
-		if_id++;
-	}
+	nl_cache_foreach_filter(addr_cache, (struct nl_object *) addr_filter, update_addr_state_ip6, sel);
 
 	/* IPv6 Neighbor */
 
@@ -1933,54 +2170,23 @@ static void update_interface_state(struct dm_value_table *tbl)
 	sel[5] = 0;
 
 	dm_sel2name(sel, buffer, sizeof(buffer));
-	printf("interface: %s\n", buffer);
+	logx(LOG_DEBUG, "interface: %s", buffer);
 
 	dm_del_table_by_selector(sel);
 	dm_add_table_by_selector(sel);
 
-	if (dm_expect_object(&ipiface, &grp) != RC_OK)
-		return;
+	rtnl_neigh_set_family(neigh_filter, AF_INET6);
 
-	printf("IPV6 Neighbor Group\n");
+	nl_cache_foreach_filter(neigh_cache, (struct nl_object *) neigh_filter, update_neigh_state_ip6, sel);
 
-	if_id = 1;
-	while (dm_expect_group_end(&grp) != RC_OK) {
-		DM2_AVPGRP addr;
-		int family;
-		struct in6_addr dst;
-		char *lladdr;
-		uint8_t origin;
-		uint8_t is_router;
+	nl_cache_free(neigh_cache);
+	nl_cache_free(addr_cache);
+	nl_cache_free(link_cache);
+	if (addr_filter) rtnl_addr_put(addr_filter);
+	if (neigh_filter) rtnl_neigh_put(neigh_filter);
+	nl_socket_free(socket);
 
-		printf("IPV6 Neighbor\n");
-
-		if (dm_expect_object(&grp, &addr) != RC_OK
-		    || dm_expect_address_type(&addr, AVP_ADDRESS, VP_TRAVELPING, &family,  (struct in_addr *)&dst, sizeof(dst)) != RC_OK
-		    || dm_expect_string_type(&addr, AVP_STRING, VP_TRAVELPING, &lladdr) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_ENUM, VP_TRAVELPING, &origin) != RC_OK
-		    || dm_expect_uint8_type(&addr, AVP_BOOL, VP_TRAVELPING, &is_router) != RC_OK
-		    || dm_expect_group_end(&addr) != RC_OK)
-			return;
-
-		printf("IPV6 Neighbor #1\n");
-
-		if (!(ipn = dm_add_instance_by_selector(sel, &if_id)))
-			return;
-
-		dm_set_ipv6_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_ip, dst);
-		dm_set_string_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_linklayeraddress, lladdr);
-		dm_set_enum_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_origin, origin);
-		dm_set_bool_by_id(DM_TABLE(ipn->table), field_ocpe__interfaces_state__interface__ipv6__neighbor_isrouter, is_router);
-
-		update_instance_node_index(ipn);
-
-		printf("IPV6 Neighbor %d\n", if_id);
-
-		if_id++;
-	}
-
-	if (dm_expect_group_end(&ipiface) != RC_OK)
-		return;
+	return rc;
 }
 
 int set_ocpe__system_state__clock_currentdatetime(struct dm_value_table *tbl __attribute__((unused)),
@@ -2045,6 +2251,9 @@ DM_VALUE __get_ocpe__interfaces_state__interface(struct dm_value_table *tbl, dm_
 	int notify_enabled_old = notify_enabled;
 	notify_enabled = 0;
 
+	/*
+	 * FIXME: Perhaps we no longer need to restrict the frequency of update_interface_state()-
+	 */
 	printf("get_ocpe__interfaces_state__interface: %s: %s, %s, %" PRItick "\n", e->key, buf1, buf2, rt_now - last);
 	if (rt_now - last > 10)
 		update_interface_state(tbl);
