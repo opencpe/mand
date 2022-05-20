@@ -121,6 +121,12 @@ dnl
 
 AC_MSG_PART(Options)
 
+AC_ARG_WITH(config-version,
+	[AC_HELP_STRING([--with-config-version=<VERSION>],
+			[Version of serialized configs])],
+	[cfg_version=$withval], [cfg_version=1])
+AC_DEFINE_UNQUOTED(CFG_VERSION, $cfg_version, [Version of serialized configs])
+
 dnl libdmconfig related options
 
 AC_ARG_ENABLE(libdmconfig-debug,
