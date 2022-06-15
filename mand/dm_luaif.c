@@ -573,12 +573,11 @@ luaif_set_cb(void *data, const dm_selector sel __attribute__((unused)),
 		DM_parity_update(*st);
 		cache_add(sel, "", elem, base, st, new_value, 0, NULL);
 	} else {
-		new_value.flags |= DV_UPDATED;
-		DM_parity_update(new_value);
-		r = dm_overwrite_any_value_by_selector(sel, elem->type,
-							  new_value, -1);
-	}
 #endif
+	new_value.flags |= DV_UPDATED;
+	DM_parity_update(new_value);
+	r = dm_overwrite_any_value_by_selector(sel, elem->type,
+	                                       new_value, -1);
 
 	return r;
 }
@@ -1056,15 +1055,10 @@ LUA_SIG(retrieve_enums)
 	return 2;
 }
 
-/*
- * FIXME: update so it is API-compatible with dmconfig's new recursive list
- */
 static int
-luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((unused)), dm_id id __attribute__((unused)),
-	      const struct dm_element *elem __attribute__((unused)),
-	      const DM_VALUE value __attribute__((unused)))
+luaif_list_cb(void *data, CB_type type, dm_id id,
+	      const struct dm_element *elem, const DM_VALUE value __attribute__((unused)))
 {
-#if 0
 	lua_State	*L = data;
 	int		cnt;
 
@@ -1086,16 +1080,17 @@ luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((un
 	case CB_object_instance_end:
 		return 1;
 	case CB_object_start:
-		node_type = NODE_TABLE;
+		node_type = AVP_TABLE;
 		break;
 	case CB_object_instance_start:
 		snprintf(numbuf, sizeof(numbuf), "%hu", id);
 		node_name = numbuf;
+		/* fall through */
 	case CB_table_start:
-		node_type = NODE_OBJECT;
+		node_type = AVP_OBJECT;
 		break;
 	case CB_element:
-		node_type = NODE_PARAMETER;
+		node_type = AVP_ELEMENT;
 		break;
 	default:
 		return 0;
@@ -1110,7 +1105,7 @@ luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((un
 	lua_setfield(L, -2, "type");
 
 	switch (node_type) {
-	case NODE_PARAMETER: {
+	case AVP_ELEMENT: {
 		uint32_t type;
 
 		switch (elem->type) {
@@ -1168,15 +1163,13 @@ luaif_list_cb(void *data __attribute__((unused)), CB_type type __attribute__((un
 
 		break;
 	}
-	case NODE_OBJECT:
+	case AVP_OBJECT:
 		lua_pushinteger(L, elem->u.t.table->size);
 		lua_setfield(L, -2, "size");
 	}
 
 	lua_settable(L, -3);
 	lua_pushinteger(L, cnt + 1);	/* update array index counter */
-
-#endif
 	return 1;
 }
 
