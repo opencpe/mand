@@ -163,7 +163,9 @@ dm_context_shutdown(DMCONTEXT *sock, DMCONFIG_EVENT event)
 }
 
 
-/** @private  put a packet into the send queue
+/** @private put a packet into the send queue
+ *
+ * @param req The request to enqueue. The ownership of the request is passed to the function.
  */
 uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB cb, void *data)
 {
@@ -212,6 +214,7 @@ uint32_t dm_enqueue(DMCONTEXT *socket, DM2_REQUEST *req, int flags, DMRESULT_CB 
 		ev_timer_again(socket->ev, &socket->writeCtx.timer_ev);
 	}
 
+	talloc_free(req);
 	return RC_OK;
 }
 
