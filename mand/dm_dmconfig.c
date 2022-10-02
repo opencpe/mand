@@ -42,6 +42,7 @@
 #include <linux/sockios.h>
 
 #include <netlink/route/link.h>
+#include <netlink/route/route.h>
 #include <netlink/route/addr.h>
 #include <netlink/route/neighbour.h>
 
@@ -1925,6 +1926,60 @@ update_addr_state_ip6(struct nl_object *obj, void *data)
 	update_instance_node_index(ipn);
 }
 
+static void
+update_route_state_nh_ipv4(struct rtnl_nexthop *nh, void *data)
+{
+	dm_selector *sel = data;
+
+	struct nl_addr *addr = rtnl_route_nh_get_gateway(nh);
+	if (!addr)
+		return;
+
+	dm_id id = 0;
+	struct dm_instance_node *ipn = dm_add_instance_by_selector(*sel, &id);
+	if (!ipn)
+		return;
+
+	struct in_addr dst;
+	memcpy(&dst.s_addr, nl_addr_get_binary_addr(addr), sizeof(dst.s_addr));
+	/* interfaces.interface.ipv4.gateway-ip[id] */
+	dm_set_ipv4_by_id(DM_TABLE(ipn->table), 1, dst);
+}
+
+static void
+update_route_state_ip4(struct nl_object *obj, void *data)
+{
+	struct rtnl_route *route = (struct rtnl_route *)obj;
+	rtnl_route_foreach_nexthop(route, update_route_state_nh_ipv4, data);
+}
+
+static void
+update_route_state_nh_ip6(struct rtnl_nexthop *nh, void *data)
+{
+	dm_selector *sel = data;
+
+	struct nl_addr *addr = rtnl_route_nh_get_gateway(nh);
+	if (!addr)
+		return;
+
+	dm_id id = 0;
+	struct dm_instance_node *ipn = dm_add_instance_by_selector(*sel, &id);
+	if (!ipn)
+		return;
+
+	struct in6_addr dst;
+	memcpy(dst.s6_addr, nl_addr_get_binary_addr(addr), sizeof(dst.s6_addr));
+	/* interfaces.interface.ipv6.gateway-ip[id] */
+	dm_set_ipv6_by_id(DM_TABLE(ipn->table), 1, dst);
+}
+
+static void
+update_route_state_ip6(struct nl_object *obj, void *data)
+{
+	struct rtnl_route *route = (struct rtnl_route *)obj;
+	rtnl_route_foreach_nexthop(route, update_route_state_nh_ip6, data);
+}
+
 static uint32_t update_interface_state(struct dm_value_table *tbl)
 {
 	/*
@@ -2048,9 +2103,11 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	struct nl_cache *link_cache;
 	struct nl_cache *addr_cache;
 	struct nl_cache *neigh_cache;
+	struct nl_cache *route_cache;
 	struct rtnl_link *link;
 	struct rtnl_addr *addr_filter = NULL;
 	struct rtnl_neigh *neigh_filter = NULL;
+	struct rtnl_route *route_filter = NULL;
 	int forward;
 	uint32_t mtu;
 
@@ -2059,7 +2116,8 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 
 	if (rtnl_link_alloc_cache(socket, AF_UNSPEC, &link_cache) < 0
 	    || rtnl_addr_alloc_cache(socket, &addr_cache) < 0
-	    || rtnl_neigh_alloc_cache(socket, &neigh_cache) < 0) {
+	    || rtnl_neigh_alloc_cache(socket, &neigh_cache) < 0
+	    || rtnl_route_alloc_cache(socket, AF_UNSPEC, 0, &route_cache) < 0) {
 		nl_socket_free(socket);
 		return RC_ERR_ALLOC;
 	}
@@ -2130,6 +2188,28 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 
 	nl_cache_foreach_filter(neigh_cache, (struct nl_object *) neigh_filter, update_neigh_state_ip4, sel);
 
+	/* IPv4 Routes/Gateway */
+
+	sel[4] = field_ocpe__interfaces_state__interface__ipv4_gatewayip;
+	sel[5] = 0;
+
+	route_filter = rtnl_route_alloc();
+
+	struct rtnl_nexthop *nh = rtnl_route_nh_alloc();
+	rtnl_route_nh_set_ifindex(nh, ifindex);
+	/* This apparently passes ownership of nh */
+	rtnl_route_add_nexthop(route_filter, nh);
+
+	struct nl_addr *route_dst = nl_addr_build(AF_INET, NULL, 0);
+	if (!route_dst)
+		return RC_ERR_MISC;
+	rtnl_route_set_dst(route_filter, route_dst);
+
+	rtnl_route_set_family(route_filter, AF_INET);
+
+	dm_del_table_by_selector(sel);
+	nl_cache_foreach_filter(route_cache, (struct nl_object *)route_filter, update_route_state_ip4, sel);
+
 	/* IPv6 Interface */
 
 	dm_selcpy(sel, tbl->id);
@@ -2179,11 +2259,26 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 
 	nl_cache_foreach_filter(neigh_cache, (struct nl_object *) neigh_filter, update_neigh_state_ip6, sel);
 
+	/* IPv6 Routes/Gateway */
+
+	sel[4] = field_ocpe__interfaces_state__interface__ipv6_gatewayip;
+	sel[5] = 0;
+
+	nl_addr_set_family(route_dst, AF_INET6);
+	rtnl_route_set_family(route_filter, AF_INET6);
+
+	dm_del_table_by_selector(sel);
+	nl_cache_foreach_filter(route_cache, (struct nl_object *)route_filter, update_route_state_ip6, sel);
+
+	nl_addr_put(route_dst);
+
+	nl_cache_free(route_cache);
 	nl_cache_free(neigh_cache);
 	nl_cache_free(addr_cache);
 	nl_cache_free(link_cache);
 	if (addr_filter) rtnl_addr_put(addr_filter);
 	if (neigh_filter) rtnl_neigh_put(neigh_filter);
+	if (route_filter) rtnl_route_put(route_filter);
 	nl_socket_free(socket);
 
 	return rc;
