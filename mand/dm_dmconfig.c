@@ -2276,9 +2276,10 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	nl_cache_free(neigh_cache);
 	nl_cache_free(addr_cache);
 	nl_cache_free(link_cache);
-	if (addr_filter) rtnl_addr_put(addr_filter);
-	if (neigh_filter) rtnl_neigh_put(neigh_filter);
-	if (route_filter) rtnl_route_put(route_filter);
+	rtnl_link_put(link);
+	rtnl_addr_put(addr_filter);
+	rtnl_neigh_put(neigh_filter);
+	rtnl_route_put(route_filter);
 	nl_socket_free(socket);
 
 	return rc;
