@@ -2016,18 +2016,24 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	strncpy(ifr.ifr_name, dev, IFNAMSIZ-1);
 	ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
-	if ((rc = if_ioctl(fd, SIOCGIFINDEX, &ifr)) != RC_OK)
+	if ((rc = if_ioctl(fd, SIOCGIFINDEX, &ifr)) != RC_OK) {
+		close(fd);
 		return rc;
+	}
 	if (ifr.ifr_ifindex == 0)
 		ifr.ifr_ifindex = 2147483647;
 	int32_t if_index = ifr.ifr_ifindex;
 
-	if ((rc = if_ioctl(fd, SIOCGIFFLAGS, &ifr)) != RC_OK)
+	if ((rc = if_ioctl(fd, SIOCGIFFLAGS, &ifr)) != RC_OK) {
+		close(fd);
 		return rc;
+	}
 	uint32_t if_flags = ifr.ifr_flags;
 
-	if ((rc = if_ioctl(fd, SIOCGIFHWADDR, &ifr)) != RC_OK)
-	    return rc;
+	if ((rc = if_ioctl(fd, SIOCGIFHWADDR, &ifr)) != RC_OK) {
+		close(fd);
+		return rc;
+	}
 	uint8_t mac[6];
 	memcpy(mac, &ifr.ifr_hwaddr, sizeof(mac));
 
@@ -2037,6 +2043,8 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	uint32_t if_speed = 0;
 	if ((rc = if_ioctl(fd, SIOCETHTOOL, &ifr)) == RC_OK)
 		if_speed = ethtool_cmd_speed(&cmd);
+
+	close(fd);
 
 	if (!(fp = fopen("/proc/net/dev", "r")))
 		return RC_ERR_MISC;
@@ -2100,35 +2108,36 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 
 	int ifindex;
 	struct nl_sock *socket = nl_socket_alloc();
-	struct nl_cache *link_cache;
-	struct nl_cache *addr_cache;
-	struct nl_cache *neigh_cache;
-	struct nl_cache *route_cache;
-	struct rtnl_link *link;
-	struct rtnl_addr *addr_filter = NULL;
+	struct nl_cache *link_cache = NULL;
+	struct nl_cache *addr_cache = NULL;
+	struct nl_cache *neigh_cache = NULL;
+	struct nl_cache *route_cache = NULL;
 	struct rtnl_neigh *neigh_filter = NULL;
 	struct rtnl_route *route_filter = NULL;
+	struct rtnl_addr *addr_filter = NULL;
+	struct nl_addr *route_dst = NULL;
 	int forward;
 	uint32_t mtu;
 
-	if (nl_connect(socket, NETLINK_ROUTE) < 0)
-		return RC_ERR_MISC;
+	if (nl_connect(socket, NETLINK_ROUTE) < 0) {
+		rc = RC_ERR_MISC;
+		goto cleanup;
+	}
 
 	if (rtnl_link_alloc_cache(socket, AF_UNSPEC, &link_cache) < 0
 	    || rtnl_addr_alloc_cache(socket, &addr_cache) < 0
 	    || rtnl_neigh_alloc_cache(socket, &neigh_cache) < 0
 	    || rtnl_route_alloc_cache(socket, AF_UNSPEC, 0, &route_cache) < 0) {
-		nl_socket_free(socket);
-		return RC_ERR_ALLOC;
+		rc = RC_ERR_ALLOC;
+		goto cleanup;
 	}
 
-	rc = RC_OK;
-
-	link = rtnl_link_get_by_name(link_cache, dev);
+	struct rtnl_link *link = rtnl_link_get_by_name(link_cache, dev);
 	ifindex = rtnl_link_get_ifindex(link);
 	mtu = rtnl_link_get_mtu(link);
 	if (mtu == 0 || mtu > 65535)
 		mtu = 65535;
+	rtnl_link_put(link);
 
 	addr_filter = rtnl_addr_alloc();
 	rtnl_addr_set_ifindex(addr_filter, ifindex);
@@ -2150,8 +2159,10 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	dm_sel2name(sel, buffer, sizeof(buffer));
 	logx(LOG_DEBUG, "interface: %s", buffer);
 
-	if (!(iftbl = dm_get_table_by_selector(sel)))
-		return RC_ERR_MISC;
+	if (!(iftbl = dm_get_table_by_selector(sel))) {
+		rc = RC_ERR_MISC;
+		goto cleanup;
+	}
 	dm_set_bool_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_forwarding, forward);
 	dm_set_uint_by_id(iftbl, field_ocpe__interfaces_state__interface__ipv4_mtu, mtu);
 
@@ -2200,9 +2211,11 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	/* This apparently passes ownership of nh */
 	rtnl_route_add_nexthop(route_filter, nh);
 
-	struct nl_addr *route_dst = nl_addr_build(AF_INET, NULL, 0);
-	if (!route_dst)
-		return RC_ERR_MISC;
+	route_dst = nl_addr_build(AF_INET, NULL, 0);
+	if (!route_dst) {
+		rc = RC_ERR_MISC;
+		goto cleanup;
+	}
 	rtnl_route_set_dst(route_filter, route_dst);
 
 	rtnl_route_set_family(route_filter, AF_INET);
@@ -2219,8 +2232,10 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	dm_sel2name(sel, buffer, sizeof(buffer));
 	logx(LOG_DEBUG, "interface: %s", buffer);
 
-	if (!(iftbl = dm_get_table_by_selector(sel)))
-		return RC_ERR_MISC;
+	if (!(iftbl = dm_get_table_by_selector(sel))) {
+		rc = RC_ERR_MISC;
+		goto cleanup;
+	}
 
 	snprintf(line, sizeof(line), "/proc/sys/net/ipv6/conf/%s/forwarding", dev);
 	sys_scan(line, "%u", &forward);
@@ -2270,16 +2285,25 @@ static uint32_t update_interface_state(struct dm_value_table *tbl)
 	dm_del_table_by_selector(sel);
 	nl_cache_foreach_filter(route_cache, (struct nl_object *)route_filter, update_route_state_ip6, sel);
 
-	nl_addr_put(route_dst);
+	rc = RC_OK;
 
-	nl_cache_free(route_cache);
-	nl_cache_free(neigh_cache);
-	nl_cache_free(addr_cache);
-	nl_cache_free(link_cache);
-	rtnl_link_put(link);
-	rtnl_addr_put(addr_filter);
-	rtnl_neigh_put(neigh_filter);
-	rtnl_route_put(route_filter);
+cleanup:
+	if (route_dst)
+		nl_addr_put(route_dst);
+	if (link_cache)
+		nl_cache_free(link_cache);
+	if (route_cache)
+		nl_cache_free(route_cache);
+	if (neigh_cache)
+		nl_cache_free(neigh_cache);
+	if (addr_cache)
+		nl_cache_free(addr_cache);
+	if (addr_filter)
+		rtnl_addr_put(addr_filter);
+	if (neigh_filter)
+		rtnl_neigh_put(neigh_filter);
+	if (route_filter)
+		rtnl_route_put(route_filter);
 	nl_socket_free(socket);
 
 	return rc;
