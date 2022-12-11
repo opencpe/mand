@@ -18,6 +18,7 @@ mand/p_table_stubs.c
 libdmconfig/codes.h
 libdmconfig/extensivedump.out
 libdmconfig/tests/event_client_sample
+libdmconfig/tests/event_notify_sample
 
 # lua build files
 lua/fncAdminPasswd.out

@@ -78,7 +78,8 @@ libdmconfig API documentation can be build with doxygen:
 For how to use this API, refer to the C and Lua samples in libdmconfig/tests.
 
 **NOTE:** Currently only the [event_client_sample.c](libdmconfig/tests/event_client_sample.c)
-example builds and reflects the current state of the API.
+and [event_notify_sample.c](libdmconfig/tests/event_notify_sample.c)
+examples build and reflect the current state of the API.
 
 # Adding new YANG modules
 
