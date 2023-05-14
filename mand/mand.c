@@ -198,10 +198,10 @@ int main(int argc, char *argv[])
 	if (init_Lua_environment())
 		debug("(): Couldn't initialize Lua environment");
 
+	dm_load_base_config();
+
 	if (fp_Lua_function("fncStartup", 0))
 		debug("(): Error during Lua function execution");
-
-	dm_load_base_config();
 
 	printf("deserialize "DM_CONFIG"\n");
 	fin = fopen(DM_CONFIG, "r");
