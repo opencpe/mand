@@ -15,8 +15,6 @@
 #define S_SYS  (1 << 2)
 #define S_ALL  (S_CFG | S_ACS | S_SYS)
 
-struct dm_enum notify_attr;
-
 void dm_serialize_store(FILE *stream, int flags);
 void dm_serialize_element(FILE *stream, const char *element, int flags);
 

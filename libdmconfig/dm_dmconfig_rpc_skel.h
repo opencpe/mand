@@ -10,9 +10,23 @@
 #ifndef DM_DMCONFIG_RPC_SKEL_H
 #define DM_DMCONFIG_RPC_SKEL_H
 
+#include <stdlib.h>
+
+//#include "mand/dm_dmconfig.h"
+
 #include "libdmconfig/dmmsg.h"
 #include "libdmconfig/dmconfig.h"
 
-uint32_t rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQUEST **answer);
+struct dm_request_info {
+	/** SOCKCONTEXT on which the request was received */
+	void *ctx;
+	/** partially prepared answer */
+	DM2_REQUEST *answer;
+	/** position of return code in answer */
+	size_t rc_pos;
+};
+
+uint32_t rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj,
+                             struct dm_request_info *request_info);
 
 #endif

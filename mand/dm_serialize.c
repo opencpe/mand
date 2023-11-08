@@ -14,6 +14,7 @@
 #include "dm.h"
 #include "dm_token.h"
 #include "dm_store.h"
+#include "dm_deserialize.h"
 #include "dm_serialize.h"
 #include "dm_strings.h"
 #include "dm_cfgversion.h"

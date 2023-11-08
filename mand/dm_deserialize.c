@@ -71,7 +71,7 @@ startElement(void *userData, const char *name, const char **atts)
 
 	int xid = 0;
 	int ntfy = 0;
-	dm_id id;
+	dm_id id = DM_ERR;
 
 	(*state)++;
 	if (!is_root)
@@ -109,10 +109,13 @@ startElement(void *userData, const char *name, const char **atts)
 				debug("(): Error during Lua function execution");
 		}
 	} else {
-		if (xid != 0)
-			asprintf(&(*state)->base, "%s.%s.%d", base, name, xid);
-		else
-			asprintf(&(*state)->base, "%s.%s", base, name);
+		int rc = xid != 0
+			? asprintf(&(*state)->base, "%s.%s.%d", base, name, xid)
+			: asprintf(&(*state)->base, "%s.%s", base, name);
+		if (rc < 0) {
+			debug("memory allocation failed");
+			return;
+		}
 
 		if (valid) {
 			const struct dm_table *table = element->u.t.table;
@@ -185,7 +188,7 @@ startElement(void *userData, const char *name, const char **atts)
 static void string_unescape(char *text, const char *s, int len)
 {
 	int in_c = 0;
-	char c;
+	char c = 0;
 	char *d = text + strlen(text);
 
 	while (len) {
@@ -250,7 +253,7 @@ endElement(void *userData, const char *name __attribute__ ((unused)))
 {
 	struct XMLstate **state = userData;
 
-	if (((*state)->flags & XML_ROOT) != XML_VALID) {
+//	if (((*state)->flags & XML_ROOT) != XML_VALID) {
 		if (((*state)->flags & XML_VALID) == XML_VALID) {
 			handleElement(*state);
 
@@ -259,7 +262,7 @@ endElement(void *userData, const char *name __attribute__ ((unused)))
 		} else {
 			debug("handle invalid: %s = '%s'\n", (*state)->base, (*state)->text ? : "NOTHING");
 		}
-	}
+//	}
 
 	if (((*state)->flags & XML_UPGRADE) == XML_UPGRADE) {
 		lua_pushinteger(lua_environment, CFG_VERSION);

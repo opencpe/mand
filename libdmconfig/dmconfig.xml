@@ -108,9 +108,6 @@
 		<command name="Client-Event-Broadcast" code="1001">
 			<!-- TODO -->
 		</command>
-		<command name="Client-Get-Interface-State" code="1002">
-			<!-- TODO -->
-		</command>
 
 		<!-- OpenCPE Commands -->
 		<command name="Firmware-Download" code="2000">

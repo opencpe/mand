@@ -27,7 +27,7 @@ dnl ##
 
 AC_MSG_PART(Build Tools)
 
-AM_PATH_PYTHON
+AM_PATH_PYTHON([3.0])
 AX_PYTHON_MODULE([pyang], [true])
 AC_CHECK_PROG(PYANG, pyang, pyang)
 
@@ -40,7 +40,6 @@ AM_PROG_CC_C_O
 AC_CHECK_PROG(LUAC, luac, luac)
 AC_CHECK_PROG(LUAC, luac5.1, luac5.1)
 AC_CHECK_HEADER(lua.h, , AC_MSG_ERROR(You need the lua headers) )
-AC_CHECK_PROG(RENAME, rename, rename)
 AC_PROG_INSTALL
 AC_SET_MAKE
 AC_CHECK_DEBUGGING
@@ -104,6 +103,11 @@ fi
 AC_CHECK_LIB(talloc, talloc_named_const, , AC_MSG_ERROR(Required libtalloc missing) )
 AC_CHECK_HEADERS([talloc.h talloc/talloc.h])
 
+# Necessary to rertrieving the interface-state.
+PKG_CHECK_MODULES([LIBNL3], [libnl-3.0 >= 3.2.8 libnl-route-3.0 >= 3.2.8])
+AC_SUBST([LIBNL3_LIBS])
+AC_SUBST([LIBNL3_CFLAGS])
+
 save_LIBS=$LIBS
 
 AC_CHECK_HEADER(pthread.h, , AC_MSG_ERROR(You need the pthread headers) )
@@ -116,6 +120,12 @@ dnl
 dnl
 
 AC_MSG_PART(Options)
+
+AC_ARG_WITH(config-version,
+	[AC_HELP_STRING([--with-config-version=<VERSION>],
+			[Version of serialized configs])],
+	[cfg_version=$withval], [cfg_version=1])
+AC_DEFINE_UNQUOTED(CFG_VERSION, $cfg_version, [Version of serialized configs])
 
 dnl libdmconfig related options
 

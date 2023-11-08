@@ -15,5 +15,6 @@ CLEANFILES = $(targets)
 	@LUAC@ @LUACFLAGS@ -o $@ $^
 
 install-data-hook:
-	@RENAME@ 's/\.out/.lua/' $(DESTDIR)$(luafunctionsdir)/*.out
-
+	for f in $(DESTDIR)$(luafunctionsdir)/*.out; do \
+		mv $$f `dirname $$f`/`basename $$f .out`.lua; \
+	done

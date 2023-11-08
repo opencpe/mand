@@ -8,7 +8,7 @@ AM_CFLAGS = -DWITH_SOAPDEFS_H
 
 EXTRA_DIST = doxygen.cfg
 
-SUBDIRS = utils libdmconfig libdmconfig/tests mand lua
+SUBDIRS = utils libdmconfig libdmconfig/tests mand
 
 LIBTOOL_DEPS = @LIBTOOL_DEPS@
 libtool: $(LIBTOOL_DEPS)

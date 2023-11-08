@@ -68,6 +68,8 @@ void dm_save(void)
 		fout = fdopen(fd, "w");
 		if (fout) {
 			dm_serialize_store(fout, S_CFG);
+			fflush(fout);
+			fsync(fd);
 			fclose(fout);
 			rename(fname, DM_CONFIG);
 		} else {
@@ -145,7 +147,8 @@ int main(int argc, char *argv[])
 	FILE *fin;
 
 	/* switch working dir to /tmp so that logfiles can be written */
-	chdir("/tmp");
+	if (chdir("/tmp") < 0)
+		perror("chdir");
 
 	/*
 	 * prevent any spawned processes from inheriting LD_PRELOAD
@@ -195,10 +198,10 @@ int main(int argc, char *argv[])
 	if (init_Lua_environment())
 		debug("(): Couldn't initialize Lua environment");
 
+	dm_load_base_config();
+
 	if (fp_Lua_function("fncStartup", 0))
 		debug("(): Error during Lua function execution");
-
-	dm_load_base_config();
 
 	printf("deserialize "DM_CONFIG"\n");
 	fin = fopen(DM_CONFIG, "r");
@@ -209,18 +212,17 @@ int main(int argc, char *argv[])
 		dm_load_default_config();
         }
 
-	if (run_daemon)
-		if (daemon(1, 0) != 0) {
-			fprintf(stderr, "daemon failed: %s\n", strerror(errno));
-			exit(1);
-
-		}
-
 	dm_notify_init(EV_DEFAULT_UC);
 
 	libdmconfigSocketType = AF_INET;
 	if (init_libdmconfig_server(EV_DEFAULT_UC))
 		debug("Cannot initiate libdmconfig server\n");
+
+	if (run_daemon)
+		if (daemon(1, 0) != 0) {
+			fprintf(stderr, "daemon failed: %s\n", strerror(errno));
+			exit(1);
+		}
 
 	ev_loop(EV_DEFAULT_UC_ 0);
 

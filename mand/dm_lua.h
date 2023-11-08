@@ -74,11 +74,10 @@ lua_register_type_constants(lua_State *L)
 		{"t_binary",	AVP_BINARY},
 		{"t_unknown",	AVP_UNKNOWN},
 
-#if 0
-		{"n_object",	NODE_OBJECT},	/* list result node types */
-		{"n_table",	NODE_TABLE},
-		{"n_parameter",	NODE_PARAMETER},
-#endif
+		{"t_object",	AVP_OBJECT},	/* list result node types */
+		{"t_table",	AVP_TABLE},
+		{"t_element",	AVP_ELEMENT},
+
 		{NULL, 0}
 	};
 

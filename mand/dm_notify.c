@@ -25,6 +25,8 @@
 //#define SDEBUG
 #include "debug.h"
 
+int notify_enabled = 1;
+
 static int notify_pending = 0;
 
 static int
@@ -180,6 +182,9 @@ void notify_sel(int slot, const dm_selector sel,
 
 	if (ntfy == 0)
 		/* not notify's at all */
+		return;
+
+	if (!notify_enabled)
 		return;
 
 	debug("(): %s, %08x ... %d", dm_sel2name(sel, b1, sizeof(b1)), ntfy, slot);
@@ -367,7 +372,12 @@ DM_RESULT dm_set_notify_by_selector_recursive(const dm_selector sel, int slot, i
 
 	ENTER();
 
-	if (dm_get_element_ref(sel, &ref)) {
+	if (!sel[0]) {
+		debug("(): notify on root\n");
+		set_notify_slot_table(&dm_root, dm_value_store, slot, value);
+		EXIT();
+		return DM_OK;
+	} else if (dm_get_element_ref(sel, &ref)) {
 #if DEBUG
 		debug("(): %s\n", ref.kw_base->name);
 #endif

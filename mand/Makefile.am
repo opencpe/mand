@@ -5,7 +5,8 @@
 AM_CFLAGS = -g -Werror -funit-at-a-time \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/include/compat \
-	-I$(top_builddir)
+	-I$(top_builddir) \
+	$(LIBNL3_CFLAGS)
 
 SUBDIRS = snmp tests
 
@@ -54,7 +55,8 @@ if NET_SNMP
 mand_SOURCES += net-snmpd.c
 endif
 
-mand_LDADD = libdm.la $(top_builddir)/libdmconfig/libdm_dmconfig.la
+mand_LDADD = libdm.la $(top_builddir)/libdmconfig/libdm_dmconfig.la \
+             $(LIBNL3_LIBS)
 
 p_table.c p_table.h dm_action_table.c dm_action_table.h: $(top_srcdir)/yang/specs/*yang
 	$(PYANG) --plugindir $(top_srcdir)/yang/pyang_plugin/ -p $(top_srcdir)/yang/specs -f OpenCPE $(top_srcdir)/yang/specs/*.yang

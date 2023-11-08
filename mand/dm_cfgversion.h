@@ -5,8 +5,6 @@
 #ifndef __HAVE_DM_CFGVERSION_H
 #define __HAVE_DM_CFGVERSION_H
 
-#define CFG_VERSION  1
-
 int dm_get_cfg_version(void);
 void dm_set_cfg_version(int v);
 

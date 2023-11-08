@@ -45,7 +45,7 @@ dm_expect_path_type(DM2_AVPGRP *grp, uint32_t exp_code, uint32_t exp_vendor_id, 
 		return r;
 
 	if (!dm_name2sel(s, value))
-		r = RC_ERR_MISC;
+		r = RC_ERR_VALUE_NOT_FOUND;
 
 	talloc_free(s);
 	return r;
@@ -404,7 +404,7 @@ rpc_system_shutdown_skel(void *ctx, DM2_AVPGRP *obj)
 }
 
 static inline uint32_t
-rpc_firmware_download_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
+rpc_firmware_download_skel(void *ctx, DM2_AVPGRP *obj, struct dm_request_info *request_info)
 {
 	uint32_t rc;
 	char *address;
@@ -429,11 +429,12 @@ rpc_firmware_download_skel(void *ctx, DM2_AVPGRP *obj, DM2_REQUEST *answer)
 
 	return rpc_firmware_download(ctx, address, credentialstype, credential,
 				     install_target, timeframe, retry_count,
-				     retry_interval, retry_interval_increment, answer);
+				     retry_interval, retry_interval_increment,
+	                             request_info);
 }
 
 static inline uint32_t
-rpc_firmware_commit_skel(void *ctx, DM2_AVPGRP *obj)
+rpc_firmware_commit_skel(void *ctx, DM2_AVPGRP *obj, struct dm_request_info *request_info)
 {
 	uint32_t rc;
 	int32_t job_id;
@@ -442,11 +443,11 @@ rpc_firmware_commit_skel(void *ctx, DM2_AVPGRP *obj)
 	    || (rc = dm_expect_end(obj)) != RC_OK)
 		return rc;
 
-	return rpc_firmware_commit(ctx, job_id);
+	return rpc_firmware_commit(ctx, job_id, request_info);
 }
 
 static inline uint32_t
-rpc_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
+rpc_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj, struct dm_request_info *request_info)
 {
 	uint32_t rc;
 	int pcnt;
@@ -464,17 +465,16 @@ rpc_set_boot_order_skel(void *ctx, DM2_AVPGRP *obj)
 	} while (dm_expect_end(obj) != RC_OK);
 
 	if (rc == RC_OK)
-		rc = rpc_set_boot_order(ctx, pcnt, (const char **)boot_order);
+		rc = rpc_set_boot_order(ctx, pcnt, (const char **)boot_order, request_info);
 
 	talloc_free(boot_order);
 	return rc;
 }
 
 uint32_t
-rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQUEST **answer)
+rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, struct dm_request_info *request_info)
 {
 	uint32_t rc;
-	size_t pos;
 
 	/* one way requests */
 	switch (req->code) {
@@ -482,92 +482,93 @@ rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQU
 		return rpc_endsession_skel(ctx, obj);
 	}
 
-	if (!(*answer = dm_new_request(ctx, req->code, 0, req->hop2hop, req->end2end)))
+	if (!(request_info->answer = dm_new_request(ctx, req->code, 0, req->hop2hop, req->end2end)))
 		return RC_ERR_ALLOC;
 
 	/* make the RC the first AVP and remember it's position */
-	if ((rc = dm_add_uint32_get_pos(*answer, AVP_RC, VP_TRAVELPING, RC_OK, &pos)) != RC_OK)
+	if ((rc = dm_add_uint32_get_pos(request_info->answer, AVP_RC, VP_TRAVELPING, RC_OK,
+	                                &request_info->rc_pos)) != RC_OK)
 		return rc;
 
 	switch (req->code) {
 	case CMD_STARTSESSION:
-		rc = rpc_startsession_skel(ctx, obj, *answer);
+		rc = rpc_startsession_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_SWITCHSESSION:
-		rc = rpc_switchsession_skel(ctx, obj, *answer);
+		rc = rpc_switchsession_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_SESSIONINFO:
-		rc = rpc_sessioninfo_skel(ctx, obj, *answer);
+		rc = rpc_sessioninfo_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_CFGSESSIONINFO:
-		rc = rpc_cfgsessioninfo_skel(ctx, obj, *answer);
+		rc = rpc_cfgsessioninfo_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_SUBSCRIBE_NOTIFY:
-		rc = rpc_subscribe_notify_skel(ctx, obj, *answer);
+		rc = rpc_subscribe_notify_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_UNSUBSCRIBE_NOTIFY:
-		rc = rpc_unsubscribe_notify_skel(ctx, obj, *answer);
+		rc = rpc_unsubscribe_notify_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_PARAM_NOTIFY:
-		rc = rpc_param_notify_skel(ctx, obj, *answer);
+		rc = rpc_param_notify_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_RECURSIVE_PARAM_NOTIFY:
-		rc = rpc_recursive_param_notify_skel(ctx, obj, *answer);
+		rc = rpc_recursive_param_notify_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_GET_PASSIVE_NOTIFICATIONS:
-		rc = rpc_get_passive_notifications_skel(ctx, obj, *answer);
+		rc = rpc_get_passive_notifications_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_ADDINSTANCE:
-		rc = rpc_db_addinstance_skel(ctx, obj, *answer);
+		rc = rpc_db_addinstance_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_DELINSTANCE:
-		rc = rpc_db_delinstance_skel(ctx, obj, *answer);
+		rc = rpc_db_delinstance_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_SET:
-		rc = rpc_db_set_skel(ctx, obj, *answer);
+		rc = rpc_db_set_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_GET:
-		rc = rpc_db_get_skel(ctx, obj, *answer);
+		rc = rpc_db_get_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_LIST:
-		rc = rpc_db_list_skel(ctx, obj, *answer);
+		rc = rpc_db_list_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_RETRIEVE_ENUMS:
-		rc = rpc_db_retrieve_enum_skel(ctx, obj, *answer);
+		rc = rpc_db_retrieve_enum_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_DUMP:
-		rc = rpc_db_dump_skel(ctx, obj, *answer);
+		rc = rpc_db_dump_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_SAVE:
-		rc = rpc_db_save_skel(ctx, obj, *answer);
+		rc = rpc_db_save_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_COMMIT:
-		rc = rpc_db_commit_skel(ctx, obj, *answer);
+		rc = rpc_db_commit_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_CANCEL:
-		rc = rpc_db_cancel_skel(ctx, obj, *answer);
+		rc = rpc_db_cancel_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_DB_FINDINSTANCE:
-		rc = rpc_db_findinstance_skel(ctx, obj, *answer);
+		rc = rpc_db_findinstance_skel(ctx, obj, request_info->answer);
 		break;
 
 	case CMD_REGISTER_ROLE:
@@ -582,17 +583,24 @@ rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQU
 		rc = rpc_system_shutdown_skel(ctx, obj);
 		break;
 
+	/*
+	 * Ownership of request_info is passed to these functions
+	 * because the answers will be sent from libev watchers.
+	 */
 	case CMD_FIRMWARE_DOWNLOAD:
-		rpc_firmware_download_skel(ctx, obj, *answer);
-		break;
+		talloc_increase_ref_count(request_info);
+		rpc_firmware_download_skel(ctx, obj, request_info);
+		return RC_OK;
 
 	case CMD_FIRMWARE_COMMIT:
-		rpc_firmware_commit_skel(ctx, obj);
-		break;
+		talloc_increase_ref_count(request_info);
+		rpc_firmware_commit_skel(ctx, obj, request_info);
+		return RC_OK;
 
 	case CMD_SET_BOOT_ORDER:
-		rpc_set_boot_order_skel(ctx, obj);
-		break;
+		talloc_increase_ref_count(request_info);
+		rpc_set_boot_order_skel(ctx, obj, request_info);
+		return RC_OK;
 
 	default:
 		rc = RC_ERR_CONNECTION;
@@ -601,8 +609,8 @@ rpc_dmconfig_switch(void *ctx, const DMC_REQUEST *req, DM2_AVPGRP *obj, DM2_REQU
 
 	if (rc != RC_ERR_ALLOC) {
 		/* fill in the RC */
-		dm_put_uint32_at_pos(*answer, pos, rc);
-		return dm_finalize_packet(*answer);
+		dm_put_uint32_at_pos(request_info->answer, request_info->rc_pos, rc);
+		return dm_finalize_packet(request_info->answer);
 	}
 
 	return rc;

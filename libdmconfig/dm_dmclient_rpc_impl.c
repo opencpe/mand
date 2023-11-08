@@ -10,7 +10,6 @@
 
 uint32_t rpc_client_active_notify(void *ctx, DM2_AVPGRP *obj) __attribute__ ((weak, alias ("__rpc_client_active_notify")));
 uint32_t rpc_client_event_broadcast(void *ctx, const char *path, uint32_t type) __attribute__ ((weak, alias ("__rpc_client_event_broadcast")));
-uint32_t rpc_client_get_interface_state(void *ctx, const char *if_name, DM2_REQUEST *answer) __attribute__ ((weak, alias ("__rpc_client_get_interface_state")));
 uint32_t rpc_agent_firmware_download(void *ctx, char *address, uint8_t credentialstype, char *credential,
 				     char *install_target, uint32_t timeframe, uint8_t retry_count,
 				     uint32_t retry_interval, uint32_t retry_interval_increment,
@@ -24,11 +23,6 @@ uint32_t __rpc_client_active_notify(void *ctx __attribute__((unused)), DM2_AVPGR
 }
 
 uint32_t __rpc_client_event_broadcast(void *ctx __attribute__((unused)), const char *path __attribute__((unused)), uint32_t type __attribute__((unused)))
-{
-	return RC_OK;
-}
-
-uint32_t __rpc_client_get_interface_state(void *ctx __attribute__((unused)), const char *if_name __attribute__((unused)), DM2_REQUEST *answer __attribute__((unused)))
 {
 	return RC_OK;
 }

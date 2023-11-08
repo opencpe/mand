@@ -8,6 +8,12 @@ module opencpe-mand {
         prefix "if";
         revision-date 2013-07-04;
     }
+    import ietf-ip {
+        prefix ip;
+    }
+    import ietf-inet-types {
+        prefix inet;
+    }
 
     organization
         "Travelping GmbH";
@@ -26,4 +32,23 @@ module opencpe-mand {
         }
     }
 
+    /*
+     * FIXME: We could map all routes into the data model instead
+     * of only the default gateways.
+     */
+    augment "/if:interfaces-state/if:interface/ip:ipv4" {
+        leaf-list gateway-ip {
+            type inet:ipv4-address-no-zone;
+            description
+                "A list of gateway addresses.";
+        }
+    }
+
+    augment "/if:interfaces-state/if:interface/ip:ipv6" {
+        leaf-list gateway-ip {
+            type inet:ipv6-address-no-zone;
+            description
+                "A list of gateway addresses.";
+        }
+    }
 }
