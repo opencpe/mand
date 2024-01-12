@@ -1586,10 +1586,10 @@ int dm_compare_values(int type, DM_VALUE *a, DM_VALUE *b)
  * set methods
  */
 
-void dm_set_bool_by_id(struct dm_value_table *ift, dm_id id, char bool)
+void dm_set_bool_by_id(struct dm_value_table *ift, dm_id id, char bool_val)
 {
 	DM_parity_assert(ift->values[id - 1]);
-	set_DM_BOOL(ift->values[id - 1], bool);
+	set_DM_BOOL(ift->values[id - 1], bool_val);
 	DM_parity_update(ift->values[id - 1]);
 	__DM_NOTIFY_BY_ID(ift, id);
 }

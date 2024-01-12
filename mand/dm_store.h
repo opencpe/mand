@@ -431,9 +431,9 @@ char dm_get_bool_by_selector(const dm_selector sel)
 	return DM_BOOL(dm_get_any_value_by_selector(sel, T_BOOL));
 }
 
-int dm_set_bool_by_selector(const dm_selector sel, char bool, int flags)
+int dm_set_bool_by_selector(const dm_selector sel, char bool_val, int flags)
 {
-	return dm_set_any_value_by_selector(sel, T_BOOL, init_DM_BOOL(bool, flags));
+	return dm_set_any_value_by_selector(sel, T_BOOL, init_DM_BOOL(bool_val, flags));
 }
 
 char dm_get_bool_by_id(struct dm_value_table *ift, dm_id id)
